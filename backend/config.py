@@ -5,6 +5,7 @@ load_dotenv()
 
 
 class Config:
+    # MySQL connection
     DB_HOST = os.getenv("DB_HOST", "localhost")
     DB_PORT = os.getenv("DB_PORT", "3306")
     DB_NAME = os.getenv("DB_NAME", "rainchem")
@@ -13,7 +14,8 @@ class Config:
     DB_SSL_CA = os.getenv("DB_SSL_CA", "")
 
     SQLALCHEMY_DATABASE_URI = (
-        f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}"
+        f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         "?charset=utf8mb4"
     )
 
@@ -28,18 +30,32 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Security
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
     JWT_SECRET_KEY = SECRET_KEY
     JWT_ACCESS_TOKEN_EXPIRES = 60 * 60 * 24 * 7
 
-    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    # Frontend
+    FRONTEND_URL = os.getenv(
+        "FRONTEND_URL",
+        "http://localhost:5173"
+    )
 
-    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+    # SMTP settings
+    SMTP_HOST = os.getenv("SMTP_HOST", "")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+
+    # Email
     SMTP_FROM = os.getenv(
         "SMTP_FROM",
         "onboarding@resend.dev"
     )
 
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+
+    # Google login
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 
 
