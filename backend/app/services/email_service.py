@@ -1,42 +1,46 @@
-"""
-Sends outgoing notifications (verification codes, password resets, order
-updates). If SMTP settings are configured in the environment, a real email
-is sent. Otherwise the message is printed to the console and saved to the
-notifications table, so nothing is silently lost during development.
-"""
-
-import smtplib
-from email.mime.text import MIMEText
-from flask import current_app
-from app.extensions import db
-from app.models import Notification
-
-
 def send_email(to_email, subject, body, user_id=None):
     config = current_app.config
-    sent_via_smtp = False
+    api_key = config.get("RESEND_API_KEY", "")
+    sender = config.get("SMTP_FROM", "onboarding@resend.dev")
 
-    if config.get("SMTP_HOST"):
+    sent = False
+    error_detail = None
+
+    if not api_key:
+        error_detail = "RESEND_API_KEY is empty or not loaded from config"
+    else:
         try:
-            message = MIMEText(body)
-            message["Subject"] = subject
-            message["From"] = config["SMTP_FROM"]
-            message["To"] = to_email
+            response = requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": f"Rainchem <{sender}>",
+                    "to": [to_email],
+                    "subject": subject,
+                    "text": body,
+                },
+                timeout=15,
+            )
+            if response.status_code >= 400:
+                error_detail = f"Resend replied {response.status_code}: {response.text}"
+            else:
+                sent = True
+        except requests.RequestException as error:
+            error_detail = f"Request error: {error}"
 
-            with smtplib.SMTP(config["SMTP_HOST"], config["SMTP_PORT"]) as server:
-                server.starttls()
-                if config.get("SMTP_USERNAME"):
-                    server.login(config["SMTP_USERNAME"], config["SMTP_PASSWORD"])
-                server.sendmail(config["SMTP_FROM"], [to_email], message.as_string())
-            sent_via_smtp = True
-        except Exception as error:
-            current_app.logger.warning("Failed to send email via SMTP: %s", error)
+    if not sent:
+        print(
+            f"\n--- EMAIL NOT SENT to {to_email} ---\n"
+            f"REASON: {error_detail}\n"
+            f"Subject: {subject}\n"
+            f"---\n",
+            flush=True,
+        )
 
-    if not sent_via_smtp:
-        print(f"\n--- Email to {to_email} ---\nSubject: {subject}\n\n{body}\n---\n")
-
-    notification = Notification(user_id=user_id, channel="email", subject=subject, body=body)
-    db.session.add(notification)
+    db.session.add(Notification(user_id=user_id, channel="email", subject=subject, body=body))
     db.session.commit()
 
-    return sent_via_smtp
+    return sent
