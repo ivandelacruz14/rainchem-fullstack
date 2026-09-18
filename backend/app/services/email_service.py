@@ -1,3 +1,10 @@
+import requests
+from flask import current_app
+
+from app.extensions import db
+from app.models import Notification
+
+
 def send_email(to_email, subject, body, user_id=None):
     config = current_app.config
     api_key = config.get("RESEND_API_KEY", "")
