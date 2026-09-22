@@ -7,6 +7,7 @@ from app.models import Notification
 
 def send_email(to_email, subject, body, user_id=None):
     config = current_app.config
+
     api_key = config.get("RESEND_API_KEY", "")
     sender = config.get("SMTP_FROM", "onboarding@resend.dev")
 
@@ -15,6 +16,7 @@ def send_email(to_email, subject, body, user_id=None):
 
     if not api_key:
         error_detail = "RESEND_API_KEY is empty or not loaded from config"
+
     else:
         try:
             response = requests.post(
@@ -31,23 +33,48 @@ def send_email(to_email, subject, body, user_id=None):
                 },
                 timeout=15,
             )
+
             if response.status_code >= 400:
-                error_detail = f"Resend replied {response.status_code}: {response.text}"
+                error_detail = (
+                    f"Resend replied {response.status_code}: "
+                    f"{response.text}"
+                )
+
             else:
                 sent = True
+
+                print(
+                    "\n--- EMAIL SENT THROUGH RESEND ---\n"
+                    f"To: {to_email}\n"
+                    f"Status Code: {response.status_code}\n"
+                    f"Response: {response.text}\n"
+                    "---\n",
+                    flush=True,
+                )
+
         except requests.RequestException as error:
             error_detail = f"Request error: {error}"
 
     if not sent:
         print(
-            f"\n--- EMAIL NOT SENT to {to_email} ---\n"
+            "\n--- EMAIL NOT SENT ---\n"
+            f"To: {to_email}\n"
             f"REASON: {error_detail}\n"
             f"Subject: {subject}\n"
-            f"---\n",
+            "---\n",
             flush=True,
         )
 
-    db.session.add(Notification(user_id=user_id, channel="email", subject=subject, body=body))
+    # Save notification to database
+    db.session.add(
+        Notification(
+            user_id=user_id,
+            channel="email",
+            subject=subject,
+            body=body,
+        )
+    )
+
     db.session.commit()
 
     return sent
