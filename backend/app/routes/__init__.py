@@ -7,6 +7,7 @@ from app.routes.admin_users import admin_users_bp
 from app.routes.knowledge import knowledge_bp
 from app.routes.chat import chat_bp
 from app.routes.admin_dashboard import admin_dashboard_bp
+from app.routes.seed_temp import seed_temp_bp
 
 
 def register_routes(app):
@@ -19,3 +20,4 @@ def register_routes(app):
     app.register_blueprint(knowledge_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(admin_dashboard_bp)
+    app.register_blueprint(seed_temp_bp)
