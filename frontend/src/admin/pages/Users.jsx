@@ -8,6 +8,8 @@ export default function Users() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setRevealed(false);
@@ -23,6 +25,21 @@ export default function Users() {
   async function openDetail(userId) {
     const res = await client.get(`/api/admin/users/${userId}`);
     setSelected(res.data.user);
+  }
+
+  async function deleteUser(userId) {
+    setDeleting(true);
+    try {
+      await client.delete(`/api/admin/users/${userId}`);
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setConfirmDelete(null);
+      setSelected(null);
+      setSummary((prev) => prev && { ...prev, total: prev.total - 1 });
+    } catch (err) {
+      alert(err?.response?.data?.error || "Could not delete this account. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -50,7 +67,7 @@ export default function Users() {
             </div>
             <div className="table-wrap">
               <table className="admin-table">
-                <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Orders</th><th>Joined</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Orders</th><th>Joined</th><th></th><th></th></tr></thead>
                 <tbody>
                   {users.map((u) => (
                     <tr key={u.id}>
@@ -61,6 +78,7 @@ export default function Users() {
                       <td>{u.orderCount}</td>
                       <td>{formatDate(u.createdAt).split(",")[0]}</td>
                       <td><button className="icon-action" onClick={() => openDetail(u.id)}>View</button></td>
+                      <td><button className="icon-action" style={{ color: "#c0392b" }} onClick={() => setConfirmDelete(u)}>Delete</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -86,6 +104,36 @@ export default function Users() {
                   <div className="cart-summary-row" key={o.id}><span className="mono">{o.orderNumber}</span><span>{o.statusLabel}</span></div>
                 ))
               )}
+              <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid #eee" }}>
+                <button className="btn btn-sm" style={{ background: "#c0392b", color: "#fff" }} onClick={() => setConfirmDelete(selected)}>
+                  Delete Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="overlay" onClick={() => !deleting && setConfirmDelete(null)}>
+          <div className="modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head"><h3 style={{ margin: 0 }}>Delete this account?</h3></div>
+            <div className="modal-body">
+              <p style={{ fontSize: 13.5, color: "#4a4540" }}>
+                This will permanently delete <strong>{confirmDelete.name}</strong> ({confirmDelete.email}).
+                This cannot be undone, and they will need to register again with a fresh account.
+              </p>
+              <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
+                <button className="btn btn-sm btn-outline" disabled={deleting} onClick={() => setConfirmDelete(null)}>Cancel</button>
+                <button
+                  className="btn btn-sm"
+                  style={{ background: "#c0392b", color: "#fff" }}
+                  disabled={deleting}
+                  onClick={() => deleteUser(confirmDelete.id)}
+                >
+                  {deleting ? "Deleting..." : "Yes, Delete"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
