@@ -164,7 +164,7 @@ export default function AuthModal() {
                 Don't have an account?{" "}
                 <button type="button" className="link-btn" onClick={() => switchMode("register")}>Sign up</button>
               </p>
-              <p className="field-hint" style={{ textAlign: "center" }}>Demo account: rider@example.com / Rider123!</p>
+              
             </form>
           )}
 

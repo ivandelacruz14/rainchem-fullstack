@@ -32,7 +32,6 @@ export default function Footer() {
               <li><a href="/#faq">FAQ</a></li>
               <li><button className="link-btn" onClick={toggleChat}>Chat with AI</button></li>
               <li><Link to="/account">Track an Order</Link></li>
-              <li><Link to="/admin/login">Admin Login</Link></li>
             </ul>
           </div>
           <div>

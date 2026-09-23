@@ -5,6 +5,7 @@ import ProductCard from "../components/ProductCard";
 import ProductModal from "../components/ProductModal";
 import { CategoryIcon } from "../components/ProductVisual";
 import { useUI } from "../context/UIContext";
+import { useAuth } from "../context/AuthContext";
 
 const CATEGORIES = [
   { name: "Oils & Fluids", blurb: "Synthetic & semi-synthetic engine oil, brake fluid." },
@@ -21,6 +22,7 @@ export default function Home() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [faqs, setFaqs] = useState([]);
   const { requireLogin, toggleChat } = useUI();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -185,11 +187,13 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="cta-band" id="contact">
-        <h2>Ready to ride worry-free?</h2>
-        <p>Create an account to track orders, save addresses, and check out faster.</p>
-        <button className="btn btn-white" onClick={() => requireLogin("register")}>Create Free Account</button>
-      </section>
+      {!user && (
+  <section className="cta-band" id="contact">
+    <h2>Ready to ride worry-free?</h2>
+    <p>Create an account to track orders, save addresses, and check out faster.</p>
+    <button className="btn btn-white" onClick={() => requireLogin("register")}>Create Free Account</button>
+  </section>
+)}
 
       {selectedProduct && (
         <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />

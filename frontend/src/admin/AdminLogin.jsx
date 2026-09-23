@@ -36,7 +36,6 @@ export default function AdminLogin() {
           <button type="submit" className="btn btn-primary btn-block">Log In to Dashboard</button>
         </form>
         <div className="admin-demo-hint">
-          Demo admin: admin@raincheminternational.com / Admin123!<br />
           There is no public sign-up. New admin accounts are created from inside this dashboard.
         </div>
         <p className="auth-switch"><Link to="/">Back to storefront</Link></p>
