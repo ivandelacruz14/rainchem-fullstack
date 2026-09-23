@@ -13,7 +13,7 @@ class Product(db.Model):
     rating = db.Column(db.Numeric(2, 1), nullable=False, default=4.5)
     reviews = db.Column(db.Integer, nullable=False, default=0)
     image_glyph = db.Column(db.String(60), nullable=True)
-    image_photo = db.Column(db.Text, nullable=True)
+    image_photo = db.Column(db.Text(length=4294967295), nullable=True)
     short_desc = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
     specs = db.Column(db.JSON, nullable=True)

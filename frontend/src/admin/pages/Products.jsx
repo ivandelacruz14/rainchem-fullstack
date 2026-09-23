@@ -82,6 +82,15 @@ export default function Products() {
     };
     if (pendingImage) payload.imagePhoto = pendingImage;
 
+    if (!form.price || isNaN(parseFloat(form.price))) {
+  showToast("Please enter a valid price", "error");
+  return;
+}
+if (!form.stock || isNaN(parseInt(form.stock))) {
+  showToast("Please enter a valid stock number", "error");
+  return;
+}
+
     try {
       if (editing) {
         await client.put(`/api/products/${editing.id}`, payload);
@@ -92,9 +101,11 @@ export default function Products() {
       }
       setShowForm(false);
       loadProducts();
-    } catch {
-      showToast("Could not save this product", "error");
-    }
+    } catch (err) {
+      const detail = err.response?.data?.error || err.message;
+      showToast(`Could not save this product: ${detail}`, "error");
+      console.error("Product save failed:", err.response?.data || err);
+      }
   }
 
   async function handleDelete(id) {
