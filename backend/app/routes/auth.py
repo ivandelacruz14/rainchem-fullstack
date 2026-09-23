@@ -28,7 +28,9 @@ def register():
         errors.append("Please enter your full name")
     if not is_valid_email(email):
         errors.append("Please enter a valid email address")
-    if User.query.filter_by(email=email).first():
+
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user and existing_user.verified:
         errors.append("An account with this email already exists")
     if not is_valid_phone(phone):
         errors.append("Please enter a valid contact number")
@@ -40,12 +42,23 @@ def register():
     if errors:
         return jsonify({"errors": errors}), 400
 
-    user = User(
-        name=name, email=email, phone=phone,
-        password_hash=generate_password_hash(password), verified=False,
-    )
-    db.session.add(user)
-    db.session.commit()
+    if existing_user and not existing_user.verified:
+        # A previous registration attempt never got verified (often because
+        # the verification email failed to arrive). Reuse that account
+        # instead of blocking the person with an "already exists" error,
+        # and send a fresh code.
+        user = existing_user
+        user.name = name
+        user.phone = phone
+        user.password_hash = generate_password_hash(password)
+        db.session.commit()
+    else:
+        user = User(
+            name=name, email=email, phone=phone,
+            password_hash=generate_password_hash(password), verified=False,
+        )
+        db.session.add(user)
+        db.session.commit()
 
     code = generate_verification_code()
     verification = EmailVerification(
