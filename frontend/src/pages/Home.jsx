@@ -20,6 +20,7 @@ export default function Home() {
   const [products, setProducts] = useState([]);
   const [filter, setFilter] = useState("All");
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [expandedCategory, setExpandedCategory] = useState(null);
   const [faqs, setFaqs] = useState([]);
   const { requireLogin, toggleChat } = useUI();
   const { user } = useAuth();
@@ -96,24 +97,33 @@ export default function Home() {
       </section>
 
       <section className="section" id="shop" style={{ background: "#fff" }}>
-        <div className="container">
-          <div className="section-head">
-            <div className="eyebrow">Full Catalog</div>
-            <h2>Products &amp; services</h2>
-            <p>Filter by category, or browse for exactly what your bike needs.</p>
+  <div className="container">
+    <div className="section-head">
+      <div className="eyebrow">Full Catalog</div>
+      <h2>Products &amp; services</h2>
+      <p>Browse by category, swipe to see more in each line.</p>
+    </div>
+    {CATEGORIES.map((cat) => {
+      const items = products.filter((p) => p.category === cat.name);
+      if (items.length === 0) return null;
+      return (
+        <div className="product-row-block" key={cat.name}>
+          <div className="product-row-head">
+            <h3>{cat.name}</h3>
+            <span className="product-row-count">{items.length} item{items.length > 1 ? "s" : ""}</span>
           </div>
-          <div className="filter-bar">
-            {["All", ...CATEGORIES.map((c) => c.name)].map((c) => (
-              <button key={c} className={`chip ${filter === c ? "active" : ""}`} onClick={() => setFilter(c)}>{c}</button>
-            ))}
-          </div>
-          <div className="product-grid">
-            {visibleProducts.map((p) => (
-              <ProductCard key={p.id} product={p} onOpen={setSelectedProduct} />
+          <div className="product-row">
+            {items.map((p) => (
+              <div className="product-row-item" key={p.id}>
+                <ProductCard product={p} onOpen={setSelectedProduct} />
+              </div>
             ))}
           </div>
         </div>
-      </section>
+      );
+    })}
+  </div>
+</section>
 
       <section className="section services-band" id="services">
         <div className="container">
@@ -195,9 +205,14 @@ export default function Home() {
   </section>
 )}
 
-      {selectedProduct && (
-        <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
-      )}
+     {selectedProduct && (
+  <ProductModal
+    product={selectedProduct}
+    allProducts={products}
+    onSelectProduct={setSelectedProduct}
+    onClose={() => setSelectedProduct(null)}
+  />
+)}
     </>
   );
 }

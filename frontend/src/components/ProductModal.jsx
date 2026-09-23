@@ -6,8 +6,9 @@ import { useAuth } from "../context/AuthContext";
 import { useCart, bulkDiscountRate } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
 import { useUI } from "../context/UIContext";
+import ProductCard from "./ProductCard";
 
-export default function ProductModal({ product, onClose }) {
+export default function ProductModal({ product, onClose, allProducts = [], onSelectProduct }) {
   const { user } = useAuth();
   const { addItem } = useCart();
   const showToast = useToast();
@@ -123,8 +124,24 @@ export default function ProductModal({ product, onClose }) {
                   </div>
                 </>
               )}
-            </div>
+                    </div>
           </div>
+
+          {allProducts.filter((p) => p.category === product.category && p.id !== product.id).length > 0 && (
+            <div className="pd-reco">
+              <h4 className="pd-extra-head">You may also like</h4>
+              <div className="product-row">
+                {allProducts
+                  .filter((p) => p.category === product.category && p.id !== product.id)
+                  .slice(0, 8)
+                  .map((p) => (
+                    <div className="product-row-item" key={p.id}>
+                      <ProductCard product={p} onOpen={onSelectProduct || (() => {})} />
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

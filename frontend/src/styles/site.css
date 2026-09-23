@@ -309,3 +309,39 @@ p { margin: 0 0 1em; }
     position: relative;
   }
 }
+/* Category rows with horizontal scroll */
+.product-row-block { margin-bottom: 36px; }
+.product-row-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.product-row-head h3 { margin: 0; font-family: var(--ff-display); font-size: 19px; }
+.product-row-count { font-size: 12px; color: #8a8580; }
+
+.product-row {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+.product-row::-webkit-scrollbar { height: 6px; }
+.product-row::-webkit-scrollbar-thumb { background: rgba(24,20,15,0.15); border-radius: 4px; }
+
+.product-row-item {
+  flex: 0 0 auto;
+  width: 200px;
+  scroll-snap-align: start;
+}
+
+.pd-reco { margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(24,20,15,0.08); }
+
+/* Compact cards on mobile */
+@media (max-width: 640px) {
+  .product-row-item { width: 148px; }
+  .product-info { padding: 10px; gap: 3px; }
+  .product-name { font-size: 13px; }
+  .product-cat { font-size: 9px; }
+  .product-rating, .stock-count { font-size: 10.5px; }
+  .product-price { font-size: 15px; }
+  .icon-add { width: 28px; height: 28px; }
+  .stock-tag { font-size: 8.5px; padding: 2px 6px; }
+}
