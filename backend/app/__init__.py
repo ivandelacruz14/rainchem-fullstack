@@ -1,5 +1,4 @@
 from flask import Flask, jsonify
-from app.routes.admin_analytics import admin_analytics_bp
 
 from config import Config
 from app.extensions import db, jwt, cors
@@ -15,7 +14,6 @@ def create_app(config_class=Config):
 
     from app.routes import register_routes
     register_routes(app)
-    app.register_blueprint(admin_analytics_bp)
 
     @app.errorhandler(404)
     def not_found(error):
