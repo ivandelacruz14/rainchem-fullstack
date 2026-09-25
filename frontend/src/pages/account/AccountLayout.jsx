@@ -18,6 +18,8 @@ export default function AccountLayout() {
         <NavLink to="/account/track" className={({ isActive }) => (isActive ? "active" : "")}>Track Order</NavLink>
         <NavLink to="/account/address" className={({ isActive }) => (isActive ? "active" : "")}>Addresses</NavLink>
         <NavLink to="/account/profile" className={({ isActive }) => (isActive ? "active" : "")}>Profile</NavLink>
+        <NavLink to="/account/settings" className={({ isActive }) => (isActive ? "active" : "")}>Settings &amp; Privacy</NavLink>
+        <NavLink to="/account/help" className={({ isActive }) => (isActive ? "active" : "")}>Help Center</NavLink>
         <button onClick={handleLogout} style={{ color: "var(--red-700)", marginTop: 10 }}>Log Out</button>
       </div>
       <div>

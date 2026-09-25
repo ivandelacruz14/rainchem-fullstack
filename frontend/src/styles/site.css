@@ -358,3 +358,23 @@ p { margin: 0 0 1em; }
 }
 .product-row-item { display: flex; }
 .product-row-item .product-card { flex: 1; width: 100%; }
+
+.password-input-wrap { position: relative; }
+.password-input-wrap input { padding-right: 40px; width: 100%; }
+.password-toggle {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; color: #8a8580; padding: 4px;
+  display: flex; align-items: center;
+}
+.password-toggle:hover { color: #18140f; }
+
+.see-all-btn {
+  background: none;
+  border: none;
+  color: var(--red-700);
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 0;
+}
+.see-all-btn:hover { text-decoration: underline; }

@@ -20,6 +20,8 @@ import AccountOrders from "./pages/account/AccountOrders";
 import AccountTrack from "./pages/account/AccountTrack";
 import AccountAddress from "./pages/account/AccountAddress";
 import AccountProfile from "./pages/account/AccountProfile";
+import AccountSettings from "./pages/account/AccountSettings";
+import AccountHelp from "./pages/account/AccountHelp";
 
 import AdminLogin from "./admin/AdminLogin";
 import AdminLayout from "./admin/AdminLayout";
@@ -31,6 +33,7 @@ import Knowledge from "./admin/pages/Knowledge";
 import AiTester from "./admin/pages/AiTester";
 import ChatMonitor from "./admin/pages/ChatMonitor";
 import AdminAccounts from "./admin/pages/AdminAccounts";
+import Analytics from "./admin/pages/Analytics";
 
 export default function App() {
   return (
@@ -54,6 +57,8 @@ export default function App() {
                       <Route path="track" element={<AccountTrack />} />
                       <Route path="address" element={<AccountAddress />} />
                       <Route path="profile" element={<AccountProfile />} />
+                      <Route path="settings" element={<AccountSettings />} />
+                      <Route path="help" element={<AccountHelp />} />
                     </Route>
                   </Route>
 
@@ -67,6 +72,7 @@ export default function App() {
                     <Route path="tester" element={<AiTester />} />
                     <Route path="monitor" element={<ChatMonitor />} />
                     <Route path="accounts" element={<AdminAccounts />} />
+                    <Route path="analytics" element={<Analytics />} />
                   </Route>
                 </Routes>
               </UIProvider>

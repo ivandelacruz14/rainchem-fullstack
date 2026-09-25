@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("rainchem_token");
+    const token = localStorage.getItem("rainchem_token") || sessionStorage.getItem("rainchem_token");
     if (!token) {
       setLoading(false);
       return;
@@ -16,17 +16,27 @@ export function AuthProvider({ children }) {
     client
       .get("/api/auth/me")
       .then((res) => setUser(res.data.user))
-      .catch(() => localStorage.removeItem("rainchem_token"))
+      .catch(() => {
+        localStorage.removeItem("rainchem_token");
+        sessionStorage.removeItem("rainchem_token");
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  function loginWithToken(token, userData) {
-    localStorage.setItem("rainchem_token", token);
+  function loginWithToken(token, userData, remember = true) {
+    if (remember) {
+      localStorage.setItem("rainchem_token", token);
+      sessionStorage.removeItem("rainchem_token");
+    } else {
+      sessionStorage.setItem("rainchem_token", token);
+      localStorage.removeItem("rainchem_token");
+    }
     setUser(userData);
   }
 
   function logout() {
     localStorage.removeItem("rainchem_token");
+    sessionStorage.removeItem("rainchem_token");
     setUser(null);
   }
 

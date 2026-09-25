@@ -12,6 +12,11 @@ class User(db.Model):
     google_id = db.Column(db.String(120), nullable=True, unique=True)
     phone = db.Column(db.String(30), nullable=True)
     verified = db.Column(db.Boolean, nullable=False, default=False)
+    phone = db.Column(db.String(30), nullable=True)
+    age = db.Column(db.Integer, nullable=True)
+    gender = db.Column(db.String(20), nullable=True)
+    avatar_photo = db.Column(db.Text(length=4294967295), nullable=True)
+    verified = db.Column(db.Boolean, nullable=False, default=False)
 
     address_line1 = db.Column(db.String(200), nullable=True)
     address_city = db.Column(db.String(100), nullable=True)
@@ -23,10 +28,13 @@ class User(db.Model):
 
     def to_dict(self):
         return {
+            "avatarPhoto": self.avatar_photo,
             "id": self.id,
             "name": self.name,
             "email": self.email,
             "phone": self.phone,
+            "age": self.age,
+            "gender": self.gender,
             "verified": self.verified,
             "hasGoogleLogin": self.google_id is not None,
             "address": {
@@ -46,6 +54,7 @@ class EmailVerification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     code = db.Column(db.String(10), nullable=False)
+    pending_email = db.Column(db.String(180), nullable=True)
     expires_at = db.Column(db.DateTime, nullable=False)
 
 

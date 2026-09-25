@@ -70,6 +70,16 @@ table.admin-table td { padding: 11px 10px; border-bottom: 1px solid rgba(24, 20,
 
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 
+.admin-menu-toggle { display: none; }
+
+@media (max-width: 900px) {
+  .admin-menu-toggle { display: inline-flex; }
+  .admin-shell { grid-template-columns: 1fr; }
+  .admin-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 240px; z-index: 300; transform: translateX(-100%); transition: transform 0.25s; }
+  .admin-sidebar.open { transform: translateX(0); }
+  .admin-main { padding: 18px 16px 60px; }
+}
+
 @media (max-width: 900px) {
   .admin-shell { grid-template-columns: 1fr; }
   .admin-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 240px; z-index: 300; transform: translateX(-100%); transition: transform 0.25s; }

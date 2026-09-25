@@ -10,6 +10,7 @@ const NAV_ITEMS = [
       { to: "/admin/products", label: "Products" },
       { to: "/admin/orders", label: "Orders" },
       { to: "/admin/users", label: "Users" },
+      { to: "/admin/analytics", label: "Sales Analytics" },
     ],
   },
   {
@@ -61,8 +62,8 @@ export default function AdminLayout() {
         </div>
       </aside>
       <main className="admin-main">
-        <button className="btn btn-outline btn-sm" style={{ marginBottom: 10 }} onClick={() => setSidebarOpen((v) => !v)}>
-          Menu
+        <button className="btn btn-outline btn-sm admin-menu-toggle" style={{ marginBottom: 10 }} onClick={() => setSidebarOpen((v) => !v)}>
+          ☰ Menu
         </button>
         <Outlet />
       </main>

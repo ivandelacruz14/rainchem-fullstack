@@ -5,6 +5,7 @@ import { useUI } from "../context/UIContext";
 import { useToast } from "../context/ToastContext";
 import { validatePassword } from "../utils/format";
 import GoogleSignInButton from "./GoogleSignInButton";
+import PasswordInput from "./PasswordInput";
 
 const PASSWORD_RULES = [
   { key: "len", label: "8-24 characters", test: (p) => p.length >= 8 && p.length <= 24 },
@@ -15,6 +16,7 @@ const PASSWORD_RULES = [
 ];
 
 export default function AuthModal() {
+  const [remember, setRemember] = useState(true);
   const { authModal, setAuthModal, closeAuth } = useUI();
   const { loginWithToken } = useAuth();
   const showToast = useToast();
@@ -43,7 +45,7 @@ export default function AuthModal() {
     setError("");
     try {
       const res = await client.post("/api/auth/login", { email: form.email, password: form.password });
-      loginWithToken(res.data.token, res.data.user);
+      loginWithToken(res.data.token, res.data.user, remember);
       showToast(`Welcome back, ${res.data.user.name.split(" ")[0]}!`, "success");
       closeAuth();
     } catch (err) {
@@ -146,13 +148,17 @@ export default function AuthModal() {
             <form onSubmit={handleLogin}>
               <div className="field">
                 <label>Email Address</label>
-                <input required type="email" value={form.email || ""} onChange={(e) => update("email", e.target.value)} />
+                <input required type="email" value={form.email || ""} onChange={(e) => update("email", e.target.value)} autoComplete={remember ? "username" : "off"} />
               </div>
               <div className="field">
                 <label>Password</label>
-                <input required type="password" value={form.password || ""} onChange={(e) => update("password", e.target.value)} />
+                <PasswordInput value={form.password || ""} onChange={(e) => update("password", e.target.value)} autoComplete={remember ? "current-password" : "off"} />
               </div>
-              <div style={{ textAlign: "right", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} style={{ width: "auto" }} />
+                  Remember me
+                </label>
                 <button type="button" className="link-btn" style={{ fontSize: 12.5 }} onClick={() => switchMode("forgot")}>
                   Forgot password?
                 </button>
@@ -164,7 +170,6 @@ export default function AuthModal() {
                 Don't have an account?{" "}
                 <button type="button" className="link-btn" onClick={() => switchMode("register")}>Sign up</button>
               </p>
-              
             </form>
           )}
 
@@ -184,7 +189,7 @@ export default function AuthModal() {
               </div>
               <div className="field">
                 <label>Password</label>
-                <input required type="password" value={form.password || ""} onChange={(e) => update("password", e.target.value)} />
+                <PasswordInput value={form.password || ""} onChange={(e) => update("password", e.target.value)} autoComplete="new-password" />
                 <ul className="pw-rules">
                   {PASSWORD_RULES.map((rule) => (
                     <li key={rule.key} className={rule.test(form.password || "") ? "ok" : ""}>{rule.label}</li>
@@ -193,7 +198,7 @@ export default function AuthModal() {
               </div>
               <div className="field">
                 <label>Confirm Password</label>
-                <input required type="password" value={form.password2 || ""} onChange={(e) => update("password2", e.target.value)} />
+                <PasswordInput value={form.password2 || ""} onChange={(e) => update("password2", e.target.value)} autoComplete="new-password" />
               </div>
               <button type="submit" className="btn btn-primary btn-block">Create Account</button>
               <div className="divider-text">or</div>

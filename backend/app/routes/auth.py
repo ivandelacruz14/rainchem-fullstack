@@ -250,4 +250,108 @@ def update_address():
     user.address_region = data.get("region", user.address_region)
     user.address_zip = data.get("zip", user.address_zip)
     db.session.commit()
+        return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.put("/me/profile")
+@require_user
+def update_profile():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+
+    name = (data.get("name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    age = data.get("age")
+    gender = (data.get("gender") or "").strip()
+
+    if not name:
+        return jsonify({"error": "Name cannot be empty"}), 400
+    if not is_valid_phone(phone):
+        return jsonify({"error": "Please enter a valid contact number"}), 400
+
+    user.name = name
+    user.phone = phone
+    user.age = int(age) if age not in (None, "") else None
+    user.gender = gender or None
+    db.session.commit()
     return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.post("/me/email/request-change")
+@require_user
+def request_email_change():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+    new_email = (data.get("newEmail") or "").strip().lower()
+
+    if not is_valid_email(new_email):
+        return jsonify({"error": "Please enter a valid email address"}), 400
+    if User.query.filter_by(email=new_email).first():
+        return jsonify({"error": "That email is already in use"}), 400
+
+    code = generate_verification_code()
+    db.session.add(EmailVerification(
+        user_id=user.id, code=code, pending_email=new_email,
+        expires_at=datetime.utcnow() + timedelta(minutes=10),
+    ))
+    db.session.commit()
+
+    send_email(new_email, "Confirm your new Rainchem email",
+               f"Your confirmation code is {code}. It expires in 10 minutes.",
+               user_id=user.id)
+    return jsonify({"message": "A confirmation code was sent to your new email address"})
+
+
+@auth_bp.post("/me/email/confirm-change")
+@require_user
+def confirm_email_change():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+    code = (data.get("code") or "").strip()
+
+    verification = (
+        EmailVerification.query.filter_by(user_id=user.id, code=code)
+        .filter(EmailVerification.pending_email.isnot(None))
+        .order_by(EmailVerification.id.desc())
+        .first()
+    )
+    if not verification or verification.expires_at < datetime.utcnow():
+        return jsonify({"error": "Incorrect or expired code"}), 400
+
+    user.email = verification.pending_email
+    db.session.delete(verification)
+    db.session.commit()
+        return jsonify({"user": user.to_dict(), "message": "Email address updated"})
+
+
+@auth_bp.put("/me/avatar")
+@require_user
+def update_avatar():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+    photo = data.get("avatarPhoto")
+    if not photo:
+        return jsonify({"error": "No image provided"}), 400
+    user.avatar_photo = photo
+    db.session.commit()
+        return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.put("/me/password")
+@require_user
+def change_password():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+    current_password = data.get("currentPassword") or ""
+    new_password = data.get("newPassword") or ""
+
+    if not check_password_hash(user.password_hash, current_password):
+        return jsonify({"error": "Current password is incorrect"}), 400
+
+    password_errors = validate_password(new_password)
+    if password_errors:
+        return jsonify({"error": "Password requirements not met: " + ", ".join(password_errors)}), 400
+
+    user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    return jsonify({"message": "Password updated"})
