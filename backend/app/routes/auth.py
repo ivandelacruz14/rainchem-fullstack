@@ -43,10 +43,6 @@ def register():
         return jsonify({"errors": errors}), 400
 
     if existing_user and not existing_user.verified:
-        # A previous registration attempt never got verified (often because
-        # the verification email failed to arrive). Reuse that account
-        # instead of blocking the person with an "already exists" error,
-        # and send a fresh code.
         user = existing_user
         user.name = name
         user.phone = phone
@@ -180,8 +176,6 @@ def forgot_password():
     email = (data.get("email") or "").strip().lower()
     user = User.query.filter_by(email=email).first()
 
-    # Always return the same response whether or not the account exists,
-    # so this endpoint can't be used to check which emails are registered.
     generic_response = jsonify({
         "message": "If an account with that email exists, a reset link has been sent."
     })
@@ -250,7 +244,7 @@ def update_address():
     user.address_region = data.get("region", user.address_region)
     user.address_zip = data.get("zip", user.address_zip)
     db.session.commit()
-        return jsonify({"user": user.to_dict()})
+    return jsonify({"user": user.to_dict()})
 
 
 @auth_bp.put("/me/profile")
@@ -321,7 +315,7 @@ def confirm_email_change():
     user.email = verification.pending_email
     db.session.delete(verification)
     db.session.commit()
-        return jsonify({"user": user.to_dict(), "message": "Email address updated"})
+    return jsonify({"user": user.to_dict(), "message": "Email address updated"})
 
 
 @auth_bp.put("/me/avatar")
@@ -334,7 +328,7 @@ def update_avatar():
         return jsonify({"error": "No image provided"}), 400
     user.avatar_photo = photo
     db.session.commit()
-        return jsonify({"user": user.to_dict()})
+    return jsonify({"user": user.to_dict()})
 
 
 @auth_bp.put("/me/password")
