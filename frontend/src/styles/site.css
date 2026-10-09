@@ -61,6 +61,23 @@ p { margin: 0 0 1em; }
 .brand { display: flex; align-items: center; gap: 10px; font-family: var(--ff-display); font-weight: 700; font-size: 22px; }
 .brand .dot { width: 10px; height: 10px; border-radius: 2px; background: var(--red-700); transform: rotate(45deg); }
 .brand span.sub { color: var(--red-700); }
+.brand-logo { display: block; width: auto; max-width: 100%; object-fit: contain; }
+/* The lettering is black, so on dark backgrounds the logo sits on a white chip. */
+.brand-logo.on-dark { background: #fff; border-radius: 10px; padding: 5px 10px; box-sizing: content-box; }
+
+.account-chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 4px 14px 4px 4px;
+  border-radius: 999px; background: var(--fog); border: 1px solid rgba(24, 20, 15, 0.08);
+  font-family: var(--ff-display); font-weight: 600; font-size: 14px; color: var(--ink); cursor: pointer;
+}
+.account-chip:hover { border-color: var(--red-700); }
+.account-chip-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-avatar { display: inline-block; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(24, 20, 15, 0.12); }
+.user-avatar-initial { display: inline-flex; align-items: center; justify-content: center; background: var(--red-700); color: #fff; font-family: var(--ff-display); font-weight: 700; }
+@media (max-width: 560px) {
+  .account-chip { padding-right: 4px; }
+  .account-chip-name { display: none; }
+}
 .nav-links { display: flex; align-items: center; gap: 28px; font-family: var(--ff-display); font-weight: 600; font-size: 15px; }
 .nav-actions { display: flex; align-items: center; gap: 12px; }
 .icon-btn {
@@ -95,7 +112,70 @@ p { margin: 0 0 1em; }
   background: radial-gradient(circle, #fff 55%, #fbe3e4 100%);
   border: 1px dashed rgba(24, 20, 15, 0.15); display: flex; align-items: center; justify-content: center;
 }
-@media (max-width: 900px) { .hero-inner { grid-template-columns: 1fr; } .hero-visual { order: -1; max-width: 260px; margin: 0 auto; } }
+/* ---- Hero product: RAIMOL engine oil bottle (CSS-built, uses the official logo) ---- */
+.hero-ring { position: relative; overflow: visible; }
+.oil-bottle {
+  position: relative; width: 52%; max-width: 210px; aspect-ratio: 11 / 17;
+  display: flex; flex-direction: column; align-items: center;
+  animation: oil-float 5s ease-in-out infinite;
+}
+.oil-bottle-cap {
+  position: relative; z-index: 3; width: 40%; height: 11%; border-radius: 10% / 22%;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.28) 26%, rgba(255,255,255,0) 40%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.07) 0, rgba(255,255,255,.07) 2px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 6px),
+    linear-gradient(90deg, #050505 0%, #2a2a2a 30%, #4a4a4a 46%, #1a1a1a 70%, #000 100%);
+  box-shadow: 0 2px 4px rgba(0,0,0,.35), inset 0 2px 3px rgba(255,255,255,.18);
+}
+.oil-bottle-neck {
+  position: relative; z-index: 2; width: 34%; height: 4%; margin-top: -1%;
+  background: linear-gradient(90deg, #6e0a10 0%, #b5121b 35%, #e1131f 55%, #8d0d14 100%);
+}
+.oil-bottle-body {
+  position: relative; z-index: 1; flex: 1; width: 100%; margin-top: -1%;
+  border-radius: 34% 34% 14% 14% / 17% 17% 7% 7%;
+  background: linear-gradient(90deg, #6e0a10 0%, #b5121b 13%, #e1131f 32%, #ff4650 45%, #e1131f 58%, #b5121b 80%, #6e0a10 100%);
+  box-shadow: inset 0 -18px 26px rgba(0,0,0,.30), inset 0 12px 20px rgba(255,255,255,.16), 0 14px 30px rgba(110,10,16,.28);
+}
+/* white label: square, so the (square) logo is shown at its natural proportions */
+.oil-bottle-label {
+  position: absolute; z-index: 2; left: 9%; right: 9%; top: 25%; aspect-ratio: 1 / 1;
+  background: #fff; border-radius: 4%; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.35);
+}
+.oil-bottle-label img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.oil-bottle-label::after { /* curved-plastic shading across the label */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(0,0,0,.20) 0%, rgba(0,0,0,0) 16%, rgba(255,255,255,.10) 36%, rgba(0,0,0,0) 60%, rgba(0,0,0,.22) 100%);
+}
+.oil-bottle-shine { /* glossy plastic reflections */
+  position: absolute; z-index: 3; left: 6%; top: 9%; width: 6%; height: 72%; border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.08));
+  filter: blur(1px);
+}
+.oil-bottle-body::after { /* soft rim light on the right edge */
+  content: ""; position: absolute; z-index: 3; right: 2.5%; top: 14%; width: 3.5%; height: 62%; border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,0));
+}
+.oil-bottle-shadow {
+  position: absolute; left: 6%; right: 6%; bottom: -7%; height: 7%; border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(24,20,15,.38) 0%, rgba(24,20,15,0) 70%);
+  filter: blur(3px); animation: oil-shadow 5s ease-in-out infinite;
+}
+.hero-product-photo {
+  display: block; width: 78%; height: auto; max-height: 88%; object-fit: contain;
+  filter: drop-shadow(0 18px 22px rgba(24,20,15,.25)); animation: oil-float 5s ease-in-out infinite;
+}
+@keyframes oil-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes oil-shadow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.88); opacity: .75; } }
+@media (prefers-reduced-motion: reduce) {
+  .oil-bottle, .oil-bottle-shadow, .hero-product-photo { animation: none; }
+}
+@media (max-width: 900px) {
+  .hero-inner { grid-template-columns: 1fr; }
+  .hero-visual { order: -1; max-width: 300px; margin: 0 auto; }
+  .oil-bottle { width: 56%; }
+}
 
 .category-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .cat-card {
@@ -367,14 +447,3 @@ p { margin: 0 0 1em; }
   display: flex; align-items: center;
 }
 .password-toggle:hover { color: #18140f; }
-
-.see-all-btn {
-  background: none;
-  border: none;
-  color: var(--red-700);
-  font-weight: 700;
-  font-size: 12.5px;
-  cursor: pointer;
-  padding: 0;
-}
-.see-all-btn:hover { text-decoration: underline; }

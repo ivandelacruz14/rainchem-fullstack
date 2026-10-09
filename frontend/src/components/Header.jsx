@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useUI } from "../context/UIContext";
+import Brand from "./Brand";
+import UserAvatar from "./UserAvatar";
 
 export default function Header() {
   const { user } = useAuth();
@@ -28,7 +30,7 @@ export default function Header() {
     <header className="site-header">
       <div className="header-inner">
         <Link to="/" className="brand" onClick={closeMenu}>
-          <span className="dot"></span>Rain<span className="sub">chem</span>
+          <Brand variant="wordmark" height={32} />
         </Link>
 
         <nav className={`nav-links ${menuOpen ? "open" : ""}`}>
@@ -40,11 +42,18 @@ export default function Header() {
         </nav>
 
         <div className="nav-actions">
-          <button className="icon-btn" title={user ? "My Account" : "Log In"} onClick={handleAccountClick}>
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
-            </svg>
-          </button>
+          {user ? (
+            <button className="account-chip" title="My Account" onClick={handleAccountClick}>
+              <UserAvatar user={user} size={36} />
+              <span className="account-chip-name">{(user.name || "Account").split(" ")[0]}</span>
+            </button>
+          ) : (
+            <button className="icon-btn" title="Log In" onClick={handleAccountClick}>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
+              </svg>
+            </button>
+          )}
           <button className="icon-btn" title="Cart" onClick={() => { closeMenu(); openCart(); }}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="9" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
