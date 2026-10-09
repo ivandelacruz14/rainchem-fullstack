@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAdminAuth } from "../context/AdminAuthContext";
+import Brand from "../components/Brand";
 
 const NAV_ITEMS = [
   { group: "Overview", links: [{ to: "/admin", label: "Dashboard", end: true }] },
@@ -37,7 +38,7 @@ export default function AdminLayout() {
   return (
     <div className="admin-shell">
       <aside className={`admin-sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="brand"><span className="dot"></span>Rain<span className="sub">chem</span></div>
+        <div className="brand"><Brand height={90} onDark /></div>
         {NAV_ITEMS.map((section) => (
           <div key={section.group}>
             <div className="admin-nav-group">{section.group}</div>

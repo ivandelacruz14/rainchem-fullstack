@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useUI } from "../context/UIContext";
+import Brand from "./Brand";
 
 export default function Footer() {
   const { toggleChat } = useUI();
@@ -9,9 +10,9 @@ export default function Footer() {
       <div className="container">
         <div className="footer-grid">
           <div>
-            <div className="brand" style={{ color: "#fff", marginBottom: 12 }}>
-              <span className="dot"></span>Rain<span className="sub">chem</span>
-            </div>
+            <div style={{ marginBottom: 12 }}>
+  <Brand height={90} onDark />
+</div>
             <p style={{ fontSize: 13.5, maxWidth: 280 }}>
               RAIMOL engine oil, RadCool coolant, and maintenance essentials, plus an AI assistant
               trained on our own product knowledge. 100% Filipino-owned since 1995.

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import client from "../api/client";
 import { useAdminAuth } from "../context/AdminAuthContext";
+import Brand from "../components/Brand";
 
 export default function AdminLogin() {
   const { loginWithToken } = useAdminAuth();
@@ -26,7 +27,7 @@ export default function AdminLogin() {
     <div className="admin-login-screen">
       <div className="admin-login-card">
         <div className="brand" style={{ justifyContent: "center", marginBottom: 6 }}>
-          <span className="dot"></span>Rain<span className="sub">chem</span>
+          <Brand height={110} />
         </div>
         <p className="sub-title">Admin Console - internal access only</p>
         {error && <div className="alert alert-error">{error}</div>}
