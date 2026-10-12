@@ -2,7 +2,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 
 from app.extensions import db
-from app.models import Order, OrderStatusHistory
+from app.models import Order, OrderStatusHistory, Product
 from app.models.order import ORDER_STATUSES
 from app.services.receipt_service import create_receipt_for_order
 from app.services.email_service import send_email
@@ -16,7 +16,9 @@ admin_orders_bp = Blueprint("admin_orders", __name__, url_prefix="/api/admin/ord
 def list_orders():
     status = request.args.get("status")
     query = Order.query
-    if status and status != "All":
+    if status == "returns":
+        query = query.filter(Order.return_status != "none")
+    elif status and status != "All":
         query = query.filter_by(status=status)
     orders = query.order_by(Order.created_at.desc()).all()
     return jsonify({"orders": [o.to_dict() for o in orders]})
@@ -35,6 +37,8 @@ def confirm_order(order_id):
     order = Order.query.get_or_404(order_id)
     if order.status != "pending_confirmation":
         return jsonify({"error": "Only pending orders can be confirmed"}), 400
+    if order.is_online_payment and order.payment_status != "paid":
+        return jsonify({"error": f"This order is still waiting for the customer's {order.payment_method} payment"}), 400
 
     order.status = "confirmed"
     order.confirmed_at = datetime.utcnow()
@@ -66,9 +70,17 @@ def update_status(order_id):
     if order.status == "cancelled":
         return jsonify({"error": "A cancelled order cannot be updated"}), 400
 
+    if new_status in ("shipped", "delivered") and order.is_online_payment and order.payment_status != "paid":
+        return jsonify({"error": "This order has not been paid yet"}), 400
+
     order.status = new_status
     if new_status == "cancelled":
         order.cancelled_at = datetime.utcnow()
+        if order.payment_status == "paid":
+            order.payment_status = "refund_pending"
+    if new_status == "delivered" and not order.is_online_payment and order.payment_status == "unpaid":
+        order.payment_status = "paid"
+        order.paid_at = datetime.utcnow()
 
     tracking_number = data.get("trackingNumber")
     if tracking_number:
@@ -86,3 +98,51 @@ def get_receipt(order_id):
     if not order.receipt:
         return jsonify({"error": "No receipt has been generated for this order yet"}), 404
     return jsonify({"order": order.to_dict(), "receipt": order.receipt.to_dict()})
+
+
+@admin_orders_bp.post("/<int:order_id>/return/<decision>")
+@require_admin
+def decide_return(order_id, decision):
+    order = Order.query.get_or_404(order_id)
+    if decision not in ("approve", "reject"):
+        return jsonify({"error": "Unknown decision"}), 400
+    if order.return_status != "requested":
+        return jsonify({"error": "There is no pending return request on this order"}), 400
+
+    note = str((request.get_json() or {}).get("note") or "").strip()[:500] or None
+    order.return_note = note
+
+    if decision == "approve":
+        order.return_status = "approved"
+        if order.payment_status == "paid":
+            order.payment_status = "refund_pending"
+        for item in order.items:
+            if item.product_id:
+                product = db.session.get(Product, item.product_id)
+                if product:
+                    product.stock += item.quantity
+    else:
+        order.return_status = "rejected"
+
+    db.session.commit()
+
+    send_email(
+        order.customer_email, f"Return request {order.return_status} - {order.order_number}",
+        f"Hi {order.customer_name},\n\nYour return request for order {order.order_number} "
+        f"was {order.return_status}."
+        + (f"\n\nNote from our team: {note}" if note else "")
+        + ("\n\nYour refund will be processed by our team." if decision == "approve" else ""),
+        user_id=order.user_id,
+    )
+    return jsonify({"order": order.to_dict()})
+
+
+@admin_orders_bp.post("/<int:order_id>/refunded")
+@require_admin
+def mark_refunded(order_id):
+    order = Order.query.get_or_404(order_id)
+    if order.payment_status != "refund_pending":
+        return jsonify({"error": "This order has no pending refund"}), 400
+    order.payment_status = "refunded"
+    db.session.commit()
+    return jsonify({"order": order.to_dict()})

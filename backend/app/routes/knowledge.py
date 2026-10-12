@@ -2,7 +2,6 @@ from flask import Blueprint, request, jsonify
 
 from app.extensions import db
 from app.models import KnowledgeEntry
-from app.services.rag import retrieve, FALLBACK_ANSWER
 from app.utils.auth_decorators import require_admin
 
 knowledge_bp = Blueprint("knowledge", __name__, url_prefix="/api/admin/knowledge")
@@ -62,23 +61,3 @@ def delete_knowledge(entry_id):
     db.session.delete(entry)
     db.session.commit()
     return jsonify({"message": "Knowledge entry deleted"})
-
-
-@knowledge_bp.post("/test")
-@require_admin
-def test_ai():
-    data = request.get_json() or {}
-    question = data.get("question", "")
-    include_pending = bool(data.get("includePending"))
-
-    entries = KnowledgeEntry.query.all()
-    matched, confidence, candidates = retrieve(question, entries, include_pending)
-
-    return jsonify({
-        "answer": matched.answer if matched else FALLBACK_ANSWER,
-        "matchedEntry": matched.to_dict() if matched else None,
-        "confidence": confidence,
-        "candidates": [
-            {"question": e.question, "score": round(score * 100)} for e, score in candidates
-        ],
-    })

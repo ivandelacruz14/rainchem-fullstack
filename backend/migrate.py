@@ -10,6 +10,21 @@ STATEMENTS = [
     "ALTER TABLE users ADD COLUMN avatar_photo LONGTEXT NULL",
     "ALTER TABLE products MODIFY COLUMN image_photo LONGTEXT NULL",
     "ALTER TABLE email_verifications ADD COLUMN pending_email VARCHAR(180) NULL",
+    "ALTER TABLE chat_logs ADD COLUMN source VARCHAR(20) NULL",
+    "ALTER TABLE chat_logs ADD COLUMN rating TINYINT NULL",
+    "ALTER TABLE chat_logs ADD COLUMN feedback VARCHAR(500) NULL",
+    "ALTER TABLE chat_logs ADD COLUMN rated_at DATETIME NULL",
+    "ALTER TABLE orders ADD COLUMN payment_status VARCHAR(20) NOT NULL DEFAULT 'unpaid'",
+    "ALTER TABLE orders ADD COLUMN payment_reference VARCHAR(120) NULL",
+    "ALTER TABLE orders ADD COLUMN paid_at DATETIME NULL",
+    "ALTER TABLE orders ADD COLUMN return_status VARCHAR(20) NOT NULL DEFAULT 'none'",
+    "ALTER TABLE orders ADD COLUMN return_reason VARCHAR(500) NULL",
+    "ALTER TABLE orders ADD COLUMN return_requested_at DATETIME NULL",
+    "ALTER TABLE orders ADD COLUMN return_note VARCHAR(500) NULL",
+    "ALTER TABLE orders ADD COLUMN review_rating TINYINT NULL",
+    "ALTER TABLE orders ADD COLUMN review_comment VARCHAR(500) NULL",
+    "ALTER TABLE orders ADD COLUMN reviewed_at DATETIME NULL",
+    "UPDATE orders SET payment_status = 'paid', paid_at = created_at WHERE status = 'delivered' AND payment_method = 'Cash on Delivery'",
 ]
 
 with app.app_context():

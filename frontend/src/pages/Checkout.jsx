@@ -1,14 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import client from "../api/client";
 import { peso } from "../utils/format";
 import { useAuth } from "../context/AuthContext";
 import { useCart, FREE_SHIPPING_SUBTOTAL } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
+import ServicesModal from "../components/ServicesModal";
+
+const PAYMENT_OPTIONS = [
+  { value: "Cash on Delivery", label: "Cash on Delivery", hint: "Pay in cash when your order arrives." },
+  { value: "GCash", label: "GCash", hint: "You'll be taken to a secure GCash payment page." },
+  { value: "Credit / Debit Card", label: "Credit / Debit Card", hint: "You'll enter your card on a secure payment page. We never see your card number." },
+];
 
 export default function Checkout() {
   const { user } = useAuth();
-  const { lines, subtotal, savings, shipping, total, clearCart } = useCart();
+  const { lines, subtotal, savings, shipping, total, clearCart, addItem, removeItem } = useCart();
   const showToast = useToast();
   const navigate = useNavigate();
 
@@ -25,12 +32,27 @@ export default function Checkout() {
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [methods, setMethods] = useState({ "Cash on Delivery": true });
+  const [demoMode, setDemoMode] = useState(false);
+  const [services, setServices] = useState([]);
+  const [showServices, setShowServices] = useState(false);
+  const [servicesAsked, setServicesAsked] = useState(false);
+
+  useEffect(() => {
+    client.get("/api/payments/config").then((res) => {
+      setMethods(res.data.methods);
+      setDemoMode(res.data.demoMode);
+    }).catch(() => {});
+    client.get("/api/products", { params: { category: "Services" } })
+      .then((res) => setServices(res.data.products.filter((p) => p.stock > 0)))
+      .catch(() => {});
+  }, []);
 
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  if (lines.length === 0) {
+  if (lines.length === 0 && !submitting) {
     return (
       <div className="container" style={{ padding: "80px 24px", textAlign: "center" }}>
         <h2>Your cart is empty</h2>
@@ -39,9 +61,31 @@ export default function Checkout() {
     );
   }
 
-  async function handleSubmit(e) {
+  const cartIds = new Set(lines.map((l) => l.product.id));
+
+  function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    if (!servicesAsked && services.length > 0) {
+      setShowServices(true);
+      return;
+    }
+    placeOrder();
+  }
+
+  function toggleService(product, added) {
+    if (added) removeItem(product.id);
+    else addItem(product, 1);
+  }
+
+  function continueFromServices() {
+    setShowServices(false);
+    setServicesAsked(true);
+    placeOrder();
+  }
+
+  async function placeOrder() {
+    let leavingPage = false;
     setSubmitting(true);
     try {
       const res = await client.post("/api/orders", {
@@ -51,19 +95,41 @@ export default function Checkout() {
         paymentMethod: form.payment,
       });
       clearCart();
+
+      if (res.data.checkoutUrl) {
+        leavingPage = true;
+        window.location.href = res.data.checkoutUrl;
+        return;
+      }
+      if (res.data.paymentError) {
+        showToast(`${res.data.paymentError} Your order is saved under To Pay.`, "error");
+        navigate("/account/orders?tab=to_pay");
+        return;
+      }
       showToast("Order placed successfully. A confirmation email is on its way.", "success");
       navigate("/order-success", { state: { order: res.data.order, recommendations: res.data.recommendations } });
     } catch (err) {
       setError(err.response?.data?.error || "Something went wrong placing your order.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
-      setSubmitting(false);
+      if (!leavingPage) setSubmitting(false);
     }
   }
+
+  const isCod = form.payment === "Cash on Delivery";
+  const buttonLabel = submitting
+    ? "Please wait..."
+    : isCod ? "Place Order" : `Pay ${peso(total)} with ${form.payment === "GCash" ? "GCash" : "Card"}`;
 
   return (
     <div className="container" style={{ padding: "40px 24px 80px" }}>
       <h1 style={{ marginBottom: 24 }}>Checkout</h1>
       {error && <div className="alert alert-error">{error}</div>}
+      {demoMode && (
+        <div className="alert alert-info">
+          Payment demo mode is ON: GCash and card use a fake payment page. For testing only.
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="two-col" style={{ gridTemplateColumns: "1.2fr 0.8fr", gap: 26 }}>
         <div>
           <h4 style={{ marginBottom: 12 }}>Customer Information</h4>
@@ -85,12 +151,25 @@ export default function Checkout() {
           </div>
 
           <h4 style={{ margin: "18px 0 12px" }}>Payment Method</h4>
-          <div className="field">
-            <select value={form.payment} onChange={(e) => update("payment", e.target.value)}>
-              <option>Cash on Delivery</option>
-              <option>GCash</option>
-              <option>Credit / Debit Card</option>
-            </select>
+          <div className="pay-options">
+            {PAYMENT_OPTIONS.map((opt) => {
+              const available = opt.value === "Cash on Delivery" || methods[opt.value] === true;
+              return (
+                <label key={opt.value} className={`pay-option ${form.payment === opt.value ? "selected" : ""} ${available ? "" : "disabled"}`}>
+                  <input
+                    type="radio" name="payment" value={opt.value}
+                    checked={form.payment === opt.value} disabled={!available}
+                    onChange={() => update("payment", opt.value)}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>
+                      {opt.label}{!available && <span className="pay-soon"> Not available yet</span>}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: "#6b665f" }}>{opt.hint}</div>
+                  </div>
+                </label>
+              );
+            })}
           </div>
         </div>
 
@@ -113,13 +192,23 @@ export default function Checkout() {
           <div className="cart-summary-row"><span>Shipping</span><span>{shipping === 0 ? "FREE" : peso(shipping)}</span></div>
           <div className="cart-summary-row total"><span>Total</span><span>{peso(total)}</span></div>
           <button type="submit" className="btn btn-primary btn-block" style={{ marginTop: 16 }} disabled={submitting}>
-            {submitting ? "Placing Order..." : "Place Order"}
+            {buttonLabel}
           </button>
           <p className="field-hint" style={{ textAlign: "center", marginTop: 8 }}>
             Free shipping on orders of {peso(FREE_SHIPPING_SUBTOTAL)}+ or 10+ items. Bulk discounts apply automatically.
           </p>
         </div>
       </form>
+
+      {showServices && (
+        <ServicesModal
+          services={services}
+          cartIds={cartIds}
+          onToggle={toggleService}
+          onContinue={continueFromServices}
+          onClose={() => setShowServices(false)}
+        />
+      )}
     </div>
   );
 }

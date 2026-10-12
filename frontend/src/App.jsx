@@ -11,8 +11,9 @@ import { ProtectedRoute, AdminProtectedRoute } from "./components/ProtectedRoute
 import Home from "./pages/Home";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
+import PaymentResult from "./pages/PaymentResult";
+import PaymentDemo from "./pages/PaymentDemo";
 import Receipt from "./pages/Receipt";
-import ResetPassword from "./pages/ResetPassword";
 
 import AccountLayout from "./pages/account/AccountLayout";
 import AccountOverview from "./pages/account/AccountOverview";
@@ -30,7 +31,6 @@ import Products from "./admin/pages/Products";
 import Orders from "./admin/pages/Orders";
 import Users from "./admin/pages/Users";
 import Knowledge from "./admin/pages/Knowledge";
-import AiTester from "./admin/pages/AiTester";
 import ChatMonitor from "./admin/pages/ChatMonitor";
 import AdminAccounts from "./admin/pages/AdminAccounts";
 import Analytics from "./admin/pages/Analytics";
@@ -46,8 +46,9 @@ export default function App() {
                 <Routes>
                   <Route element={<Layout />}>
                     <Route path="/" element={<Home />} />
-                    <Route path="/reset-password" element={<ResetPassword />} />
                     <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+                    <Route path="/payment/result" element={<ProtectedRoute><PaymentResult /></ProtectedRoute>} />
+                    <Route path="/payment/demo/:orderId" element={<ProtectedRoute><PaymentDemo /></ProtectedRoute>} />
                     <Route path="/order-success" element={<ProtectedRoute><OrderSuccess /></ProtectedRoute>} />
                     <Route path="/receipt/:orderId" element={<ProtectedRoute><Receipt /></ProtectedRoute>} />
 
@@ -69,7 +70,6 @@ export default function App() {
                     <Route path="orders" element={<Orders />} />
                     <Route path="users" element={<Users />} />
                     <Route path="knowledge" element={<Knowledge />} />
-                    <Route path="tester" element={<AiTester />} />
                     <Route path="monitor" element={<ChatMonitor />} />
                     <Route path="accounts" element={<AdminAccounts />} />
                     <Route path="analytics" element={<Analytics />} />

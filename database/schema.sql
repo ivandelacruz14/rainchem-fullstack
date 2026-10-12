@@ -1,6 +1,3 @@
--- Rainchem database schema (MySQL / MariaDB)
--- Run with: mysql -u root -p < schema.sql
-
 CREATE DATABASE IF NOT EXISTS rainchem CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE rainchem;
 
@@ -87,6 +84,16 @@ CREATE TABLE orders (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     confirmed_at DATETIME NULL,
     cancelled_at DATETIME NULL,
+    payment_status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
+    payment_reference VARCHAR(120) NULL,
+    paid_at DATETIME NULL,
+    return_status VARCHAR(20) NOT NULL DEFAULT 'none',
+    return_reason VARCHAR(500) NULL,
+    return_requested_at DATETIME NULL,
+    return_note VARCHAR(500) NULL,
+    review_rating TINYINT NULL,
+    review_comment VARCHAR(500) NULL,
+    reviewed_at DATETIME NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
@@ -141,6 +148,10 @@ CREATE TABLE chat_logs (
     resolved TINYINT(1) NOT NULL DEFAULT 0,
     user_id INT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source VARCHAR(20) NULL,
+    rating TINYINT NULL,
+    feedback VARCHAR(500) NULL,
+    rated_at DATETIME NULL,
     FOREIGN KEY (matched_knowledge_id) REFERENCES knowledge_base(id) ON DELETE SET NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
@@ -154,10 +165,6 @@ CREATE TABLE notifications (
     sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
-
--- Seed data
--- Admin and demo customer accounts are created separately by
--- backend/seed.py so their passwords go through proper hashing.
 
 INSERT INTO products (name, category, price, stock, rating, reviews, image_glyph, short_desc, description, specs, benefits, usage_steps) VALUES
 ('RAIMOL FLASH 4T Fully Synthetic 10W-40 Engine Oil', 'Oils & Fluids', 585.00, 140, 4.8, 212, 'oil-synthetic',

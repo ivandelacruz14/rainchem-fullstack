@@ -18,7 +18,6 @@ const NAV_ITEMS = [
     group: "AI / RAG Chatbot",
     links: [
       { to: "/admin/knowledge", label: "Knowledge Base" },
-      { to: "/admin/tester", label: "AI Tester" },
       { to: "/admin/monitor", label: "Chat Monitor" },
     ],
   },

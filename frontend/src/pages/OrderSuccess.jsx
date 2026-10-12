@@ -31,12 +31,13 @@ export default function OrderSuccess() {
         <h3>Thank you, {order.customer.name.split(" ")[0]}!</h3>
         <p style={{ color: "#57524c" }}>
           Your order has been placed and is pending confirmation from our team. You'll get an
-          email once it's confirmed, and you can cancel it from My Orders until then.
+          email once it's confirmed, and you can cancel it from My Orders until then. Please prepare
+          the exact amount, you'll pay the rider when it arrives.
         </p>
         <div className="panel" style={{ textAlign: "left", background: "var(--fog)", border: "none", marginTop: 16 }}>
           <div className="cart-summary-row"><span>Order Number</span><span className="mono">{order.orderNumber}</span></div>
           <div className="cart-summary-row"><span>Tracking Number</span><span className="mono">{order.trackingNumber}</span></div>
-          <div className="cart-summary-row total"><span>Total Paid</span><span>{peso(order.total)}</span></div>
+          <div className="cart-summary-row total"><span>Total (pay on delivery)</span><span>{peso(order.total)}</span></div>
         </div>
         <Link to="/account/orders" className="btn btn-primary btn-block" style={{ marginTop: 18 }}>View My Orders</Link>
         <Link to="/" className="btn btn-outline btn-block" style={{ marginTop: 10 }}>Continue Shopping</Link>
