@@ -6,7 +6,6 @@ import ProductModal from "../components/ProductModal";
 import { CategoryIcon } from "../components/ProductVisual";
 import { useUI } from "../context/UIContext";
 import { useAuth } from "../context/AuthContext";
-import raimolLogo from "../../image/raimol.jpg";
 
 const CATEGORIES = [
   { name: "Oils & Fluids", blurb: "Synthetic & semi-synthetic engine oil, brake fluid." },
@@ -68,7 +67,7 @@ export default function Home() {
             <div className="hero-ring">
               <img
                 className="hero-logo"
-                src={raimolLogo}
+                src="/images/raimol-hero.png"
                 alt="RAIMOL Motor Oil and Lubricants"
               />
             </div>
