@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import client from "../api/client";
 import { peso, formatDate } from "../utils/format";
+import Brand from "../components/Brand";
 
 export default function Receipt() {
   const { orderId } = useParams();
@@ -38,7 +39,7 @@ export default function Receipt() {
 
         <div className="receipt-header">
           <div>
-            <div className="brand" style={{ fontSize: 20 }}><span className="dot"></span>Rain<span className="sub">chem</span></div>
+            <div className="brand"><Brand height={80} /></div>
             <p style={{ fontSize: 12, color: "#75706a", margin: "4px 0 0" }}>Rainchem International Inc.<br />Paranaque City, Metro Manila</p>
           </div>
           <div style={{ textAlign: "right" }}>
@@ -86,7 +87,7 @@ export default function Receipt() {
         </div>
 
         <p style={{ fontSize: 12, color: "#8a8580", marginTop: 24, textAlign: "center" }}>
-          Thank you for choosing Rainchem. This receipt was generated after your order was confirmed.
+          Thank you for choosing Raimol. This receipt was generated after your order was confirmed.
         </p>
       </div>
     </div>

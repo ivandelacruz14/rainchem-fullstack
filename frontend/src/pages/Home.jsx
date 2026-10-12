@@ -16,7 +16,9 @@ const CATEGORIES = [
   { name: "Services", blurb: "Book professional installs at partner bays." },
 ];
 
+
 export default function Home() {
+  const HERO_PRODUCT_IMAGE = null;
   const [products, setProducts] = useState([]);
   const [filter, setFilter] = useState("All");
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -61,17 +63,23 @@ export default function Home() {
               <div className="stat-card"><div className="value">24/7</div><div className="label">AI Support</div></div>
             </div>
           </div>
-          <div className="hero-visual">
+                    <div className="hero-visual">
             <div className="hero-ring">
-              <svg width="56%" viewBox="0 0 120 200" fill="none">
-                <rect x="30" y="20" width="60" height="150" rx="10" fill="#e1131f" />
-                <rect x="42" y="4" width="36" height="22" rx="4" fill="#18140f" />
-                <rect x="34" y="70" width="52" height="60" rx="4" fill="#fff" opacity=".92" />
-                <rect x="40" y="80" width="40" height="6" fill="#e1131f" />
-                <rect x="40" y="92" width="40" height="4" fill="#b5121b" />
-                <rect x="40" y="100" width="30" height="4" fill="#b5121b" />
-                <rect x="40" y="108" width="34" height="4" fill="#b5121b" />
-              </svg>
+              {HERO_PRODUCT_IMAGE ? (
+                <img className="hero-product-photo" src={HERO_PRODUCT_IMAGE} alt="RAIMOL engine oil bottle" />
+              ) : (
+                <div className="oil-bottle" role="img" aria-label="RAIMOL engine oil bottle">
+                  <span className="oil-bottle-cap" aria-hidden="true" />
+                  <span className="oil-bottle-neck" aria-hidden="true" />
+                  <span className="oil-bottle-body" aria-hidden="true">
+                    <span className="oil-bottle-label">
+                      <img src="/images/raimol-logo.png" alt="" />
+                    </span>
+                    <span className="oil-bottle-shine" />
+                  </span>
+                  <span className="oil-bottle-shadow" aria-hidden="true" />
+                </div>
+              )}
             </div>
           </div>
         </div>
