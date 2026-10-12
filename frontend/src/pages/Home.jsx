@@ -63,23 +63,13 @@ export default function Home() {
               <div className="stat-card"><div className="value">24/7</div><div className="label">AI Support</div></div>
             </div>
           </div>
-                    <div className="hero-visual">
+                         <div className="hero-visual">
             <div className="hero-ring">
-              {HERO_PRODUCT_IMAGE ? (
-                <img className="hero-product-photo" src={HERO_PRODUCT_IMAGE} alt="RAIMOL engine oil bottle" />
-              ) : (
-                <div className="oil-bottle" role="img" aria-label="RAIMOL engine oil bottle">
-                  <span className="oil-bottle-cap" aria-hidden="true" />
-                  <span className="oil-bottle-neck" aria-hidden="true" />
-                  <span className="oil-bottle-body" aria-hidden="true">
-                    <span className="oil-bottle-label">
-                      <img src="/images/raimol-logo.png" alt="" />
-                    </span>
-                    <span className="oil-bottle-shine" />
-                  </span>
-                  <span className="oil-bottle-shadow" aria-hidden="true" />
-                </div>
-              )}
+              <img
+                className="hero-logo"
+                src="/images/image/raimol-logo-horizontal.png"
+                alt="RAIMOL Motor Oil and Lubricants"
+              />
             </div>
           </div>
         </div>

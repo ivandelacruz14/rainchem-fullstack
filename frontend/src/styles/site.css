@@ -447,3 +447,10 @@ p { margin: 0 0 1em; }
   display: flex; align-items: center;
 }
 .password-toggle:hover { color: #18140f; }
+.hero-logo {
+  display: block; width: 100%; height: auto; max-width: 100%; object-fit: contain;
+  animation: oil-float 5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-logo { animation: none; }
+}
