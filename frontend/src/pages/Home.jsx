@@ -6,6 +6,7 @@ import ProductModal from "../components/ProductModal";
 import { CategoryIcon } from "../components/ProductVisual";
 import { useUI } from "../context/UIContext";
 import { useAuth } from "../context/AuthContext";
+import raimolLogo from "../../image/raimol.jpg";
 
 const CATEGORIES = [
   { name: "Oils & Fluids", blurb: "Synthetic & semi-synthetic engine oil, brake fluid." },
@@ -63,11 +64,11 @@ export default function Home() {
               <div className="stat-card"><div className="value">24/7</div><div className="label">AI Support</div></div>
             </div>
           </div>
-                         <div className="hero-visual">
+           <div className="hero-visual">
             <div className="hero-ring">
               <img
                 className="hero-logo"
-                src="/images/raimol-logo-horizontal.png"
+                src={raimolLogo}
                 alt="RAIMOL Motor Oil and Lubricants"
               />
             </div>
