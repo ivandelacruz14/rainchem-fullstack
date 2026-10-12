@@ -67,7 +67,7 @@ export default function Home() {
             <div className="hero-ring">
               <img
                 className="hero-logo"
-                src="/images/image/raimol-logo-horizontal.png"
+                src="/images/raimol-logo-horizontal.png"
                 alt="RAIMOL Motor Oil and Lubricants"
               />
             </div>
