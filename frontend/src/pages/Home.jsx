@@ -1,26 +1,16 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import client from "../api/client";
 import ProductCard from "../components/ProductCard";
 import ProductModal from "../components/ProductModal";
 import { CategoryIcon } from "../components/ProductVisual";
 import { useUI } from "../context/UIContext";
 import { useAuth } from "../context/AuthContext";
-
-const CATEGORIES = [
-  { name: "Oils & Fluids", blurb: "Synthetic & semi-synthetic engine oil, brake fluid." },
-  { name: "Coolant", blurb: "RadCool concentrate & ready-to-use coolant." },
-  { name: "Filters", blurb: "Oil filters and washable air filters." },
-  { name: "Brakes", blurb: "Brake pads and hydraulic system parts." },
-  { name: "Accessories", blurb: "Chain lube, spark plugs, and small parts." },
-  { name: "Services", blurb: "Book professional installs at partner bays." },
-];
-
+import { CATEGORIES } from "../utils/categories";
 
 export default function Home() {
   const HERO_PRODUCT_IMAGE = null;
   const [products, setProducts] = useState([]);
-  const [filter, setFilter] = useState("All");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [faqs, setFaqs] = useState([]);
@@ -33,11 +23,8 @@ export default function Home() {
     client.get("/api/chat/faq").then((res) => setFaqs(res.data.faqs));
   }, []);
 
-  const visibleProducts = filter === "All" ? products : products.filter((p) => p.category === filter);
-
-  function scrollToShop(category) {
-    setFilter(category);
-    document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" });
+  function openCategory(category) {
+    navigate(`/shop?category=${encodeURIComponent(category)}`);
   }
 
   return (
@@ -54,8 +41,8 @@ export default function Home() {
               own product knowledge.
             </p>
             <div className="hero-cta">
-              <a href="#shop" className="btn btn-primary">Shop Products</a>
-              <a href="#services" className="btn btn-outline">Book a Service</a>
+              <Link to="/shop" className="btn btn-primary">Shop Products</Link>
+              <Link to="/services" className="btn btn-outline">Book a Service</Link>
             </div>
             <div className="hero-stats">
               <div className="stat-card"><div className="value">30 Yrs</div><div className="label">Since 1995</div></div>
@@ -84,7 +71,7 @@ export default function Home() {
           </div>
           <div className="category-strip">
             {CATEGORIES.map((cat) => (
-              <button key={cat.name} className="cat-card" onClick={() => scrollToShop(cat.name)}>
+              <button key={cat.name} className="cat-card" onClick={() => openCategory(cat.name)}>
                 <div className="cat-icon"><CategoryIcon category={cat.name} /></div>
                 <h4>{cat.name}</h4>
                 <p>{cat.blurb}</p>
@@ -100,6 +87,7 @@ export default function Home() {
       <div className="eyebrow">Full Catalog</div>
       <h2>Products &amp; services</h2>
       <p>Browse by category, swipe to see more in each line.</p>
+      <Link className="see-all" to="/shop">See all products &rarr;</Link>
     </div>
     {CATEGORIES.map((cat) => {
       const items = products.filter((p) => p.category === cat.name);
@@ -108,7 +96,10 @@ export default function Home() {
         <div className="product-row-block" key={cat.name}>
           <div className="product-row-head">
             <h3>{cat.name}</h3>
-            <span className="product-row-count">{items.length} item{items.length > 1 ? "s" : ""}</span>
+            <div className="product-row-head-right">
+              <span className="product-row-count">{items.length} item{items.length > 1 ? "s" : ""}</span>
+              <Link className="see-all" to={cat.name === "Services" ? "/services" : `/shop?category=${encodeURIComponent(cat.name)}`}>See all &rarr;</Link>
+            </div>
           </div>
           <div className="product-row">
             {items.map((p) => (
@@ -147,6 +138,7 @@ export default function Home() {
               <div className="service-price">&#8369;300</div>
             </div>
           </div>
+          <div style={{ marginTop: 20 }}><Link className="see-all" to="/services">See all services &rarr;</Link></div>
         </div>
       </section>
 
@@ -191,15 +183,18 @@ export default function Home() {
               </details>
             ))}
           </div>
-          <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={toggleChat}>Ask the AI Assistant</button>
+          <div style={{ display: "flex", gap: 16, alignItems: "center", marginTop: 20, flexWrap: "wrap" }}>
+            <button className="btn btn-primary" onClick={toggleChat}>Ask the AI Assistant</button>
+            <Link className="see-all" to="/faqs">See all FAQs &rarr;</Link>
+          </div>
         </div>
       </section>
 
       {!user && (
   <section className="cta-band" id="contact">
     <h2>Ready to ride worry-free?</h2>
-    <p>Create an account to track orders, save addresses, and check out faster.</p>
-    <button className="btn btn-white" onClick={() => requireLogin("register")}>Create Free Account</button>
+    <p>Sign in with Google to track orders, save addresses, and check out faster.</p>
+    <button className="btn btn-white" onClick={() => requireLogin("login")}>Continue with Google</button>
   </section>
 )}
 

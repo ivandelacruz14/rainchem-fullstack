@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useUI } from "../context/UIContext";
@@ -22,6 +22,15 @@ export default function Header() {
     navigate("/account");
   }
 
+  function handleOrdersClick() {
+    setMenuOpen(false);
+    if (!user) {
+      requireLogin("login", "Please sign in to see your orders");
+      return;
+    }
+    navigate("/account/orders");
+  }
+
   function closeMenu() {
     setMenuOpen(false);
   }
@@ -34,11 +43,11 @@ export default function Header() {
         </Link>
 
         <nav className={`nav-links ${menuOpen ? "open" : ""}`}>
-          <a href="/#home" onClick={closeMenu}>Home</a>
-          <a href="/#shop" onClick={closeMenu}>Shop</a>
-          <a href="/#services" onClick={closeMenu}>Services</a>
-          <a href="/#faq" onClick={closeMenu}>FAQ</a>
-          <a href="/#contact" onClick={closeMenu}>Contact</a>
+          <NavLink to="/" end onClick={closeMenu}>Home</NavLink>
+          <NavLink to="/shop" onClick={closeMenu}>Shop</NavLink>
+          <NavLink to="/services" onClick={closeMenu}>Services</NavLink>
+          <a href="/account/orders" className={window.location.pathname.startsWith("/account/orders") ? "active" : ""} onClick={(e) => { e.preventDefault(); handleOrdersClick(); }}>My Orders</a>
+          <NavLink to="/faqs" onClick={closeMenu}>FAQs</NavLink>
         </nav>
 
         <div className="nav-actions">

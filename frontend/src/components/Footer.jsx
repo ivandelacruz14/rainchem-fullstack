@@ -21,16 +21,16 @@ export default function Footer() {
           <div>
             <h5>Shop</h5>
             <ul>
-              <li><a href="/#shop">Oils &amp; Fluids</a></li>
-              <li><a href="/#shop">Coolant</a></li>
-              <li><a href="/#shop">Filters</a></li>
-              <li><a href="/#shop">Brakes</a></li>
+              <li><Link to="/shop?category=Oils %26 Fluids">Oils &amp; Fluids</Link></li>
+              <li><Link to="/shop?category=Coolant">Coolant</Link></li>
+              <li><Link to="/shop?category=Filters">Filters</Link></li>
+              <li><Link to="/shop?category=Brakes">Brakes</Link></li>
             </ul>
           </div>
           <div>
             <h5>Support</h5>
             <ul>
-              <li><a href="/#faq">FAQ</a></li>
+              <li><Link to="/faqs">FAQs</Link></li>
               <li><button className="link-btn" onClick={toggleChat}>Chat with AI</button></li>
               <li><Link to="/account">Track an Order</Link></li>
             </ul>

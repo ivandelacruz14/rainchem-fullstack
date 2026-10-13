@@ -9,6 +9,9 @@ import Layout from "./components/Layout";
 import { ProtectedRoute, AdminProtectedRoute } from "./components/ProtectedRoute";
 
 import Home from "./pages/Home";
+import Shop from "./pages/Shop";
+import Services from "./pages/Services";
+import FAQs from "./pages/FAQs";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 import PaymentResult from "./pages/PaymentResult";
@@ -46,6 +49,9 @@ export default function App() {
                 <Routes>
                   <Route element={<Layout />}>
                     <Route path="/" element={<Home />} />
+                    <Route path="/shop" element={<Shop />} />
+                    <Route path="/services" element={<Services />} />
+                    <Route path="/faqs" element={<FAQs />} />
                     <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                     <Route path="/payment/result" element={<ProtectedRoute><PaymentResult /></ProtectedRoute>} />
                     <Route path="/payment/demo/:orderId" element={<ProtectedRoute><PaymentDemo /></ProtectedRoute>} />

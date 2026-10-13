@@ -18,7 +18,7 @@ export default function ServicesModal({ services, cartIds, onToggle, onContinue,
           {services.map((s) => {
             const added = cartIds.has(s.id);
             return (
-              <div key={s.id} className={`service-card ${added ? "added" : ""}`}>
+              <div key={s.id} className={`svc-option ${added ? "added" : ""}`}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{s.name}</div>
                   <div style={{ fontSize: 12.5, color: "#6b665f", margin: "2px 0 4px" }}>{s.shortDesc}</div>

@@ -62,7 +62,6 @@ p { margin: 0 0 1em; }
 .brand .dot { width: 10px; height: 10px; border-radius: 2px; background: var(--red-700); transform: rotate(45deg); }
 .brand span.sub { color: var(--red-700); }
 .brand-logo { display: block; width: auto; max-width: 100%; object-fit: contain; }
-/* The lettering is black, so on dark backgrounds the logo sits on a white chip. */
 .brand-logo.on-dark { background: #fff; border-radius: 10px; padding: 5px 10px; box-sizing: content-box; }
 
 .account-chip {
@@ -112,7 +111,6 @@ p { margin: 0 0 1em; }
   background: radial-gradient(circle, #fff 55%, #fbe3e4 100%);
   border: 1px dashed rgba(24, 20, 15, 0.15); display: flex; align-items: center; justify-content: center;
 }
-/* ---- Hero product: RAIMOL engine oil bottle (CSS-built, uses the official logo) ---- */
 .hero-ring { position: relative; overflow: visible; }
 .oil-bottle {
   position: relative; width: 52%; max-width: 210px; aspect-ratio: 11 / 17;
@@ -137,24 +135,20 @@ p { margin: 0 0 1em; }
   background: linear-gradient(90deg, #6e0a10 0%, #b5121b 13%, #e1131f 32%, #ff4650 45%, #e1131f 58%, #b5121b 80%, #6e0a10 100%);
   box-shadow: inset 0 -18px 26px rgba(0,0,0,.30), inset 0 12px 20px rgba(255,255,255,.16), 0 14px 30px rgba(110,10,16,.28);
 }
-/* white label: square, so the (square) logo is shown at its natural proportions */
 .oil-bottle-label {
   position: absolute; z-index: 2; left: 9%; right: 9%; top: 25%; aspect-ratio: 1 / 1;
   background: #fff; border-radius: 4%; overflow: hidden;
   box-shadow: 0 1px 3px rgba(0,0,0,.35);
 }
 .oil-bottle-label img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.oil-bottle-label::after { /* curved-plastic shading across the label */
-  content: ""; position: absolute; inset: 0; pointer-events: none;
+.oil-bottle-label::after {  content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(90deg, rgba(0,0,0,.20) 0%, rgba(0,0,0,0) 16%, rgba(255,255,255,.10) 36%, rgba(0,0,0,0) 60%, rgba(0,0,0,.22) 100%);
 }
-.oil-bottle-shine { /* glossy plastic reflections */
-  position: absolute; z-index: 3; left: 6%; top: 9%; width: 6%; height: 72%; border-radius: 50%;
+.oil-bottle-shine {  position: absolute; z-index: 3; left: 6%; top: 9%; width: 6%; height: 72%; border-radius: 50%;
   background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.08));
   filter: blur(1px);
 }
-.oil-bottle-body::after { /* soft rim light on the right edge */
-  content: ""; position: absolute; z-index: 3; right: 2.5%; top: 14%; width: 3.5%; height: 62%; border-radius: 50%;
+.oil-bottle-body::after {  content: ""; position: absolute; z-index: 3; right: 2.5%; top: 14%; width: 3.5%; height: 62%; border-radius: 50%;
   background: linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,0));
 }
 .oil-bottle-shadow {
@@ -450,7 +444,6 @@ p { margin: 0 0 1em; }
 
 .pd-reco { margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(24,20,15,0.08); }
 
-/* Compact cards on mobile */
 @media (max-width: 640px) {
   .product-row-item { width: 148px; }
   .product-info { padding: 10px; gap: 3px; }
@@ -499,8 +492,8 @@ p { margin: 0 0 1em; }
 .pay-option.disabled { opacity: 0.55; cursor: not-allowed; }
 .pay-option input { margin-top: 4px; accent-color: var(--red-700); }
 .pay-soon { font-size: 11px; font-weight: 600; color: #9a6b08; margin-left: 6px; }
-.service-card { display: flex; gap: 14px; align-items: center; padding: 12px 14px; border: 1.5px solid rgba(24, 20, 15, 0.12); border-radius: 12px; margin-bottom: 10px; }
-.service-card.added { border-color: #1d8348; background: #f1faf4; }
+.svc-option { display: flex; gap: 14px; align-items: center; padding: 12px 14px; border: 1.5px solid rgba(24, 20, 15, 0.12); border-radius: 12px; margin-bottom: 10px; }
+.svc-option.added { border-color: #1d8348; background: #f1faf4; }
 .result-icon { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 30px; font-weight: 800; }
 .result-icon.ok { background: #e9f7ef; }
 .result-icon.warn { background: #fef6e7; color: #9a6b08; }
@@ -508,3 +501,23 @@ p { margin: 0 0 1em; }
 .star-picker { display: flex; gap: 4px; }
 .star-picker button { background: none; border: none; font-size: 34px; line-height: 1; color: #d6d1c9; cursor: pointer; padding: 0 2px; }
 .star-picker button.on { color: #f5b301; }
+
+.nav-links a.active { color: var(--red-700); }
+.see-all { font-size: 13.5px; font-weight: 700; color: var(--red-700); white-space: nowrap; }
+.see-all:hover { text-decoration: underline; }
+.product-row-head-right { display: flex; align-items: baseline; gap: 14px; }
+.page-hero { padding: 44px 0 26px; }
+.page-hero h1 { margin: 6px 0 8px; }
+.page-hero p { margin: 0; color: #57524c; max-width: 640px; }
+.shop-toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 22px; }
+.shop-toolbar input { flex: 1 1 240px; max-width: 340px; padding: 10px 14px; border-radius: 22px; border: 1.5px solid rgba(24, 20, 15, 0.16); font-size: 14px; font-family: inherit; }
+.chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { padding: 7px 14px; border-radius: 20px; border: 1.5px solid rgba(24, 20, 15, 0.16); background: #fff; font-size: 13px; font-weight: 600; cursor: pointer; color: #57524c; }
+.chip:hover { border-color: var(--red-700); color: var(--red-700); }
+.chip.active { background: var(--red-700); border-color: var(--red-700); color: #fff; }
+.steps-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+.step-box { background: #fff; border: 1px solid rgba(24, 20, 15, 0.08); border-radius: 14px; padding: 16px 18px; }
+.step-box strong { display: block; margin-bottom: 4px; }
+.faq-group { margin-bottom: 28px; max-width: 800px; }
+.faq-group h3 { font-family: var(--ff-display); font-size: 18px; margin: 0 0 6px; }
+@media (max-width: 760px) { .steps-row { grid-template-columns: 1fr; } }
