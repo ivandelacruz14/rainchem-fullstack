@@ -540,7 +540,10 @@ def answer_question(question, entries, products=None, previous_question=None, in
 
     # Short follow-ups like "how about the semi-synthetic?" borrow context
     # from the user's previous question.
-    if previous_question and len(tokens) <= 2 and max(kb_score, prod_score) < KB_ANSWER_MIN:
+    # Only when the new question has no clear match of its own: otherwise a
+    # self-contained question ("magkano ang radcool?") would get mixed up with
+    # whatever was asked before it.
+    if previous_question and len(tokens) <= 2 and kb_score < SUGGEST_MIN and prod_score < PRODUCT_MIN:
         prev_text, prev_tokens, prev_intents, _ = _analyze(previous_question)
         merged_text = f"{prev_text} {text}".strip()
         merged_tokens = prev_tokens + tokens

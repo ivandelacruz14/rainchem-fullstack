@@ -172,7 +172,7 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
                 <div className="field">
                   <label>Product Photo</label>
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: "1px solid rgba(24,20,15,.12)", background: "var(--fog)" }}>
+                    <div style={{ width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: "1px solid var(--line-strong)", background: "var(--fog)" }}>
                       {imagePreview && <img src={imagePreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                     </div>
                     <div>

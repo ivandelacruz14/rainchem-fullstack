@@ -21,7 +21,7 @@ export default function OrderCard({ order, onCancel, onPay, onReceive, onReview,
       <div className="order-card-top">
         <div>
           <div className="mono" style={{ fontWeight: 700 }}>{order.orderNumber}</div>
-          <div style={{ fontSize: 12, color: "#8a8580" }}>
+          <div style={{ fontSize: 12, color: "var(--soft)" }}>
             {formatDate(order.createdAt)} &middot; Tracking: <span className="mono">{order.trackingNumber}</span>
           </div>
         </div>
@@ -42,13 +42,18 @@ export default function OrderCard({ order, onCancel, onPay, onReceive, onReview,
         </div>
       )}
 
-      <div style={{ marginTop: 14, fontSize: 13.5, color: "#57524c" }}>
+      <div style={{ marginTop: 14, fontSize: 13.5, color: "var(--muted)" }}>
         {order.items.map((it) => `${it.name} x ${it.quantity}`).join(", ")}
       </div>
-      <div style={{ fontSize: 12.5, color: "#8a8580", marginTop: 6 }}>Payment: {order.paymentMethod}</div>
+      <div style={{ fontSize: 12.5, color: "var(--soft)", marginTop: 6 }}>Payment: {order.paymentMethod}</div>
 
-      {order.canPay && (
-        <div className="order-note warn">Waiting for your {order.paymentMethod} payment. Please pay so we can process this order.</div>
+      {order.canPay && order.paymentStatus === "unpaid" && (
+        <div className="order-note warn">Waiting for your {order.paymentMethod} payment. Please pay so we can process this order, or choose another payment method.</div>
+      )}
+      {order.paymentStatus === "verifying" && (
+        <div className="order-note">
+          Payment submitted{order.paymentReference ? <> (reference <span className="mono">{order.paymentReference}</span>)</> : ""}. Our team is verifying it.
+        </div>
       )}
       {order.paymentStatus === "refund_pending" && (
         <div className="order-note">Your refund is being processed by our team.</div>
@@ -69,7 +74,12 @@ export default function OrderCard({ order, onCancel, onPay, onReceive, onReview,
 
       <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
         {order.canPay && onPay && (
-          <button className="btn btn-primary btn-sm" onClick={() => onPay(order.id)}>Pay Now</button>
+          <button className="btn btn-primary btn-sm" onClick={() => onPay(order.id)}>
+            {order.paymentStatus === "verifying" ? "View Payment" : "Pay Now"}
+          </button>
+        )}
+        {order.canChangePayment && !order.canPay && onPay && (
+          <button className="btn btn-outline btn-sm" onClick={() => onPay(order.id)}>Change Payment</button>
         )}
         {order.canReceive && onReceive && (
           <button className="btn btn-primary btn-sm" onClick={() => onReceive(order.id)}>Order Received</button>

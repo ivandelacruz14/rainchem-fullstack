@@ -9,6 +9,7 @@ from app.routes.knowledge import knowledge_bp
 from app.routes.chat import chat_bp
 from app.routes.admin_dashboard import admin_dashboard_bp
 from app.routes.admin_analytics import admin_analytics_bp
+from app.routes.admin_settings import admin_settings_bp
 
 
 def register_routes(app):
@@ -23,3 +24,4 @@ def register_routes(app):
     app.register_blueprint(chat_bp)
     app.register_blueprint(admin_dashboard_bp)
     app.register_blueprint(admin_analytics_bp)
+    app.register_blueprint(admin_settings_bp)

@@ -1,13 +1,84 @@
+import os
+import re
 from datetime import datetime
 
 from flask import current_app
 
 from app.extensions import db
+from app.models.order import COD, GCASH, CARD
+from app.models.setting import get_setting
 from app.services import paymongo
 from app.services.email_service import send_email
 
+GCASH_KEYS = ("gcash_number", "gcash_name", "gcash_link", "gcash_qr", "gcash_note")
+_ENV_FALLBACK = {
+    "gcash_number": "GCASH_NUMBER",
+    "gcash_name": "GCASH_ACCOUNT_NAME",
+    "gcash_link": "GCASH_PAYMENT_LINK",
+    "gcash_note": "GCASH_NOTE",
+}
+
+
+def gcash_details():
+    """GCash payment details shown to the customer. Set by an admin under
+    Payment Settings (or by GCASH_* environment variables as a fallback)."""
+    details = {}
+    for key in GCASH_KEYS:
+        value = get_setting(key, "")
+        if not value and key in _ENV_FALLBACK:
+            value = os.environ.get(_ENV_FALLBACK[key], "")
+        details[key] = (value or "").strip()
+    return {
+        "number": details["gcash_number"],
+        "accountName": details["gcash_name"],
+        "link": details["gcash_link"],
+        "qr": details["gcash_qr"],
+        "note": details["gcash_note"],
+    }
+
+
+def gcash_configured():
+    d = gcash_details()
+    return bool(d["number"] or d["link"] or d["qr"])
+
+
+def card_available():
+    return CARD in paymongo.available_methods()
+
+
+def available_online_methods():
+    methods = []
+    if gcash_configured():
+        methods.append(GCASH)
+    if card_available():
+        methods.append(CARD)
+    return methods
+
+
+def available_methods():
+    return [COD] + available_online_methods()
+
+
+def valid_gcash_reference(value):
+    """GCash reference numbers are 13 digits, but be forgiving: 6-30 letters/digits."""
+    cleaned = re.sub(r"[\s-]", "", value or "")
+    return cleaned if re.fullmatch(r"[A-Za-z0-9]{6,30}", cleaned) else None
+
+
+def reset_payment(order):
+    """Clears everything tied to the previous payment method."""
+    order.payment_reference = None
+    order.payment_proof = None
+    order.payment_submitted_at = None
+    order.payment_status = "unpaid"
+    order.paid_at = None
+
 
 def start_checkout(order):
+    """Starts a PayMongo card checkout. Only cards use PayMongo."""
+    if order.payment_method != CARD:
+        raise paymongo.PaymentError("This order is not set to pay by card.")
+
     frontend = current_app.config["FRONTEND_URL"].rstrip("/")
 
     if paymongo.demo_mode():
@@ -17,7 +88,7 @@ def start_checkout(order):
 
     if not paymongo.is_configured():
         raise paymongo.PaymentError(
-            "Online payment is not available right now. Please choose Cash on Delivery."
+            "Card payment is not available right now. Please choose GCash or Cash on Delivery."
         )
 
     result_url = f"{frontend}/payment/result?order={order.id}"

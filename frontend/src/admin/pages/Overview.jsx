@@ -24,7 +24,7 @@ export default function Overview() {
   }, []);
 
   if (error) return <div className="alert alert-error">{error}</div>;
-  if (!data) return <p style={{ color: "#8a8580" }}>Loading dashboard...</p>;
+  if (!data) return <p style={{ color: "var(--soft)" }}>Loading dashboard...</p>;
   const { stats, recentOrders, topFaqs } = data;
   const maxHits = Math.max(1, ...topFaqs.map((f) => f.hits));
 
@@ -42,7 +42,7 @@ export default function Overview() {
       <div className="two-col">
         <div className="admin-panel">
           <div className="panel-head">
-            <div><h3 style={{ margin: 0 }}>Recent Orders</h3><p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#8a8580" }}>Latest 5 orders across all customers</p></div>
+            <div><h3 style={{ margin: 0 }}>Recent Orders</h3><p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--soft)" }}>Latest 5 orders across all customers</p></div>
             <Link to="/admin/orders" className="btn btn-sm btn-outline">View All</Link>
           </div>
           <div className="table-wrap">
@@ -66,11 +66,11 @@ export default function Overview() {
           </div>
         </div>
         <div className="admin-panel">
-          <div className="panel-head"><div><h3 style={{ margin: 0 }}>Top Asked Questions</h3><p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#8a8580" }}>Most frequently asked, all time</p></div></div>
-          {topFaqs.length === 0 ? <p style={{ color: "#8a8580" }}>No questions asked yet.</p> : topFaqs.map((f) => (
+          <div className="panel-head"><div><h3 style={{ margin: 0 }}>Top Asked Questions</h3><p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--soft)" }}>Most frequently asked, all time</p></div></div>
+          {topFaqs.length === 0 ? <p style={{ color: "var(--soft)" }}>No questions asked yet.</p> : topFaqs.map((f) => (
             <div key={f.id} style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600 }}>
-                <span>{f.question}</span><span className="mono" style={{ color: "#8a8580" }}>{f.hits}</span>
+                <span>{f.question}</span><span className="mono" style={{ color: "var(--soft)" }}>{f.hits}</span>
               </div>
               <div className="hit-bar-track"><div className="hit-bar-fill" style={{ width: `${(f.hits / maxHits) * 100}%` }} /></div>
             </div>

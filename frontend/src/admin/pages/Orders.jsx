@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import client from "../../api/client";
 import { peso, formatDate } from "../../utils/format";
 import { useToast } from "../../context/ToastContext";
+import ReceiptModal from "../ReceiptModal";
 
-const STATUSES = ["All", "pending_confirmation", "confirmed", "processing", "shipped", "delivered", "cancelled", "returns"];
+const STATUSES = ["All", "verifying", "pending_confirmation", "confirmed", "processing", "shipped", "delivered", "cancelled", "returns"];
 const LABELS = {
-  All: "All", pending_confirmation: "Pending Confirmation", confirmed: "Confirmed",
+  All: "All", verifying: "Verify Payment", pending_confirmation: "Pending Confirmation", confirmed: "Confirmed",
   processing: "Processing", shipped: "Shipped", delivered: "Delivered", cancelled: "Cancelled", returns: "Returns",
 };
 
@@ -14,6 +15,8 @@ export default function Orders() {
   const [tab, setTab] = useState("All");
   const [selected, setSelected] = useState(null);
   const [returnNote, setReturnNote] = useState("");
+  const [receiptFor, setReceiptFor] = useState(null);
+  const [proofImage, setProofImage] = useState(null);
   const showToast = useToast();
 
   function loadOrders() {
@@ -25,9 +28,10 @@ export default function Orders() {
   async function handleConfirm(orderId) {
     try {
       await client.post(`/api/admin/orders/${orderId}/confirm`);
-      showToast("Order confirmed and receipt generated", "success");
+      showToast("Order confirmed. The receipt is ready to print.", "success");
       loadOrders();
       setSelected(null);
+      setReceiptFor(orderId); // open the receipt right away so it can be printed
     } catch (err) {
       showToast(err.response?.data?.error || "Could not confirm this order", "error");
     }
@@ -42,6 +46,40 @@ export default function Orders() {
       setSelected(null);
     } catch (err) {
       showToast(err.response?.data?.error || "Could not update this return", "error");
+    }
+  }
+
+  async function handleVerifyPayment(orderId) {
+    try {
+      const res = await client.post(`/api/admin/orders/${orderId}/payment/verify`);
+      showToast("Payment marked as received. You can now confirm the order.", "success");
+      setSelected(res.data.order);
+      loadOrders();
+    } catch (err) {
+      showToast(err.response?.data?.error || "Could not update this payment", "error");
+    }
+  }
+
+  async function handleRejectPayment(orderId) {
+    const note = window.prompt("Tell the customer why (optional), e.g. \"No payment found for that reference\":", "");
+    if (note === null) return;
+    try {
+      const res = await client.post(`/api/admin/orders/${orderId}/payment/reject`, { note });
+      showToast("Payment rejected. The customer was emailed.", "success");
+      setSelected(res.data.order);
+      loadOrders();
+    } catch (err) {
+      showToast(err.response?.data?.error || "Could not reject this payment", "error");
+    }
+  }
+
+  async function handleViewProof(orderId) {
+    try {
+      const res = await client.get(`/api/admin/orders/${orderId}/payment-proof`);
+      if (res.data.proof) setProofImage(res.data.proof);
+      else showToast("No screenshot was uploaded", "error");
+    } catch (err) {
+      showToast(err.response?.data?.error || "Could not load the screenshot", "error");
     }
   }
 
@@ -93,10 +131,15 @@ export default function Orders() {
                     <td><span className={`pay-pill pay-${o.paymentStatus}`}>{o.paymentStatusLabel}</span></td>
                     <td>
                       <span className={`status-pill status-${o.status}`}>{o.statusLabel}</span>
-                      {o.returnInfo.status === "requested" && <div style={{ fontSize: 11, color: "#9a6b08", marginTop: 4, fontWeight: 700 }}>Return requested</div>}
+                      {o.returnInfo.status === "requested" && <div style={{ fontSize: 11, color: "var(--warn-fg)", marginTop: 4, fontWeight: 700 }}>Return requested</div>}
                     </td>
                     <td className="mono" style={{ fontSize: 12 }}>{o.trackingNumber}</td>
-                    <td><button className="icon-action" onClick={() => { setReturnNote(""); setSelected(o); }}>View</button></td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <button className="icon-action" style={{ width: "auto", padding: "0 10px" }} onClick={() => { setReturnNote(""); setSelected(o); }}>View</button>
+                      {o.hasReceipt && (
+                        <button className="icon-action" style={{ width: "auto", padding: "0 10px", marginLeft: 6 }} onClick={() => setReceiptFor(o.id)}>Print</button>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
@@ -111,7 +154,7 @@ export default function Orders() {
             <div className="modal-head"><h3 style={{ margin: 0 }}>Order Detail</h3><button className="modal-close" onClick={() => setSelected(null)}>&times;</button></div>
             <div className="modal-body">
               <div className="mono" style={{ fontWeight: 700, fontSize: 16 }}>{selected.orderNumber}</div>
-              <div style={{ fontSize: 12, color: "#8a8580", marginBottom: 14 }}>Placed {formatDate(selected.createdAt)}</div>
+              <div style={{ fontSize: 12, color: "var(--soft)", marginBottom: 14 }}>Placed {formatDate(selected.createdAt)}</div>
               <div className="panel" style={{ background: "var(--fog)", border: "none" }}>
                 <strong>Customer</strong>
                 <p style={{ margin: "6px 0 0" }}>{selected.customer.name}<br />{selected.customer.phone}<br />{selected.customer.email}</p>
@@ -157,7 +200,29 @@ export default function Orders() {
                 </button>
               )}
 
-              {selected.status === "pending_confirmation" && selected.paymentMethod !== "Cash on Delivery" && selected.paymentStatus !== "paid" && (
+              {selected.paymentMethod === "GCash" && selected.paymentStatus !== "paid" && selected.status !== "cancelled" && (
+                <div className="order-note warn" style={{ marginTop: 16 }}>
+                  {selected.paymentStatus === "verifying" ? (
+                    <>
+                      <strong>GCash payment submitted.</strong> Reference: <span className="mono">{selected.paymentReference}</span>
+                      {selected.paymentSubmittedAt && <> &middot; {formatDate(selected.paymentSubmittedAt)}</>}
+                      <div style={{ marginTop: 4 }}>Check it in your GCash account for {peso(selected.total)}, then mark it as received.</div>
+                    </>
+                  ) : (
+                    <>The customer has not sent a GCash reference number yet. If you already received the payment, you can mark it as received.</>
+                  )}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                    {selected.hasPaymentProof && (
+                      <button type="button" className="btn btn-outline btn-sm" onClick={() => handleViewProof(selected.id)}>View screenshot</button>
+                    )}
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => handleVerifyPayment(selected.id)}>Mark payment as received</button>
+                    {selected.paymentStatus === "verifying" && (
+                      <button type="button" className="btn btn-outline btn-sm" onClick={() => handleRejectPayment(selected.id)}>Reject</button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {selected.status === "pending_confirmation" && selected.paymentMethod !== "Cash on Delivery" && selected.paymentMethod !== "GCash" && selected.paymentStatus !== "paid" && (
                 <div className="order-note warn" style={{ marginTop: 16 }}>
                   Waiting for the customer's {selected.paymentMethod} payment. You can confirm this order once it is paid.
                 </div>
@@ -165,6 +230,12 @@ export default function Orders() {
               {selected.status === "pending_confirmation" && (selected.paymentMethod === "Cash on Delivery" || selected.paymentStatus === "paid") && (
                 <button className="btn btn-primary btn-block" style={{ marginTop: 16 }} onClick={() => handleConfirm(selected.id)}>
                   Confirm Order &amp; Generate Receipt
+                </button>
+              )}
+
+              {(selected.hasReceipt || ["confirmed", "processing", "shipped", "delivered"].includes(selected.status)) && (
+                <button className="btn btn-outline btn-block" style={{ marginTop: 16 }} onClick={() => setReceiptFor(selected.id)}>
+                  Print Receipt
                 </button>
               )}
 
@@ -180,6 +251,17 @@ export default function Orders() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {receiptFor && <ReceiptModal orderId={receiptFor} onClose={() => setReceiptFor(null)} />}
+
+      {proofImage && (
+        <div className="overlay" style={{ zIndex: 800 }} onClick={() => setProofImage(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head"><h3 style={{ margin: 0 }}>Payment screenshot</h3><button className="modal-close" onClick={() => setProofImage(null)}>&times;</button></div>
+            <div className="modal-body"><img src={proofImage} alt="GCash payment screenshot" style={{ width: "100%", borderRadius: 8 }} /></div>
           </div>
         </div>
       )}

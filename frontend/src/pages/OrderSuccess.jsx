@@ -25,11 +25,11 @@ export default function OrderSuccess() {
   return (
     <div className="container" style={{ padding: "50px 24px 80px", maxWidth: 700 }}>
       <div className="text-center">
-        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#e9f7ef", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--ok-bg)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1d6e3b" strokeWidth="2.4"><path d="M20 6 9 17l-5-5" /></svg>
         </div>
         <h3>Thank you, {order.customer.name.split(" ")[0]}!</h3>
-        <p style={{ color: "#57524c" }}>
+        <p style={{ color: "var(--muted)" }}>
           Your order has been placed and is pending confirmation from our team. You'll get an
           email once it's confirmed, and you can cancel it from My Orders until then. Please prepare
           the exact amount, you'll pay the rider when it arrives.
@@ -44,7 +44,7 @@ export default function OrderSuccess() {
       </div>
 
       {recommendations.length > 0 && (
-        <div style={{ textAlign: "left", marginTop: 28, paddingTop: 22, borderTop: "1px solid rgba(24,20,15,.08)" }}>
+        <div style={{ textAlign: "left", marginTop: 28, paddingTop: 22, borderTop: "1px solid var(--line)" }}>
           <h4 style={{ marginBottom: 4 }}>You May Also Like</h4>
           <p className="field-hint" style={{ marginBottom: 14 }}>Frequently paired with what you just ordered</p>
           <div className="reco-grid">

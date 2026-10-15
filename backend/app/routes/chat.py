@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
+from sqlalchemy.orm import defer
 
 from app.extensions import db
 from app.models import KnowledgeEntry, ChatLog, Product
@@ -25,34 +26,47 @@ def ask():
     previous_question = (data.get("previousQuestion") or "").strip()[:MAX_QUESTION_LENGTH] or None
 
     entries = KnowledgeEntry.query.filter_by(status="approved").all()
-    products = Product.query.all()
-    result = answer_question(
-        question, entries, products=products,
-        previous_question=previous_question, include_pending=False,
-    )
+    # The chatbot never needs product photos (base64, can be megabytes each).
+    products = Product.query.options(defer(Product.image_photo)).all()
+
+    try:
+        result = answer_question(
+            question, entries, products=products,
+            previous_question=previous_question, include_pending=False,
+        )
+    except Exception:
+        current_app.logger.exception("RAG failed to answer a question")
+        return jsonify({"error": "The assistant could not answer right now. Please try again."}), 500
 
     if result["matched_entry"]:
         result["matched_entry"].hits += 1
 
-    log = ChatLog(
-        question=question,
-        answer=result["answer"],
-        matched_knowledge_id=result["matched_entry"].id if result["matched_entry"] else None,
-        confidence=result["confidence"],
-        resolved=result["resolved"],
-        source=result["source"],
-        user_id=current_user_id(),
-    )
-    db.session.add(log)
-    db.session.commit()
+    log_id = None
+    try:
+        log = ChatLog(
+            question=question,
+            answer=result["answer"],
+            matched_knowledge_id=result["matched_entry"].id if result["matched_entry"] else None,
+            confidence=result["confidence"],
+            resolved=result["resolved"],
+            source=result["source"],
+            user_id=current_user_id(),
+        )
+        db.session.add(log)
+        db.session.commit()
+        log_id = log.id
+    except Exception:
+        # Failing to save the log must never stop the customer from getting an answer.
+        db.session.rollback()
+        current_app.logger.exception("Could not save chat log")
 
     return jsonify({
-        "logId": log.id,
+        "logId": log_id,
         "answer": result["answer"],
         "confidence": result["confidence"],
         "resolved": result["resolved"],
         "source": result["source"],
-        "canRate": result["can_rate"],
+        "canRate": result["can_rate"] and log_id is not None,
         "related": result["related"],
     })
 

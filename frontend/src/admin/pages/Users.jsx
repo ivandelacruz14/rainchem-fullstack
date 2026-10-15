@@ -50,7 +50,7 @@ export default function Users() {
         {!revealed ? (
           <div style={{ textAlign: "center", padding: "36px 20px" }}>
             <h3 style={{ marginBottom: 6 }}>Customer data is hidden by default</h3>
-            <p style={{ color: "#8a8580", fontSize: 13.5, maxWidth: 420, margin: "0 auto 18px" }}>
+            <p style={{ color: "var(--soft)", fontSize: 13.5, maxWidth: 420, margin: "0 auto 18px" }}>
               There are <strong>{summary?.total ?? "..."}</strong> registered accounts ({summary?.verified ?? "..."} verified).
               Names, emails, and phone numbers are only shown after you choose to view them here.
             </p>
@@ -94,11 +94,11 @@ export default function Users() {
             <div className="modal-head"><h3 style={{ margin: 0 }}>User Detail</h3><button className="modal-close" onClick={() => setSelected(null)}>&times;</button></div>
             <div className="modal-body">
               <h3 style={{ margin: "0 0 4px" }}>{selected.name}</h3>
-              <p style={{ color: "#8a8580", fontSize: 13.5 }}>{selected.email} &middot; {selected.phone || "No phone on file"}</p>
+              <p style={{ color: "var(--soft)", fontSize: 13.5 }}>{selected.email} &middot; {selected.phone || "No phone on file"}</p>
               <span className={`pill ${selected.verified ? "pill-approved" : "pill-pending"}`}>{selected.verified ? "Verified" : "Unverified"}</span>
               <h4 style={{ margin: "18px 0 8px" }}>Order History ({selected.orders.length})</h4>
               {selected.orders.length === 0 ? (
-                <p style={{ color: "#8a8580", fontSize: 13.5 }}>No orders placed yet, this customer has not purchased anything through the storefront.</p>
+                <p style={{ color: "var(--soft)", fontSize: 13.5 }}>No orders placed yet, this customer has not purchased anything through the storefront.</p>
               ) : (
                 selected.orders.map((o) => (
                   <div className="cart-summary-row" key={o.id}><span className="mono">{o.orderNumber}</span><span>{o.statusLabel}</span></div>
@@ -119,7 +119,7 @@ export default function Users() {
           <div className="modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-head"><h3 style={{ margin: 0 }}>Delete this account?</h3></div>
             <div className="modal-body">
-              <p style={{ fontSize: 13.5, color: "#4a4540" }}>
+              <p style={{ fontSize: 13.5, color: "var(--muted)" }}>
                 This will permanently delete <strong>{confirmDelete.name}</strong> ({confirmDelete.email}).
                 This cannot be undone, and they will need to register again with a fresh account.
               </p>

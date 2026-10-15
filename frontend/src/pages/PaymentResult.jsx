@@ -52,15 +52,10 @@ export default function PaymentResult() {
     };
   }, [orderId, cancelled, navigate]);
 
-  async function handlePayAgain() {
+  function handlePayAgain() {
+    // Back to our payment page, where the customer can retry the card or pick GCash / COD.
     setRetrying(true);
-    try {
-      const res = await client.post(`/api/payments/orders/${orderId}/checkout`);
-      window.location.href = res.data.checkoutUrl;
-    } catch (err) {
-      setMessage(err.response?.data?.error || "Could not restart the payment.");
-      setRetrying(false);
-    }
+    navigate(`/payment/${orderId}`);
   }
 
   return (
@@ -68,7 +63,7 @@ export default function PaymentResult() {
       {state === "checking" && (
         <>
           <h3>Confirming your payment...</h3>
-          <p style={{ color: "#57524c" }}>Please don't close this page.</p>
+          <p style={{ color: "var(--muted)" }}>Please don't close this page.</p>
         </>
       )}
 
@@ -78,7 +73,7 @@ export default function PaymentResult() {
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1d6e3b" strokeWidth="2.4"><path d="M20 6 9 17l-5-5" /></svg>
           </div>
           <h3>Payment received!</h3>
-          <p style={{ color: "#57524c" }}>
+          <p style={{ color: "var(--muted)" }}>
             Thank you. We've received your {order?.paymentMethod} payment of {order && peso(order.total)} for order{" "}
             <strong className="mono">{order?.orderNumber}</strong>. Our team will confirm it shortly.
           </p>
@@ -91,11 +86,11 @@ export default function PaymentResult() {
         <>
           <div className="result-icon warn">!</div>
           <h3>{cancelled ? "Payment cancelled" : "Payment not completed yet"}</h3>
-          <p style={{ color: "#57524c" }}>
+          <p style={{ color: "var(--muted)" }}>
             {message || "Your order is saved under To Pay. You can finish the payment now or later from My Orders."}
           </p>
           <button className="btn btn-primary btn-block" style={{ marginTop: 18 }} disabled={retrying} onClick={handlePayAgain}>
-            {retrying ? "Please wait..." : "Pay Now"}
+            {retrying ? "Please wait..." : "Try again or choose another way to pay"}
           </button>
           <Link to="/account/orders?tab=to_pay" className="btn btn-outline btn-block" style={{ marginTop: 10 }}>Go to My Orders</Link>
         </>

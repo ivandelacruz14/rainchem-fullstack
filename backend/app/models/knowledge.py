@@ -36,6 +36,11 @@ class ChatLog(db.Model):
     resolved = db.Column(db.Boolean, nullable=False, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Added by schema_updates.ensure_schema() on older databases.
+    source = db.Column(db.String(20), nullable=True)
+    rating = db.Column(db.SmallInteger, nullable=True)
+    feedback = db.Column(db.String(500), nullable=True)
+    rated_at = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self):
         return {
@@ -44,6 +49,9 @@ class ChatLog(db.Model):
             "answer": self.answer,
             "confidence": self.confidence,
             "resolved": self.resolved,
+            "source": self.source,
+            "rating": self.rating,
+            "feedback": self.feedback,
             "userId": self.user_id,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }

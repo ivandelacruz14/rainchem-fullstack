@@ -13,16 +13,16 @@ export default function AccountHelp() {
   return (
     <div>
       <h2>Help Center</h2>
-      <p style={{ color: "#6b665f", marginBottom: 20 }}>
+      <p style={{ color: "var(--muted)", marginBottom: 20 }}>
         Find quick answers below, or chat with our AI assistant for anything else.
       </p>
 
       <div className="panel" style={{ marginBottom: 20 }}>
         <h3 style={{ marginTop: 0 }}>Frequently Asked Questions</h3>
         {faqs.map((f) => (
-          <details key={f.id} style={{ borderBottom: "1px solid rgba(24,20,15,.08)", padding: "12px 0" }}>
+          <details key={f.id} style={{ borderBottom: "1px solid var(--line)", padding: "12px 0" }}>
             <summary style={{ fontWeight: 700, cursor: "pointer" }}>{f.question}</summary>
-            <p style={{ margin: "8px 0 0", color: "#57524c", fontSize: 14 }}>{f.answer}</p>
+            <p style={{ margin: "8px 0 0", color: "var(--muted)", fontSize: 14 }}>{f.answer}</p>
           </details>
         ))}
       </div>

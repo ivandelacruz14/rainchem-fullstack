@@ -90,7 +90,7 @@ export default function Knowledge() {
           ))}
         </div>
         <div className="admin-panel">
-          <div className="panel-head"><div><h3 style={{ margin: 0 }}>Most Frequently Asked</h3><p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#8a8580" }}>Ranked by how often users trigger this answer</p></div></div>
+          <div className="panel-head"><div><h3 style={{ margin: 0 }}>Most Frequently Asked</h3><p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--soft)" }}>Ranked by how often users trigger this answer</p></div></div>
           {ranked.map((e) => (
             <div key={e.id} style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, fontWeight: 600 }}><span>{e.question}</span><span className="mono">{e.hits}</span></div>

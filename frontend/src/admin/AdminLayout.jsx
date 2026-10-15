@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAdminAuth } from "../context/AdminAuthContext";
 import Brand from "../components/Brand";
+import ThemeToggle from "../components/ThemeToggle";
 
 const NAV_ITEMS = [
   { group: "Overview", links: [{ to: "/admin", label: "Dashboard", end: true }] },
@@ -21,7 +22,13 @@ const NAV_ITEMS = [
       { to: "/admin/monitor", label: "Chat Monitor" },
     ],
   },
-  { group: "System", links: [{ to: "/admin/accounts", label: "Admin Accounts" }] },
+  {
+    group: "System",
+    links: [
+      { to: "/admin/payments", label: "Payment Settings" },
+      { to: "/admin/accounts", label: "Admin Accounts" },
+    ],
+  },
 ];
 
 export default function AdminLayout() {
@@ -55,8 +62,12 @@ export default function AdminLayout() {
           </div>
         ))}
         <div className="sidebar-foot">
-          <div style={{ fontSize: 12, color: "#8a8580", marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: "var(--soft)", marginBottom: 8 }}>
             Signed in as<br /><strong style={{ color: "#fff" }}>{admin?.name}</strong>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <ThemeToggle style={{ width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.14)", color: "#fff" }} />
+            <span style={{ fontSize: 12, color: "#b8b2ac" }}>Dark / light mode</span>
           </div>
           <button className="admin-nav-link" style={{ color: "#ff9a9e" }} onClick={handleLogout}>Log Out</button>
         </div>

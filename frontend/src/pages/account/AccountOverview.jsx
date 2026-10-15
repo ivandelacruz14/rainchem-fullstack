@@ -17,7 +17,7 @@ export default function AccountOverview() {
   return (
     <div>
       <h2>Welcome back, {user?.name.split(" ")[0]}</h2>
-      <p style={{ color: "#57524c" }}>Here's a quick snapshot of your account.</p>
+      <p style={{ color: "var(--muted)" }}>Here's a quick snapshot of your account.</p>
       <div className="stat-grid" style={{ marginTop: 20 }}>
         <div className="stat-box"><div className="label">Total Orders</div><div className="value">{orders.length}</div></div>
         <div className="stat-box"><div className="label">In Transit</div><div className="value">{inTransit}</div></div>

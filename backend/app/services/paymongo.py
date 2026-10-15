@@ -8,8 +8,9 @@ from flask import current_app
 API_BASE = "https://api.paymongo.com/v1"
 TIMEOUT = 20
 
+# PayMongo is only used for cards. GCash is paid directly to the store's own
+# GCash number/link (see payment_flow.gcash_details), not through PayMongo.
 METHOD_TYPES = {
-    "GCash": "gcash",
     "Credit / Debit Card": "card",
 }
 

@@ -6,6 +6,7 @@ from app.models import Order, OrderStatusHistory, Product
 from app.models.order import ORDER_STATUSES
 from app.services.receipt_service import create_receipt_for_order
 from app.services.email_service import send_email
+from app.services.payment_flow import mark_paid, reset_payment
 from app.utils.auth_decorators import require_admin
 
 admin_orders_bp = Blueprint("admin_orders", __name__, url_prefix="/api/admin/orders")
@@ -18,6 +19,8 @@ def list_orders():
     query = Order.query
     if status == "returns":
         query = query.filter(Order.return_status != "none")
+    elif status == "verifying":
+        query = query.filter(Order.payment_status == "verifying", Order.status != "cancelled")
     elif status and status != "All":
         query = query.filter_by(status=status)
     orders = query.order_by(Order.created_at.desc()).all()
@@ -40,12 +43,13 @@ def confirm_order(order_id):
     if order.is_online_payment and order.payment_status != "paid":
         return jsonify({"error": f"This order is still waiting for the customer's {order.payment_method} payment"}), 400
 
+    # Status change and receipt are saved together, so an order can never end up
+    # "confirmed" without a receipt to print.
     order.status = "confirmed"
     order.confirmed_at = datetime.utcnow()
     db.session.add(OrderStatusHistory(order_id=order.id, status="confirmed"))
+    receipt = create_receipt_for_order(order, commit=False)
     db.session.commit()
-
-    receipt = create_receipt_for_order(order)
 
     send_email(
         order.customer_email, f"Order confirmed - {order.order_number}",
@@ -95,9 +99,57 @@ def update_status(order_id):
 @require_admin
 def get_receipt(order_id):
     order = Order.query.get_or_404(order_id)
+    if not order.receipt and order.status in ("confirmed", "processing", "shipped", "delivered"):
+        create_receipt_for_order(order)  # confirmed before receipts were saved
     if not order.receipt:
-        return jsonify({"error": "No receipt has been generated for this order yet"}), 404
+        return jsonify({"error": "A receipt is created when the order is confirmed"}), 404
     return jsonify({"order": order.to_dict(), "receipt": order.receipt.to_dict()})
+
+
+@admin_orders_bp.get("/<int:order_id>/payment-proof")
+@require_admin
+def get_payment_proof(order_id):
+    order = Order.query.get_or_404(order_id)
+    return jsonify({"proof": order.payment_proof})
+
+
+@admin_orders_bp.post("/<int:order_id>/payment/verify")
+@require_admin
+def verify_payment(order_id):
+    """Admin checked the GCash account and the payment arrived."""
+    order = Order.query.get_or_404(order_id)
+    if order.status == "cancelled":
+        return jsonify({"error": "This order was cancelled"}), 400
+    if order.payment_status == "paid":
+        return jsonify({"error": "This order is already marked as paid"}), 400
+    if not order.is_online_payment:
+        return jsonify({"error": "Cash on Delivery is marked paid when the order is delivered"}), 400
+    mark_paid(order)
+    return jsonify({"order": order.to_dict()})
+
+
+@admin_orders_bp.post("/<int:order_id>/payment/reject")
+@require_admin
+def reject_payment(order_id):
+    """The reference/screenshot did not match a real payment. Send the order back
+    to unpaid so the customer can try again or pick another method."""
+    order = Order.query.get_or_404(order_id)
+    if order.payment_status != "verifying":
+        return jsonify({"error": "There is no submitted payment to reject on this order"}), 400
+    note = str((request.get_json() or {}).get("note") or "").strip()[:300]
+    old_reference = order.payment_reference
+    reset_payment(order)
+    db.session.commit()
+    send_email(
+        order.customer_email, f"Payment could not be verified - {order.order_number}",
+        f"Hi {order.customer_name},\n\nWe could not verify the {order.payment_method} payment "
+        f"(reference {old_reference}) for order {order.order_number}."
+        + (f"\n\nNote from our team: {note}" if note else "")
+        + "\n\nPlease open My Orders > To Pay to send the correct reference number or choose "
+        "another payment method.",
+        user_id=order.user_id,
+    )
+    return jsonify({"order": order.to_dict()})
 
 
 @admin_orders_bp.post("/<int:order_id>/return/<decision>")

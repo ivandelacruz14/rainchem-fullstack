@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import client from "../../api/client";
 import OrderCard from "../../components/OrderCard";
 import { ReviewModal, ReturnModal } from "../../components/OrderActionModals";
@@ -30,6 +30,7 @@ export default function AccountOrders() {
   const [returning, setReturning] = useState(null);
   const [params, setParams] = useSearchParams();
   const showToast = useToast();
+  const navigate = useNavigate();
 
   const tab = TABS.some((t) => t.key === params.get("tab")) ? params.get("tab") : "all";
 
@@ -61,13 +62,9 @@ export default function AccountOrders() {
     }
   }
 
-  async function handlePay(orderId) {
-    try {
-      const res = await client.post(`/api/payments/orders/${orderId}/checkout`);
-      window.location.href = res.data.checkoutUrl;
-    } catch (err) {
-      showToast(err.response?.data?.error || "Could not start the payment", "error");
-    }
+  function handlePay(orderId) {
+    // Our payment page shows the GCash details / card button and lets the customer switch method.
+    navigate(`/payment/${orderId}`);
   }
 
   async function handleReceive(orderId) {

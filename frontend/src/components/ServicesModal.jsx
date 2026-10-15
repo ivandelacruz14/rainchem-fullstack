@@ -11,7 +11,7 @@ export default function ServicesModal({ services, cartIds, onToggle, onContinue,
           <button type="button" className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="modal-body">
-          <p style={{ marginTop: 0, fontSize: 14, color: "#57524c" }}>
+          <p style={{ marginTop: 0, fontSize: 14, color: "var(--muted)" }}>
             Our partner service bays can install your parts. Add one to this order, or skip it.
           </p>
 
@@ -21,7 +21,7 @@ export default function ServicesModal({ services, cartIds, onToggle, onContinue,
               <div key={s.id} className={`svc-option ${added ? "added" : ""}`}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{s.name}</div>
-                  <div style={{ fontSize: 12.5, color: "#6b665f", margin: "2px 0 4px" }}>{s.shortDesc}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--muted)", margin: "2px 0 4px" }}>{s.shortDesc}</div>
                   <div style={{ fontWeight: 700, color: "var(--red-700)" }}>{peso(s.price)}</div>
                 </div>
                 <button

@@ -60,7 +60,7 @@ export function ReviewModal({ order, onClose, onDone }) {
 
   return (
     <Shell title="Rate your order" onClose={onClose}>
-      <p style={{ marginTop: 0, fontSize: 13.5, color: "#57524c" }}>
+      <p style={{ marginTop: 0, fontSize: 13.5, color: "var(--muted)" }}>
         {order.orderNumber}: {order.items.map((i) => i.name).join(", ")}
       </p>
       {error && <div className="alert alert-error">{error}</div>}
@@ -97,7 +97,7 @@ export function ReturnModal({ order, onClose, onDone }) {
 
   return (
     <Shell title="Request a return" onClose={onClose}>
-      <p style={{ marginTop: 0, fontSize: 13.5, color: "#57524c" }}>
+      <p style={{ marginTop: 0, fontSize: 13.5, color: "var(--muted)" }}>
         {order.orderNumber}. Returns can be requested within {order.returnWindowDays} days after delivery.
       </p>
       {error && <div className="alert alert-error">{error}</div>}

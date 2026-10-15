@@ -5,6 +5,7 @@ import { useCart } from "../context/CartContext";
 import { useUI } from "../context/UIContext";
 import Brand from "./Brand";
 import UserAvatar from "./UserAvatar";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Header() {
   const { user } = useAuth();
@@ -51,6 +52,7 @@ export default function Header() {
         </nav>
 
         <div className="nav-actions">
+          <ThemeToggle />
           {user ? (
             <button className="account-chip" title="My Account" onClick={handleAccountClick}>
               <UserAvatar user={user} size={36} />

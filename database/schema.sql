@@ -86,6 +86,8 @@ CREATE TABLE orders (
     cancelled_at DATETIME NULL,
     payment_status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
     payment_reference VARCHAR(120) NULL,
+    payment_proof LONGTEXT NULL,
+    payment_submitted_at DATETIME NULL,
     paid_at DATETIME NULL,
     return_status VARCHAR(20) NOT NULL DEFAULT 'none',
     return_reason VARCHAR(500) NULL,
@@ -127,6 +129,11 @@ CREATE TABLE receipts (
     shipping_fee DECIMAL(10,2) NOT NULL,
     total DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+CREATE TABLE settings (
+    `key` VARCHAR(80) PRIMARY KEY,
+    value LONGTEXT NULL
 );
 
 CREATE TABLE knowledge_base (

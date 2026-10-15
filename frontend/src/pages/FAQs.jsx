@@ -40,9 +40,9 @@ export default function FAQs() {
           <div className="faq-group" key={name}>
             <h3>{name}</h3>
             {items.map((f) => (
-              <details key={f.id} style={{ borderBottom: "1px solid rgba(24,20,15,.08)", padding: "14px 0" }}>
+              <details key={f.id} style={{ borderBottom: "1px solid var(--line)", padding: "14px 0" }}>
                 <summary style={{ fontWeight: 700, cursor: "pointer" }}>{f.question}</summary>
-                <p style={{ margin: "10px 0 0", color: "#57524c", fontSize: 14 }}>{f.answer}</p>
+                <p style={{ margin: "10px 0 0", color: "var(--muted)", fontSize: 14 }}>{f.answer}</p>
               </details>
             ))}
           </div>

@@ -9,8 +9,8 @@ import ServicesModal from "../components/ServicesModal";
 
 const PAYMENT_OPTIONS = [
   { value: "Cash on Delivery", label: "Cash on Delivery", hint: "Pay in cash when your order arrives." },
-  { value: "GCash", label: "GCash", hint: "You'll be taken to a secure GCash payment page." },
-  { value: "Credit / Debit Card", label: "Credit / Debit Card", hint: "You'll enter your card on a secure payment page. We never see your card number." },
+  { value: "GCash", label: "GCash", hint: "You'll see our GCash number and link next. Pay, then send your reference number." },
+  { value: "Credit / Debit Card", label: "Credit / Debit Card", hint: "You'll pay on a secure card page. We never see your card number." },
 ];
 
 export default function Checkout() {
@@ -62,11 +62,12 @@ export default function Checkout() {
   }
 
   const cartIds = new Set(lines.map((l) => l.product.id));
+  const hasService = services.some((svc) => cartIds.has(svc.id));
 
   function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!servicesAsked && services.length > 0) {
+    if (!servicesAsked && !hasService && services.length > 0) {
       setShowServices(true);
       return;
     }
@@ -96,14 +97,10 @@ export default function Checkout() {
       });
       clearCart();
 
-      if (res.data.checkoutUrl) {
+      if (res.data.payPath) {
+        // GCash / card: continue on our payment page (where the method can still be changed).
         leavingPage = true;
-        window.location.href = res.data.checkoutUrl;
-        return;
-      }
-      if (res.data.paymentError) {
-        showToast(`${res.data.paymentError} Your order is saved under To Pay.`, "error");
-        navigate("/account/orders?tab=to_pay");
+        navigate(res.data.payPath, { replace: true });
         return;
       }
       showToast("Order placed successfully. A confirmation email is on its way.", "success");
@@ -124,7 +121,7 @@ export default function Checkout() {
   const isCod = form.payment === "Cash on Delivery";
   const buttonLabel = submitting
     ? "Please wait..."
-    : isCod ? "Place Order" : `Pay ${peso(total)} with ${form.payment === "GCash" ? "GCash" : "Card"}`;
+    : isCod ? "Place Order" : `Place Order & Pay with ${form.payment === "GCash" ? "GCash" : "Card"}`;
 
   return (
     <div className="container" style={{ padding: "40px 24px 80px" }}>
@@ -132,7 +129,7 @@ export default function Checkout() {
       {error && <div className="alert alert-error">{error}</div>}
       {demoMode && (
         <div className="alert alert-info">
-          Payment demo mode is ON: GCash and card use a fake payment page. For testing only.
+          Payment demo mode is ON: card payments use a fake payment page. For testing only.
         </div>
       )}
       <form onSubmit={handleSubmit} className="two-col" style={{ gridTemplateColumns: "1.2fr 0.8fr", gap: 26 }}>
@@ -155,6 +152,28 @@ export default function Checkout() {
             <div className="field"><label>ZIP Code</label><input required value={form.zip} onChange={(e) => update("zip", e.target.value)} /></div>
           </div>
 
+          {services.length > 0 && (
+            <>
+              <h4 style={{ margin: "18px 0 4px" }}>Add a Service <span className="field-hint" style={{ fontWeight: 400 }}>(optional)</span></h4>
+              <p className="field-hint" style={{ marginBottom: 10 }}>Our partner service bays can install your parts. Add one to this order, or skip it.</p>
+              {services.map((svc) => {
+                const added = cartIds.has(svc.id);
+                return (
+                  <div key={svc.id} className={`svc-option ${added ? "added" : ""}`}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{svc.name}</div>
+                      <div style={{ fontSize: 12.5, color: "var(--muted)", margin: "2px 0 4px" }}>{svc.shortDesc}</div>
+                      <div style={{ fontWeight: 700, color: "var(--red-700)" }}>{peso(svc.price)}</div>
+                    </div>
+                    <button type="button" className={`btn btn-sm ${added ? "btn-outline" : "btn-primary"}`} onClick={() => toggleService(svc, added)}>
+                      {added ? "Remove" : "Add"}
+                    </button>
+                  </div>
+                );
+              })}
+            </>
+          )}
+
           <h4 style={{ margin: "18px 0 12px" }}>Payment Method</h4>
           <div className="pay-options">
             {PAYMENT_OPTIONS.map((opt) => {
@@ -170,7 +189,7 @@ export default function Checkout() {
                     <div style={{ fontWeight: 700, fontSize: 14 }}>
                       {opt.label}{!available && <span className="pay-soon"> Not available yet</span>}
                     </div>
-                    <div style={{ fontSize: 12.5, color: "#6b665f" }}>{opt.hint}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{opt.hint}</div>
                   </div>
                 </label>
               );
@@ -183,13 +202,13 @@ export default function Checkout() {
           <div style={{ maxHeight: 220, overflowY: "auto" }}>
             {lines.map((l) => (
               <div className="cart-summary-row" key={l.product.id}>
-                <span>{l.product.name} x {l.qty}{l.discountRate > 0 && <span style={{ color: "#1d8348" }}> (-{Math.round(l.discountRate * 100)}%)</span>}</span>
+                <span>{l.product.name} x {l.qty}{l.discountRate > 0 && <span style={{ color: "var(--ok-text)" }}> (-{Math.round(l.discountRate * 100)}%)</span>}</span>
                 <span>{peso(l.lineTotal)}</span>
               </div>
             ))}
           </div>
           {savings > 0 && (
-            <div className="cart-summary-row" style={{ color: "#1d8348", fontWeight: 600, marginTop: 10 }}>
+            <div className="cart-summary-row" style={{ color: "var(--ok-text)", fontWeight: 600, marginTop: 10 }}>
               <span>Bulk savings</span><span>-{peso(savings)}</span>
             </div>
           )}

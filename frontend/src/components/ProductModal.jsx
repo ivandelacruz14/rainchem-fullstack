@@ -53,7 +53,7 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
               <span className={`stock-count ${product.stock < 20 ? "low" : ""}`} style={{ display: "block", marginTop: 4 }}>
                 {product.stock > 0 ? `${product.stock} units available` : "Out of stock"}
               </span>
-              <p style={{ marginTop: 14, color: "#57524c" }}>{product.description}</p>
+              <p style={{ marginTop: 14, color: "var(--muted)" }}>{product.description}</p>
 
               <ul className="pd-specs">
                 {product.specs.map((s, i) => <li key={i}>{s}</li>)}
@@ -105,7 +105,7 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
                   </div>
                   <p className="field-hint" style={{ marginTop: -8, marginBottom: 14 }}>
                     {rate > 0
-                      ? <span style={{ color: "#1d8348", fontWeight: 600 }}>{Math.round(rate * 100)}% bulk discount applied - {peso(discountedUnit)} per unit &middot; {peso(discountedUnit * qty)} total</span>
+                      ? <span style={{ color: "var(--ok-text)", fontWeight: 600 }}>{Math.round(rate * 100)}% bulk discount applied - {peso(discountedUnit)} per unit &middot; {peso(discountedUnit * qty)} total</span>
                       : qty < 20 ? `Buy ${nextTier - qty} more to unlock a bulk discount` : ""}
                   </p>
                   <div className="flex gap-12">

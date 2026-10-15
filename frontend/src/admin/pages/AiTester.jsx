@@ -32,7 +32,7 @@ export default function AiTester() {
             <h4 style={{ marginBottom: 10 }}>Result</h4>
             <div className="tester-result">
               {!result ? (
-                <p style={{ color: "#8a8580" }}>Run a test question to see how the AI would respond, including confidence score and candidate matches.</p>
+                <p style={{ color: "var(--soft)" }}>Run a test question to see how the AI would respond, including confidence score and candidate matches.</p>
               ) : (
                 <>
                   {result.matchedEntry && (
@@ -41,7 +41,7 @@ export default function AiTester() {
                     </div>
                   )}
                   <p style={{ fontWeight: 600, marginBottom: 6 }}>{result.answer}</p>
-                  <div style={{ fontSize: 12, color: "#8a8580" }}>Confidence: {result.confidence}%</div>
+                  <div style={{ fontSize: 12, color: "var(--soft)" }}>Confidence: {result.confidence}%</div>
                   <div className="confidence-meter"><div className="confidence-fill" style={{ width: `${result.confidence}%` }} /></div>
                   <h4 style={{ margin: "16px 0 6px", fontSize: 13 }}>Top candidates</h4>
                   {result.candidates.map((c, i) => (

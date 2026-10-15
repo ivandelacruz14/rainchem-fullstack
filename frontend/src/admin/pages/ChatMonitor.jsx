@@ -27,7 +27,7 @@ export default function ChatMonitor() {
       </div>
       <div className="admin-panel">
         <div className="panel-head">
-          <div><h3 style={{ margin: 0 }}>Recent Conversations</h3><p style={{ margin: "2px 0 0", fontSize: 12.5, color: "#8a8580" }}>Newest first</p></div>
+          <div><h3 style={{ margin: 0 }}>Recent Conversations</h3><p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--soft)" }}>Newest first</p></div>
           <div className="tab-bar" style={{ border: "none", margin: 0 }}>
             {TABS.map((t) => (
               <button key={t} className={`tab-btn ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>{t}</button>
@@ -35,7 +35,7 @@ export default function ChatMonitor() {
           </div>
         </div>
         {logs.length === 0 ? (
-          <p style={{ color: "#8a8580" }}>No conversations yet, once users chat on the storefront, they'll appear here.</p>
+          <p style={{ color: "var(--soft)" }}>No conversations yet, once users chat on the storefront, they'll appear here.</p>
         ) : (
           logs.map((log) => (
             <div className="monitor-row" key={log.id}>

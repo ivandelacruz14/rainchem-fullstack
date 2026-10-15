@@ -5,11 +5,10 @@ from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models import Order, OrderItem, OrderStatusHistory, Product, User
 from app.models.order import COD
-from app.services import paymongo
-from app.services.payment_flow import start_checkout
+from app.services import payment_flow
 from app.services.auth_utils import is_valid_email, is_valid_phone
 from app.services.pricing import bulk_discount_rate, compute_shipping
-from app.services.receipt_service import generate_order_number, generate_tracking_number
+from app.services.receipt_service import generate_order_number, generate_tracking_number, create_receipt_for_order
 from app.services.email_service import send_email
 from app.services.recommendations import get_recommendations
 from app.utils.auth_decorators import require_user, current_user_id
@@ -28,7 +27,7 @@ def create_order():
 
     if not cart_items:
         return jsonify({"error": "Your cart is empty"}), 400
-    if payment_method != COD and payment_method not in paymongo.available_methods():
+    if payment_method not in payment_flow.available_methods():
         return jsonify({"error": f"{payment_method} is not available right now. Please choose another payment method."}), 400
     if not is_valid_phone(customer.get("phone", "")):
         return jsonify({"error": "Please enter a valid contact number"}), 400
@@ -111,7 +110,7 @@ def create_order():
         f"Hi {order.customer_name},\n\nWe received your order {order.order_number} "
         f"for a total of PHP {order.total:.2f}. "
         + (f"Please complete your {order.payment_method} payment from My Orders > To Pay "
-           "so we can start processing it. "
+           "so we can start processing it. You can also switch to another payment method there. "
            if online else
            "It is now pending confirmation from our team, and you'll get another email once it's confirmed. ")
         + "You can still cancel this order from My Orders while it's pending.\n\n"
@@ -119,20 +118,13 @@ def create_order():
         user_id=order.user_id,
     )
 
-    checkout_url = None
-    payment_error = None
-    if online:
-        try:
-            checkout_url = start_checkout(order)
-        except paymongo.PaymentError as error:
-            payment_error = str(error)
-
     recommendations = get_recommendations(order)
     return jsonify({
         "order": order.to_dict(),
         "recommendations": [p.to_dict() for p in recommendations],
-        "checkoutUrl": checkout_url,
-        "paymentError": payment_error,
+        # Online methods continue on our own payment page, where the customer can
+        # see the GCash details / card button and switch method.
+        "payPath": f"/payment/{order.id}" if online else None,
     }), 201
 
 
@@ -270,6 +262,8 @@ def get_receipt(order_id):
     order = Order.query.get_or_404(order_id)
     if order.user_id != current_user_id():
         return jsonify({"error": "Not found"}), 404
+    if not order.receipt and order.status in ("confirmed", "processing", "shipped", "delivered"):
+        create_receipt_for_order(order)  # order was confirmed before receipts were saved
     if not order.receipt:
         return jsonify({"error": "A receipt is only available once the order is confirmed"}), 404
     return jsonify({

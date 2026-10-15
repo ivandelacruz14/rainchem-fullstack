@@ -20,9 +20,13 @@ def generate_receipt_number():
     return f"RCPT-{today}-{suffix}"
 
 
-def create_receipt_for_order(order):
+def create_receipt_for_order(order, commit=True):
     """Called when an admin confirms an order. Snapshots the order items
-    so the receipt stays accurate even if products change later."""
+    so the receipt stays accurate even if products change later.
+    Safe to call twice: an order only ever has one receipt."""
+    if order.receipt:
+        return order.receipt
+
     items_snapshot = [item.to_dict() for item in order.items]
 
     receipt = Receipt(
@@ -34,5 +38,8 @@ def create_receipt_for_order(order):
         total=order.total,
     )
     db.session.add(receipt)
-    db.session.commit()
+    if commit:
+        db.session.commit()
+    else:
+        db.session.flush()
     return receipt

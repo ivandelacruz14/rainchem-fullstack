@@ -75,7 +75,7 @@ export default function AccountProfile() {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-  <div style={{ width: 72, height: 72, borderRadius: "50%", overflow: "hidden", background: "var(--fog)", border: "1px solid rgba(24,20,15,.12)" }}>
+  <div style={{ width: 72, height: 72, borderRadius: "50%", overflow: "hidden", background: "var(--fog)", border: "1px solid var(--line-strong)" }}>
     {user?.avatarPhoto && <img src={user.avatarPhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
   </div>
   <div>
@@ -119,7 +119,7 @@ export default function AccountProfile() {
 
       <div className="panel" style={{ maxWidth: 520 }}>
         <h3 style={{ marginTop: 0 }}>Email Address</h3>
-        <p style={{ fontSize: 13.5, color: "#6b665f" }}>Current: <strong>{user?.email}</strong></p>
+        <p style={{ fontSize: 13.5, color: "var(--muted)" }}>Current: <strong>{user?.email}</strong></p>
 
         {emailStep === "idle" ? (
           <form onSubmit={handleRequestEmailChange}>

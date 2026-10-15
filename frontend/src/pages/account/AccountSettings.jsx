@@ -74,7 +74,7 @@ export default function AccountSettings() {
 
       <div className="panel" style={{ maxWidth: 520, marginBottom: 20 }}>
         <h3 style={{ marginTop: 0 }}>Email Address</h3>
-        <p style={{ fontSize: 13.5, color: "#6b665f" }}>Current: <strong>{user?.email}</strong></p>
+        <p style={{ fontSize: 13.5, color: "var(--muted)" }}>Current: <strong>{user?.email}</strong></p>
         {emailStep === "idle" ? (
           <form onSubmit={handleRequestEmailChange}>
             <div className="field">

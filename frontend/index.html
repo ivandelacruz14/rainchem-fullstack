@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/images/raimol-logo.png" />
     <link rel="apple-touch-icon" href="/images/raimol-logo.png" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("rainchem_theme");
+          if (t !== "light" && t !== "dark") {
+            t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {}
+      })();
+    </script>
     <title>Raimol | Engine Oil, Coolant &amp; Lubricants</title>
   </head>
   <body>

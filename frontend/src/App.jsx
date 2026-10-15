@@ -14,6 +14,7 @@ import Services from "./pages/Services";
 import FAQs from "./pages/FAQs";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
+import PaymentPage from "./pages/PaymentPage";
 import PaymentResult from "./pages/PaymentResult";
 import PaymentDemo from "./pages/PaymentDemo";
 import Receipt from "./pages/Receipt";
@@ -37,6 +38,7 @@ import Knowledge from "./admin/pages/Knowledge";
 import ChatMonitor from "./admin/pages/ChatMonitor";
 import AdminAccounts from "./admin/pages/AdminAccounts";
 import Analytics from "./admin/pages/Analytics";
+import PaymentSettings from "./admin/pages/PaymentSettings";
 
 export default function App() {
   return (
@@ -53,6 +55,7 @@ export default function App() {
                     <Route path="/services" element={<Services />} />
                     <Route path="/faqs" element={<FAQs />} />
                     <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+                    <Route path="/payment/:orderId" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
                     <Route path="/payment/result" element={<ProtectedRoute><PaymentResult /></ProtectedRoute>} />
                     <Route path="/payment/demo/:orderId" element={<ProtectedRoute><PaymentDemo /></ProtectedRoute>} />
                     <Route path="/order-success" element={<ProtectedRoute><OrderSuccess /></ProtectedRoute>} />
@@ -79,6 +82,7 @@ export default function App() {
                     <Route path="monitor" element={<ChatMonitor />} />
                     <Route path="accounts" element={<AdminAccounts />} />
                     <Route path="analytics" element={<Analytics />} />
+                    <Route path="payments" element={<PaymentSettings />} />
                   </Route>
                 </Routes>
               </UIProvider>

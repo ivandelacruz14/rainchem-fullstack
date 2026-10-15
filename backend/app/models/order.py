@@ -2,10 +2,13 @@ from datetime import datetime, timedelta
 from app.extensions import db
 
 COD = "Cash on Delivery"
+GCASH = "GCash"
+CARD = "Credit / Debit Card"
 RETURN_WINDOW_DAYS = 7
 
 PAYMENT_STATUS_LABELS = {
     "unpaid": "Unpaid",
+    "verifying": "Verifying payment",
     "paid": "Paid",
     "refund_pending": "Refund pending",
     "refunded": "Refunded",
@@ -64,6 +67,10 @@ class Order(db.Model):
     payment_status = db.Column(db.String(20), nullable=False, default="unpaid")
     payment_reference = db.Column(db.String(120), nullable=True)
     paid_at = db.Column(db.DateTime, nullable=True)
+    # Manual GCash: the customer's proof-of-payment screenshot (base64) and when
+    # they submitted their reference number. Verified by an admin.
+    payment_proof = db.Column(db.Text(length=4294967295), nullable=True)
+    payment_submitted_at = db.Column(db.DateTime, nullable=True)
 
     return_status = db.Column(db.String(20), nullable=False, default="none")
     return_reason = db.Column(db.String(500), nullable=True)
@@ -139,8 +146,14 @@ class Order(db.Model):
             "paymentStatus": self.payment_status,
             "paymentStatusLabel": PAYMENT_STATUS_LABELS.get(self.payment_status, self.payment_status),
             "paidAt": self.paid_at.isoformat() if self.paid_at else None,
+            # For GCash this is the reference number the customer typed in.
+            # (For card it is a PayMongo session id, which is not shown.)
+            "paymentReference": self.payment_reference if self.payment_method == GCASH else None,
+            "paymentSubmittedAt": self.payment_submitted_at.isoformat() if self.payment_submitted_at else None,
+            "hasPaymentProof": bool(self.payment_proof),
             "tab": self.tab,
-            "canPay": self.status != "cancelled" and self.is_online_payment and self.payment_status == "unpaid",
+            "canPay": self.status != "cancelled" and self.is_online_payment and self.payment_status in ("unpaid", "verifying"),
+            "canChangePayment": self.status == "pending_confirmation" and self.payment_status in ("unpaid", "verifying"),
             "canReceive": self.status == "shipped" and self.return_status == "none",
             "canReview": self.status == "delivered" and self.review_rating is None and self.return_status == "none",
             "canReturn": self.can_return,

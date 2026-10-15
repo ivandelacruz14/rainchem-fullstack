@@ -25,7 +25,7 @@ export default function PaymentDemo() {
       <div className="panel">
         <div className="badge" style={{ marginBottom: 12 }}>TEST MODE</div>
         <h3 style={{ marginTop: 0 }}>Demo payment page</h3>
-        <p style={{ color: "#57524c", fontSize: 14 }}>
+        <p style={{ color: "var(--muted)", fontSize: 14 }}>
           This stands in for the GCash / card page. No real money is used.
         </p>
         {error && <div className="alert alert-error">{error}</div>}
