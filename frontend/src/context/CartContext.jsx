@@ -2,20 +2,9 @@ import { createContext, useContext, useState, useEffect } from "react";
 
 const CartContext = createContext(null);
 
-export const FREE_SHIPPING_SUBTOTAL = 1500;
-export const FREE_SHIPPING_QTY = 10;
-const STANDARD_SHIPPING_FEE = 80;
+import { FREE_SHIPPING_SUBTOTAL, FREE_SHIPPING_QTY, bulkDiscountRate, computeShipping, priceLine } from "../utils/pricing";
 
-export function bulkDiscountRate(qty) {
-  if (qty >= 20) return 0.15;
-  if (qty >= 10) return 0.1;
-  if (qty >= 5) return 0.05;
-  return 0;
-}
-
-export function computeShipping(subtotal, totalQty) {
-  return subtotal >= FREE_SHIPPING_SUBTOTAL || totalQty >= FREE_SHIPPING_QTY ? 0 : STANDARD_SHIPPING_FEE;
-}
+export { FREE_SHIPPING_SUBTOTAL, FREE_SHIPPING_QTY, bulkDiscountRate, computeShipping };
 
 export function CartProvider({ children }) {
   const [items, setItems] = useState(() => {
@@ -61,22 +50,22 @@ export function CartProvider({ children }) {
   }
 
   const lines = items.map((line) => {
-    const rate = bulkDiscountRate(line.qty);
-    const unitPrice = line.product.price * (1 - rate);
+    const priced = priceLine(line.product.price, line.qty);
     return {
       ...line,
-      discountRate: rate,
-      unitPrice,
-      lineTotal: unitPrice * line.qty,
-      originalTotal: line.product.price * line.qty,
+      discountRate: priced.rate,
+      unitPrice: priced.unitPrice,
+      lineTotal: priced.lineTotal,
+      lineCents: priced.lineCents,
+      originalTotal: priced.originalTotal,
     };
   });
 
-  const subtotal = lines.reduce((sum, l) => sum + l.lineTotal, 0);
+  const subtotal = lines.reduce((sum, l) => sum + l.lineCents, 0) / 100;
   const totalQty = lines.reduce((sum, l) => sum + l.qty, 0);
   const savings = lines.reduce((sum, l) => sum + (l.originalTotal - l.lineTotal), 0);
   const shipping = computeShipping(subtotal, totalQty);
-  const total = subtotal + shipping;
+  const total = Math.round(subtotal * 100 + shipping * 100) / 100;
 
   return (
     <CartContext.Provider

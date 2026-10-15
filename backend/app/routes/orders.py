@@ -1,3 +1,4 @@
+from decimal import Decimal
 from datetime import datetime
 
 from flask import Blueprint, request, jsonify
@@ -7,7 +8,7 @@ from app.models import Order, OrderItem, OrderStatusHistory, Product, User
 from app.models.order import COD
 from app.services import payment_flow
 from app.services.auth_utils import is_valid_email, is_valid_phone
-from app.services.pricing import bulk_discount_rate, compute_shipping
+from app.services.pricing import bulk_discount_rate, compute_shipping, unit_price_after_discount, money
 from app.services.receipt_service import generate_order_number, generate_tracking_number, create_receipt_for_order
 from app.services.email_service import send_email
 from app.services.recommendations import get_recommendations
@@ -35,19 +36,24 @@ def create_order():
         return jsonify({"error": "Please enter a valid email address"}), 400
 
     line_items = []
-    subtotal = 0
+    subtotal = Decimal(0)
     total_qty = 0
 
     for line in cart_items:
         product = Product.query.get(line.get("productId"))
         if not product:
             continue
-        qty = int(line.get("qty", 1))
+        try:
+            qty = int(line.get("qty", 1))
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid quantity"}), 400
+        if qty < 1:
+            return jsonify({"error": "Quantity must be at least 1"}), 400
         if qty > product.stock:
             return jsonify({"error": f"Only {product.stock} units of {product.name} are available"}), 400
 
         rate = bulk_discount_rate(qty)
-        unit_price = round(float(product.price) * (1 - rate), 2)
+        unit_price = unit_price_after_discount(product.price, rate)
         line_items.append({"product": product, "qty": qty, "unit_price": unit_price, "rate": rate})
         subtotal += unit_price * qty
         total_qty += qty
@@ -73,9 +79,9 @@ def create_order():
         address_zip=address.get("zip", ""),
         payment_method=payment_method,
         payment_status="unpaid",
-        subtotal=round(subtotal, 2),
+        subtotal=money(subtotal),
         shipping_fee=shipping_fee,
-        total=round(total, 2),
+        total=money(total),
     )
     db.session.add(order)
     db.session.flush()
@@ -85,7 +91,7 @@ def create_order():
             order_id=order.id,
             product_id=line["product"].id,
             product_name=line["product"].name,
-            unit_price=round(line["unit_price"], 2),
+            unit_price=line["unit_price"],
             discount_rate=line["rate"],
             quantity=line["qty"],
         ))
