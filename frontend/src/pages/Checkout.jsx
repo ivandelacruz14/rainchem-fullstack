@@ -109,7 +109,12 @@ export default function Checkout() {
       showToast("Order placed successfully. A confirmation email is on its way.", "success");
       navigate("/order-success", { state: { order: res.data.order, recommendations: res.data.recommendations } });
     } catch (err) {
-      setError(err.response?.data?.error || "Something went wrong placing your order.");
+      setError(
+        err.response?.data?.error
+          || (err.response
+            ? `The server could not process your order (error ${err.response.status}). Please try again.`
+            : "Could not reach the server. Please check your connection and try again."),
+      );
       window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       if (!leavingPage) setSubmitting(false);

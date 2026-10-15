@@ -21,6 +21,12 @@ COLUMNS = [
     ("orders", "reviewed_at", "DATETIME NULL"),
 ]
 
+# Photos are stored as base64 text, which does not fit in a plain TEXT column.
+LONGTEXT_COLUMNS = [
+    ("products", "image_photo"),
+    ("users", "avatar_photo"),
+]
+
 
 def ensure_schema(db, logger):
     """Adds any missing columns so a deployed database never falls behind the code."""
@@ -45,3 +51,22 @@ def ensure_schema(db, logger):
         except Exception as error:
             db.session.rollback()
             logger.warning("Could not add %s.%s (maybe another worker did): %s", table, column, error)
+
+    if db.engine.dialect.name != "mysql":
+        return
+
+    for table, column in LONGTEXT_COLUMNS:
+        if table not in tables:
+            continue
+        info = {c["name"]: c for c in inspect(db.engine).get_columns(table)}
+        if column not in info:
+            continue
+        if str(info[column]["type"]).upper().startswith("LONGTEXT"):
+            continue
+        try:
+            db.session.execute(text(f"ALTER TABLE {table} MODIFY COLUMN {column} LONGTEXT NULL"))
+            db.session.commit()
+            logger.info("Widened %s.%s to LONGTEXT", table, column)
+        except Exception as error:
+            db.session.rollback()
+            logger.warning("Could not widen %s.%s: %s", table, column, error)

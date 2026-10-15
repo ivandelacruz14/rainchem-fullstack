@@ -5,12 +5,26 @@ import { peso } from "../../utils/format";
 
 export default function Overview() {
   const [data, setData] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    client.get("/api/admin/overview").then((res) => setData(res.data));
+    client
+      .get("/api/admin/overview")
+      .then((res) => setData(res.data))
+      .catch((err) => {
+        const status = err.response?.status;
+        setError(
+          status === 401 || status === 403
+            ? "Your admin session has expired. Please log out and sign in again."
+            : status
+              ? `The dashboard could not be loaded (server error ${status}). Check the backend logs on Render.`
+              : "Could not reach the server. It may be waking up on Render's free tier - wait a few seconds and refresh."
+        );
+      });
   }, []);
 
-  if (!data) return null;
+  if (error) return <div className="alert alert-error">{error}</div>;
+  if (!data) return <p style={{ color: "#8a8580" }}>Loading dashboard...</p>;
   const { stats, recentOrders, topFaqs } = data;
   const maxHits = Math.max(1, ...topFaqs.map((f) => f.hits));
 
