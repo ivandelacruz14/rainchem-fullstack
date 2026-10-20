@@ -17,11 +17,16 @@ def verify_google_token(token):
     if not client_id:
         raise ValueError("Google sign-in is not configured on this server yet")
 
-    payload = id_token.verify_oauth2_token(token, google_requests.Request(), client_id)
+    # A few seconds of allowed clock difference: without it Google's token can be
+    # refused as "used too early" when this server's clock is slightly behind.
+    payload = id_token.verify_oauth2_token(
+        token, google_requests.Request(), client_id, clock_skew_in_seconds=10
+    )
 
+    email = payload["email"].strip().lower()
     return {
         "google_id": payload["sub"],
-        "email": payload["email"],
-        "name": payload.get("name", payload["email"].split("@")[0]),
+        "email": email,
+        "name": payload.get("name") or email.split("@")[0],
         "email_verified": payload.get("email_verified", False),
     }

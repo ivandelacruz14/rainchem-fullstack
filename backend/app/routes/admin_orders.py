@@ -74,6 +74,9 @@ def update_status(order_id):
     if order.status == "cancelled":
         return jsonify({"error": "A cancelled order cannot be updated"}), 400
 
+    if order.status == "pending_confirmation" and new_status not in ("pending_confirmation", "cancelled"):
+        # Confirming is what creates the receipt, so it cannot be skipped.
+        return jsonify({"error": "Confirm the order first"}), 400
     if new_status in ("shipped", "delivered") and order.is_online_payment and order.payment_status != "paid":
         return jsonify({"error": "This order has not been paid yet"}), 400
 
@@ -82,6 +85,11 @@ def update_status(order_id):
         order.cancelled_at = datetime.utcnow()
         if order.payment_status == "paid":
             order.payment_status = "refund_pending"
+        for item in order.items:  # the goods are not leaving, put them back on the shelf
+            if item.product_id:
+                product = db.session.get(Product, item.product_id)
+                if product:
+                    product.stock += item.quantity
     if new_status == "delivered" and not order.is_online_payment and order.payment_status == "unpaid":
         order.payment_status = "paid"
         order.paid_at = datetime.utcnow()

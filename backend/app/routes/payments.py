@@ -48,7 +48,7 @@ def order_payment_info(order_id):
     return jsonify({
         "order": order.to_dict(),
         "methods": _methods_payload(),
-        "gcash": payment_flow.gcash_details() if order.payment_method == GCASH else None,
+        "gcash": payment_flow.gcash_for_order(order) if order.payment_method == GCASH else None,
         "demoMode": paymongo.demo_mode(),
     })
 
@@ -74,7 +74,7 @@ def change_method(order_id):
         db.session.commit()
     return jsonify({
         "order": order.to_dict(),
-        "gcash": payment_flow.gcash_details() if order.payment_method == GCASH else None,
+        "gcash": payment_flow.gcash_for_order(order) if order.payment_method == GCASH else None,
     })
 
 

@@ -71,7 +71,14 @@ function GcashPanel({ order, gcash, onSubmitted }) {
           <strong>{peso(order.total)}</strong>
         </div>
 
-        {gcash.qr && <img className="gcash-qr" src={gcash.qr} alt="GCash QR code" />}
+        {gcash.dynamicQr ? (
+          <div style={{ textAlign: "center" }}>
+            <img className="gcash-qr" src={gcash.dynamicQr} alt={`GCash QR code for ${peso(order.total)}`} />
+            <div className="field-hint">Scan this with the GCash app. The amount is already filled in.</div>
+          </div>
+        ) : (
+          gcash.qr && <img className="gcash-qr" src={gcash.qr} alt="GCash QR code" />
+        )}
 
         {gcash.number && (
           <div className="gcash-row">

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import client from "../../api/client";
 import { resizeImage } from "../../utils/imageResize";
+import { readQrText } from "../../utils/qrDecode";
 import { useToast } from "../../context/ToastContext";
 
-const EMPTY = { number: "", accountName: "", link: "", note: "", qr: "" };
+const EMPTY = { number: "", accountName: "", link: "", note: "", qr: "", qrPayload: "" };
 
 export default function PaymentSettings() {
   const showToast = useToast();
@@ -33,6 +34,14 @@ export default function PaymentSettings() {
       update("qr", await resizeImage(file, 700));
     } catch {
       showToast("That image could not be read", "error");
+      return;
+    }
+    const text = await readQrText(file);
+    if (text) {
+      update("qrPayload", text);
+      showToast("QR code read. Its amount will now be filled in for every order.", "success");
+    } else {
+      showToast("The QR picture was kept, but its text could not be read. Paste the QR text below.", "error");
     }
   }
 
@@ -50,7 +59,7 @@ export default function PaymentSettings() {
     }
   }
 
-  const gcashReady = Boolean(form.number || form.link || form.qr);
+  const gcashReady = Boolean(form.number || form.link || form.qr || form.qrPayload);
 
   return (
     <div>
@@ -100,6 +109,21 @@ export default function PaymentSettings() {
                   <div><button type="button" className="link-btn" style={{ marginTop: 6 }} onClick={() => update("qr", "")}>Remove QR code</button></div>
                 </div>
               )}
+            </div>
+            <div className="field">
+              <label>QR code text (fills in the amount automatically)</label>
+              <textarea
+                rows={3}
+                className="mono"
+                value={form.qrPayload}
+                placeholder="Starts with 000201... It is filled in when you upload your QR picture above."
+                onChange={(e) => update("qrPayload", e.target.value.trim())}
+              />
+              <div className="field-hint">
+                {form.dynamicQrReady
+                  ? "Saved. Customers get a QR code with their order amount already filled in."
+                  : "Without this, customers must type the amount themselves. You can also scan your QR with a phone and paste the text here."}
+              </div>
             </div>
             <div className="form-actions">
               <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Saving..." : "Save settings"}</button>

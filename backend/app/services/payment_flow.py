@@ -7,7 +7,7 @@ from flask import current_app
 from app.extensions import db
 from app.models.order import COD, GCASH, CARD
 from app.models.setting import get_setting
-from app.services import paymongo
+from app.services import paymongo, qrph
 from app.services.email_service import send_email
 
 GCASH_KEYS = ("gcash_number", "gcash_name", "gcash_link", "gcash_qr", "gcash_note")
@@ -37,9 +37,30 @@ def gcash_details():
     }
 
 
+def gcash_qr_payload():
+    """The text inside the shop's own GCash / QR Ph code (admin only)."""
+    return get_setting("gcash_qr_payload", "").strip()
+
+
 def gcash_configured():
     d = gcash_details()
-    return bool(d["number"] or d["link"] or d["qr"])
+    return bool(d["number"] or d["link"] or d["qr"] or gcash_qr_payload())
+
+
+def gcash_for_order(order):
+    """What the customer sees for this order. If the shop saved its QR code text,
+    the QR shown has this order's amount already filled in."""
+    details = gcash_details()
+    dynamic = None
+    payload = gcash_qr_payload()
+    if payload:
+        try:
+            dynamic = qrph.to_svg_data_uri(qrph.with_amount(payload, order.total))
+        except qrph.QrError:
+            dynamic = None  # a damaged saved code must never break the payment page
+    details["dynamicQr"] = dynamic
+    details["amount"] = f"{float(order.total):.2f}"
+    return details
 
 
 def card_available():
@@ -61,8 +82,8 @@ def available_methods():
 
 def valid_gcash_reference(value):
     """GCash reference numbers are 13 digits, but be forgiving: 6-30 letters/digits."""
-    cleaned = re.sub(r"[\s-]", "", value or "")
-    return cleaned if re.fullmatch(r"[A-Za-z0-9]{6,30}", cleaned) else None
+    cleaned = re.sub(r"[\s-]", "", value or "").upper()
+    return cleaned if re.fullmatch(r"[A-Z0-9]{6,30}", cleaned) else None
 
 
 def reset_payment(order):

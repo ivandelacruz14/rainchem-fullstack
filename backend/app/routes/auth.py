@@ -146,9 +146,19 @@ def google_login():
     try:
         payload = verify_google_token(id_token_value)
     except ValueError as error:
-        return jsonify({"error": str(error)}), 400
-    except Exception:
-        return jsonify({"error": "Could not verify Google sign-in"}), 400
+        current_app.logger.warning("Google sign-in refused: %s", error)
+        reason = str(error)
+        if "audience" in reason.lower():
+            reason = "Google sign-in is set up for a different Client ID. Check GOOGLE_CLIENT_ID on the server."
+        elif "not configured" not in reason.lower():
+            reason = "Could not verify Google sign-in. Please try again."
+        return jsonify({"error": reason}), 400
+    except Exception as error:
+        current_app.logger.warning("Google sign-in failed: %s", error)
+        return jsonify({"error": "Could not verify Google sign-in. Please try again."}), 400
+
+    if not payload.get("email_verified"):
+        return jsonify({"error": "Your Google email address is not verified."}), 400
 
     user = User.query.filter_by(google_id=payload["google_id"]).first()
     if not user:
@@ -161,7 +171,7 @@ def google_login():
     else:
         user = User(
             name=payload["name"], email=payload["email"],
-            google_id=payload["google_id"], verified=payload.get("email_verified", True),
+            google_id=payload["google_id"], verified=True,
         )
         db.session.add(user)
 

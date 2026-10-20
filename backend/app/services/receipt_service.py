@@ -4,10 +4,25 @@ from app.extensions import db
 from app.models import Receipt
 
 
+def _unique_number(make, model, column):
+    """Random numbers can repeat. Check the database so two customers never get the
+    same order/receipt number (that used to cause a server error at checkout)."""
+    for attempt in range(40):
+        candidate = make(wide=attempt >= 20)  # fall back to more digits on very busy days
+        if not db.session.query(model.id).filter(column == candidate).first():
+            return candidate
+    raise RuntimeError("Could not generate a unique number")
+
+
 def generate_order_number():
+    from app.models import Order
     today = datetime.utcnow().strftime("%Y%m%d")
-    suffix = random.randint(1000, 9999)
-    return f"ORD-{today}-{suffix}"
+
+    def make(wide):
+        suffix = random.randint(100000, 999999) if wide else random.randint(1000, 9999)
+        return f"ORD-{today}-{suffix}"
+
+    return _unique_number(make, Order, Order.order_number)
 
 
 def generate_tracking_number():
@@ -16,8 +31,12 @@ def generate_tracking_number():
 
 def generate_receipt_number():
     today = datetime.utcnow().strftime("%Y%m%d")
-    suffix = random.randint(10000, 99999)
-    return f"RCPT-{today}-{suffix}"
+
+    def make(wide):
+        suffix = random.randint(1000000, 9999999) if wide else random.randint(10000, 99999)
+        return f"RCPT-{today}-{suffix}"
+
+    return _unique_number(make, Receipt, Receipt.receipt_number)
 
 
 def create_receipt_for_order(order, commit=True):
