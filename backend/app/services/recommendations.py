@@ -1,12 +1,11 @@
 from app.models import Product
 
 COMPLEMENT_CATEGORIES = {
-    "Oils & Fluids": ["Filters", "Services"],
-    "Coolant": ["Services", "Accessories"],
+    "Oils & Fluids": ["Filters", "Accessories"],
+    "Coolant": ["Accessories", "Filters"],
     "Filters": ["Oils & Fluids"],
     "Brakes": ["Oils & Fluids"],
     "Accessories": ["Oils & Fluids"],
-    "Services": ["Oils & Fluids", "Coolant"],
 }
 
 

@@ -46,7 +46,6 @@ export default function Header() {
         <nav className={`nav-links ${menuOpen ? "open" : ""}`}>
           <NavLink to="/" end onClick={closeMenu}>Home</NavLink>
           <NavLink to="/shop" onClick={closeMenu}>Shop</NavLink>
-          <NavLink to="/services" onClick={closeMenu}>Services</NavLink>
           <a href="/account/orders" className={window.location.pathname.startsWith("/account/orders") ? "active" : ""} onClick={(e) => { e.preventDefault(); handleOrdersClick(); }}>My Orders</a>
           <NavLink to="/faqs" onClick={closeMenu}>FAQs</NavLink>
         </nav>

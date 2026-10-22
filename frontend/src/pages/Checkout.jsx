@@ -5,7 +5,6 @@ import { peso } from "../utils/format";
 import { useAuth } from "../context/AuthContext";
 import { useCart, FREE_SHIPPING_SUBTOTAL } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
-import ServicesModal from "../components/ServicesModal";
 
 const PAYMENT_OPTIONS = [
   { value: "Cash on Delivery", label: "Cash on Delivery", hint: "Pay in cash when your order arrives." },
@@ -15,7 +14,7 @@ const PAYMENT_OPTIONS = [
 
 export default function Checkout() {
   const { user } = useAuth();
-  const { lines, subtotal, savings, shipping, total, clearCart, addItem, removeItem } = useCart();
+  const { lines, subtotal, savings, shipping, total, clearCart } = useCart();
   const showToast = useToast();
   const navigate = useNavigate();
 
@@ -34,18 +33,12 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [methods, setMethods] = useState({ "Cash on Delivery": true });
   const [demoMode, setDemoMode] = useState(false);
-  const [services, setServices] = useState([]);
-  const [showServices, setShowServices] = useState(false);
-  const [servicesAsked, setServicesAsked] = useState(false);
 
   useEffect(() => {
     client.get("/api/payments/config").then((res) => {
       setMethods(res.data.methods);
       setDemoMode(res.data.demoMode);
     }).catch(() => {});
-    client.get("/api/products", { params: { category: "Services" } })
-      .then((res) => setServices(res.data.products.filter((p) => p.stock > 0)))
-      .catch(() => {});
   }, []);
 
   function update(field, value) {
@@ -61,27 +54,9 @@ export default function Checkout() {
     );
   }
 
-  const cartIds = new Set(lines.map((l) => l.product.id));
-  const hasService = services.some((svc) => cartIds.has(svc.id));
-
   function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!servicesAsked && !hasService && services.length > 0) {
-      setShowServices(true);
-      return;
-    }
-    placeOrder();
-  }
-
-  function toggleService(product, added) {
-    if (added) removeItem(product.id);
-    else addItem(product, 1);
-  }
-
-  function continueFromServices() {
-    setShowServices(false);
-    setServicesAsked(true);
     placeOrder();
   }
 
@@ -152,28 +127,6 @@ export default function Checkout() {
             <div className="field"><label>ZIP Code</label><input required value={form.zip} onChange={(e) => update("zip", e.target.value)} /></div>
           </div>
 
-          {services.length > 0 && (
-            <>
-              <h4 style={{ margin: "18px 0 4px" }}>Add a Service <span className="field-hint" style={{ fontWeight: 400 }}>(optional)</span></h4>
-              <p className="field-hint" style={{ marginBottom: 10 }}>Our partner service bays can install your parts. Add one to this order, or skip it.</p>
-              {services.map((svc) => {
-                const added = cartIds.has(svc.id);
-                return (
-                  <div key={svc.id} className={`svc-option ${added ? "added" : ""}`}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>{svc.name}</div>
-                      <div style={{ fontSize: 12.5, color: "var(--muted)", margin: "2px 0 4px" }}>{svc.shortDesc}</div>
-                      <div style={{ fontWeight: 700, color: "var(--red-700)" }}>{peso(svc.price)}</div>
-                    </div>
-                    <button type="button" className={`btn btn-sm ${added ? "btn-outline" : "btn-primary"}`} onClick={() => toggleService(svc, added)}>
-                      {added ? "Remove" : "Add"}
-                    </button>
-                  </div>
-                );
-              })}
-            </>
-          )}
-
           <h4 style={{ margin: "18px 0 12px" }}>Payment Method</h4>
           <div className="pay-options">
             {PAYMENT_OPTIONS.map((opt) => {
@@ -223,16 +176,6 @@ export default function Checkout() {
           </p>
         </div>
       </form>
-
-      {showServices && (
-        <ServicesModal
-          services={services}
-          cartIds={cartIds}
-          onToggle={toggleService}
-          onContinue={continueFromServices}
-          onClose={() => setShowServices(false)}
-        />
-      )}
     </div>
   );
 }

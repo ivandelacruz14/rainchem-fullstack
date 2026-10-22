@@ -33,10 +33,10 @@ export default function Shop() {
     <div className="container" style={{ paddingBottom: 80 }}>
       <div className="page-hero">
         <div className="eyebrow">Shop</div>
-        <h1>{category === "All" ? "All products & services" : category}</h1>
+        <h1>{category === "All" ? "All products" : category}</h1>
         <p>
           {category === "All"
-            ? "Engine oil, RadCool coolant, filters, brakes, accessories, and service bookings."
+            ? "Engine oil, RadCool coolant, filters, brakes, and accessories."
             : CATEGORIES.find((c) => c.name === category)?.blurb}
         </p>
       </div>

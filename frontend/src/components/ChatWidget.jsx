@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useUI } from "../context/UIContext";
 import client from "../api/client";
 
-const WELCOME = "Hi! I'm the Rainchem assistant. Ask me about engine oil, RadCool coolant, services, payments, or your orders. You can ask in English or Tagalog.";
+const WELCOME = "Hi! I'm the Rainchem assistant. Ask me about engine oil, RadCool coolant, payments, or your orders. You can ask in English or Tagalog.";
 
 function Star({ filled }) {
   return (

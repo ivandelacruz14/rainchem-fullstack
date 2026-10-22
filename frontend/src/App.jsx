@@ -10,7 +10,6 @@ import { ProtectedRoute, AdminProtectedRoute } from "./components/ProtectedRoute
 
 import Home from "./pages/Home";
 import Shop from "./pages/Shop";
-import Services from "./pages/Services";
 import FAQs from "./pages/FAQs";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
@@ -52,7 +51,6 @@ export default function App() {
                   <Route element={<Layout />}>
                     <Route path="/" element={<Home />} />
                     <Route path="/shop" element={<Shop />} />
-                    <Route path="/services" element={<Services />} />
                     <Route path="/faqs" element={<FAQs />} />
                     <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                     <Route path="/payment/:orderId" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />

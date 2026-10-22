@@ -4,5 +4,4 @@ export const CATEGORIES = [
   { name: "Filters", blurb: "Oil filters and washable air filters." },
   { name: "Brakes", blurb: "Brake pads and hydraulic system parts." },
   { name: "Accessories", blurb: "Chain lube, spark plugs, and small parts." },
-  { name: "Services", blurb: "Book professional installs at partner bays." },
 ];

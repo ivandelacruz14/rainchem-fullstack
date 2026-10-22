@@ -18,7 +18,7 @@ def _gcash_payload():
     details["qrPayload"] = payload
     try:
         qrph.parse(payload)
-        details["dynamicQrReady"] = bool(payload)
+        details["dynamicQrReady"] = bool(payload) and qrph.image_support()
     except qrph.QrError:
         details["dynamicQrReady"] = False
     return details

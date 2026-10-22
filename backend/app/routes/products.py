@@ -10,7 +10,7 @@ products_bp = Blueprint("products", __name__, url_prefix="/api/products")
 @products_bp.get("")
 def list_products():
     category = request.args.get("category")
-    query = Product.query
+    query = Product.query.filter(Product.category != "Services")  # services are no longer offered
     if category and category != "All":
         query = query.filter_by(category=category)
     products = query.order_by(Product.id).all()

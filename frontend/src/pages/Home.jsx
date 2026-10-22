@@ -42,7 +42,6 @@ export default function Home() {
             </p>
             <div className="hero-cta">
               <Link to="/shop" className="btn btn-primary">Shop Products</Link>
-              <Link to="/services" className="btn btn-outline">Book a Service</Link>
             </div>
             <div className="hero-stats">
               <div className="stat-card"><div className="value">30 Yrs</div><div className="label">Since 1995</div></div>
@@ -85,7 +84,7 @@ export default function Home() {
   <div className="container">
     <div className="section-head">
       <div className="eyebrow">Full Catalog</div>
-      <h2>Products &amp; services</h2>
+      <h2>Products</h2>
       <p>Browse by category, swipe to see more in each line.</p>
       <Link className="see-all" to="/shop">See all products &rarr;</Link>
     </div>
@@ -98,7 +97,7 @@ export default function Home() {
             <h3>{cat.name}</h3>
             <div className="product-row-head-right">
               <span className="product-row-count">{items.length} item{items.length > 1 ? "s" : ""}</span>
-              <Link className="see-all" to={cat.name === "Services" ? "/services" : `/shop?category=${encodeURIComponent(cat.name)}`}>See all &rarr;</Link>
+              <Link className="see-all" to={`/shop?category=${encodeURIComponent(cat.name)}`}>See all &rarr;</Link>
             </div>
           </div>
           <div className="product-row">
@@ -113,34 +112,6 @@ export default function Home() {
     })}
   </div>
 </section>
-
-      <section className="section services-band" id="services">
-        <div className="container">
-          <div className="section-head">
-            <div className="eyebrow">Rainchem Service Bays</div>
-            <h2>Book a service, not just a bottle</h2>
-            <p>Our partner service bays handle the install, you just bring your order confirmation.</p>
-          </div>
-          <div className="service-grid">
-            <div className="service-card">
-              <h4>Oil Change Service</h4>
-              <p>Full labor and eco-friendly used oil disposal at any Rainchem partner bay.</p>
-              <div className="service-price">&#8369;150</div>
-            </div>
-            <div className="service-card">
-              <h4>Radiator Flush &amp; RadCool Service</h4>
-              <p>Complete flush of your old coolant and refill with RadCool to manufacturer levels.</p>
-              <div className="service-price">&#8369;250</div>
-            </div>
-            <div className="service-card">
-              <h4>Full Maintenance Check-up</h4>
-              <p>Chain, brakes, filters, and fluid levels inspected by a certified technician.</p>
-              <div className="service-price">&#8369;300</div>
-            </div>
-          </div>
-          <div style={{ marginTop: 20 }}><Link className="see-all" to="/services">See all services &rarr;</Link></div>
-        </div>
-      </section>
 
       <section className="section">
         <div className="container">
@@ -161,7 +132,7 @@ export default function Home() {
             </div>
             <div className="testi-card">
               <div className="testi-stars">{"\u2605\u2605\u2605\u2605"}</div>
-              <p>"Ordered oil and booked the change service together. Tracking number worked, arrived on time."</p>
+              <p>"Ordered oil online. Tracking number worked, arrived on time."</p>
               <strong>Josef M.</strong><div>Delivery rider, Manila</div>
             </div>
           </div>

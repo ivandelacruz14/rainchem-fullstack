@@ -1,5 +1,7 @@
+from decimal import Decimal
 from datetime import datetime, timedelta
 from app.extensions import db
+from app.services.pricing import money
 
 COD = "Cash on Delivery"
 GCASH = "GCash"
@@ -233,7 +235,15 @@ class Receipt(db.Model):
     shipping_fee = db.Column(db.Numeric(10, 2), nullable=False)
     total = db.Column(db.Numeric(10, 2), nullable=False)
 
+    def vat_breakdown(self):
+        """Prices already include 12% VAT. As on the company's sales invoice:
+        Vatable Sales = total / 1.12 and VAT Amount = total - Vatable Sales."""
+        total = money(self.total)
+        vatable = money(total / Decimal("1.12"))
+        return vatable, total - vatable
+
     def to_dict(self):
+        vatable, vat = self.vat_breakdown()
         return {
             "receiptNumber": self.receipt_number,
             "issuedAt": self.issued_at.isoformat() if self.issued_at else None,
@@ -241,4 +251,9 @@ class Receipt(db.Model):
             "subtotal": float(self.subtotal),
             "shippingFee": float(self.shipping_fee),
             "total": float(self.total),
+            "vatRate": 12,
+            "vatableSales": float(vatable),
+            "vatExemptSales": 0.0,
+            "zeroRatedSales": 0.0,
+            "vatAmount": float(vat),
         }

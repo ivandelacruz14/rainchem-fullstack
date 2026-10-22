@@ -29,7 +29,7 @@ export default function Receipt() {
 
   return (
     <div className="container">
-      <div style={{ maxWidth: 640, margin: "0 auto" }}>
+      <div style={{ maxWidth: 780, margin: "0 auto" }}>
         <div className="no-print" style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
           <button className="btn btn-outline btn-sm" onClick={() => navigate("/account/orders")}>Back</button>
           <button className="btn btn-primary btn-sm" onClick={() => window.print()}>Print Receipt</button>

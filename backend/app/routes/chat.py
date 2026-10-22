@@ -27,7 +27,7 @@ def ask():
 
     entries = KnowledgeEntry.query.filter_by(status="approved").all()
     # The chatbot never needs product photos (base64, can be megabytes each).
-    products = Product.query.options(defer(Product.image_photo)).all()
+    products = Product.query.options(defer(Product.image_photo)).filter(Product.category != "Services").all()
 
     try:
         result = answer_question(

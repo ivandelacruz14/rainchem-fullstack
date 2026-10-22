@@ -9,8 +9,7 @@ in the GCash app then shows the exact amount already filled in.
 """
 
 from decimal import Decimal, InvalidOperation
-
-import segno
+from importlib.util import find_spec
 
 MAX_PAYLOAD_CHARS = 1000
 MAX_AMOUNT = Decimal("9999999.99")
@@ -92,6 +91,17 @@ def with_amount(payload, amount):
     return body + format(crc16(body), "04X")
 
 
+def image_support():
+    """True when the QR picture library (segno) is installed on the server."""
+    return find_spec("segno") is not None
+
+
 def to_svg_data_uri(payload, scale=6):
+    # Imported here, not at the top, so a server that does not have segno yet
+    # still starts. The payment page then just shows the normal QR.
+    try:
+        import segno
+    except ImportError:
+        raise QrError("The QR picture library (segno) is not installed on the server.")
     code = segno.make(payload, error="m")
     return code.svg_data_uri(scale=scale, border=2, dark="#000000", light="#ffffff")
