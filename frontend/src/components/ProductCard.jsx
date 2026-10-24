@@ -34,7 +34,9 @@ export default function ProductCard({ product, onOpen }) {
       <div className="product-info">
         <span className="product-cat">{product.category}</span>
         <span className="product-name" onClick={() => onOpen(product)}>{product.name}</span>
-        <span className="product-rating">{"\u2605"} {product.rating} ({product.reviews})</span>
+        <span className="product-rating">
+          {product.reviews > 0 ? `\u2605 ${product.rating.toFixed(1)} (${product.reviews})` : "No reviews yet"}
+        </span>
         <span className={`stock-count ${product.stock < 20 ? "low" : ""}`}>
           {product.stock > 0 ? `${product.stock} units available` : "Out of stock"}
         </span>

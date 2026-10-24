@@ -6,7 +6,7 @@ from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models import Order, OrderItem, OrderStatusHistory, Product, User
 from app.models.order import COD
-from app.services import payment_flow
+from app.services import payment_flow, review_service
 from app.services.auth_utils import is_valid_email, is_valid_phone
 from app.services.pricing import bulk_discount_rate, compute_shipping, unit_price_after_discount, money
 from app.services.receipt_service import generate_order_number, generate_tracking_number, create_receipt_for_order
@@ -212,22 +212,22 @@ def review_order(order_id):
     order = Order.query.get_or_404(order_id)
     if order.user_id != current_user_id():
         return jsonify({"error": "Not found"}), 404
-    if order.status != "delivered":
+    if order.status != "delivered" or order.return_status not in review_service.REVIEWABLE_RETURN_STATES:
         return jsonify({"error": "You can review an order once it has been delivered"}), 400
     if order.review_rating is not None:
         return jsonify({"error": "You already reviewed this order"}), 400
 
     data = request.get_json() or {}
     try:
-        rating = int(data.get("rating"))
-    except (TypeError, ValueError):
-        return jsonify({"error": "Please choose a star rating"}), 400
-    if rating < 1 or rating > 5:
-        return jsonify({"error": "Rating must be between 1 and 5"}), 400
+        rating = review_service.clean_rating(data.get("rating"))
+        comment = review_service.clean_comment(data.get("comment"))
+    except review_service.ReviewError as error:
+        return jsonify({"error": error.message}), error.status
 
     order.review_rating = rating
-    order.review_comment = (str(data.get("comment") or "").strip()[:500]) or None
+    order.review_comment = comment
     order.reviewed_at = datetime.utcnow()
+    review_service.add_reviews_for_order(order, rating, comment)
     db.session.commit()
     return jsonify({"order": order.to_dict()})
 

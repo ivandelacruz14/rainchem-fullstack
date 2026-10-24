@@ -18,7 +18,7 @@ with app.app_context():
             name="System Admin",
             email="admin@raincheminternational.com",
             password_hash=generate_password_hash("Admin123!"),
-            role="Super Admin",
+            role="Head Admin",
         ))
         print("Created admin account: admin@raincheminternational.com / Admin123!")
 

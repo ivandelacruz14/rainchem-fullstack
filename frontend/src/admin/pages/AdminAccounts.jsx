@@ -1,74 +1,142 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import client from "../../api/client";
 import { formatDate, validatePassword } from "../../utils/format";
 import { useToast } from "../../context/ToastContext";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 
-const PASSWORD_RULES = [
-  { key: "len", label: "8-24 characters", test: (p) => p.length >= 8 && p.length <= 24 },
-  { key: "up", label: "One uppercase", test: (p) => /[A-Z]/.test(p) },
-  { key: "low", label: "One lowercase", test: (p) => /[a-z]/.test(p) },
-  { key: "num", label: "One number", test: (p) => /[0-9]/.test(p) },
-  { key: "sym", label: "One symbol", test: (p) => /[^A-Za-z0-9]/.test(p) },
-];
+const PERMISSION_LABELS = {
+  manage_products: "Add and edit own products",
+  manage_services: "Add and edit own services and areas",
+  view_orders: "View orders containing own products",
+  view_sales: "View sales analytics for own products",
+};
+
+const EMPTY_FORM = { name: "", email: "", role: "Distributor", password: "", permissions: [], currentPassword: "" };
+
+function PermissionPicker({ value, onChange }) {
+  function toggle(key) {
+    onChange(value.includes(key) ? value.filter((k) => k !== key) : [...value, key]);
+  }
+  return (
+    <fieldset className="permission-picker">
+      <legend>Permissions</legend>
+      {Object.entries(PERMISSION_LABELS).map(([key, label]) => (
+        <label key={key}>
+          <input type="checkbox" checked={value.includes(key)} onChange={() => toggle(key)} />
+          <span>{label}</span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
 
 export default function AdminAccounts() {
-  const [admins, setAdmins] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", role: "Admin", password: "" });
+  const { admin: me } = useAdminAuth();
   const showToast = useToast();
+  const [admins, setAdmins] = useState([]);
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
 
-  function load() {
+  const load = useCallback(() => {
     client.get("/api/admin/auth/accounts").then((res) => setAdmins(res.data.admins));
+  }, []);
+  useEffect(load, [load]);
+
+  function openCreate() {
+    setForm(EMPTY_FORM);
+    setModal({ type: "create" });
   }
-  useEffect(load, []);
+
+  function openEdit(account) {
+    setForm({
+      name: account.name, email: account.email, role: account.role, password: "",
+      permissions: account.permissions, currentPassword: "", isActive: account.isActive,
+    });
+    setModal({ type: "edit", account });
+  }
+
+  function openDelete(account) {
+    setForm({ ...EMPTY_FORM });
+    setModal({ type: "delete", account });
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const errors = validatePassword(form.password);
-    if (errors.length) {
-      showToast("Password requirements not met: " + errors.join(", "), "error");
-      return;
+    const isCreate = modal.type === "create";
+    if (form.password) {
+      const unmet = validatePassword(form.password);
+      if (unmet.length) {
+        showToast("Password requirements not met: " + unmet.join(", "), "error");
+        return;
+      }
     }
     try {
-      await client.post("/api/admin/auth/accounts", form);
-      showToast("Admin account created", "success");
-      setShowForm(false);
-      setForm({ name: "", email: "", role: "Admin", password: "" });
+      if (isCreate) {
+        await client.post("/api/admin/auth/accounts", form);
+        showToast("Account created", "success");
+      } else {
+        const body = {
+          name: form.name, currentPassword: form.currentPassword,
+          newPassword: form.password || undefined,
+        };
+        if (modal.account.id !== me.id) {
+          Object.assign(body, { role: form.role, isActive: form.isActive, permissions: form.permissions });
+        }
+        await client.put(`/api/admin/auth/accounts/${modal.account.id}`, body);
+        showToast("Account updated", "success");
+      }
+      setModal(null);
       load();
     } catch (err) {
-      showToast(err.response?.data?.error || "Could not create admin account", "error");
+      showToast(err.response?.data?.error || "Could not save this account", "error");
     }
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm("Remove this admin account?")) return;
+  async function handleDelete(e) {
+    e.preventDefault();
     try {
-      await client.delete(`/api/admin/auth/accounts/${id}`);
-      showToast("Admin account removed", "error");
+      await client.delete(`/api/admin/auth/accounts/${modal.account.id}`, { data: { currentPassword: form.currentPassword } });
+      showToast("Account removed", "success");
+      setModal(null);
       load();
     } catch (err) {
-      showToast(err.response?.data?.error || "Could not remove this admin", "error");
+      showToast(err.response?.data?.error || "Could not remove this account", "error");
     }
   }
+
+  const editing = modal?.type === "edit";
+  const isSelf = editing && modal.account.id === me.id;
+  const showPermissions = form.role === "Distributor" && !isSelf;
 
   return (
     <div>
       <div className="admin-topbar">
-        <div><h1>Admin Accounts</h1><p>Manage who has access to this dashboard. No public sign-up exists, accounts are created here only.</p></div>
-        <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Admin</button>
+        <div>
+          <h1>Accounts &amp; Roles</h1>
+          <p>Head Admins manage everything. Distributors only get the permissions you tick. There is no public admin sign-up.</p>
+        </div>
+        <button type="button" className="btn btn-primary" onClick={openCreate}>+ Add Account</button>
       </div>
+
       <div className="admin-panel">
         <div className="table-wrap">
           <table className="admin-table">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Permissions</th><th>Status</th><th>Created</th><th></th></tr></thead>
             <tbody>
               {admins.map((a) => (
                 <tr key={a.id}>
-                  <td style={{ fontWeight: 600 }}>{a.name}</td>
-                  <td>{a.email}</td>
+                  <td className="strong">{a.name}</td>
+                  <td className="wrap-cell">{a.email}</td>
                   <td><span className="badge">{a.role}</span></td>
+                  <td className="wrap-cell">{a.isHead ? "Full access" : a.permissions.map((k) => PERMISSION_LABELS[k]).join(", ") || "None"}</td>
+                  <td>{a.isActive ? "Active" : "Disabled"}</td>
                   <td>{formatDate(a.createdAt).split(",")[0]}</td>
-                  <td>{admins.length > 1 && <button className="icon-action" onClick={() => handleDelete(a.id)}>Remove</button>}</td>
+                  <td>
+                    <div className="row-actions">
+                      <button type="button" className="icon-action" onClick={() => openEdit(a)}>Edit</button>
+                      {a.id !== me.id && <button type="button" className="icon-action" onClick={() => openDelete(a)}>Remove</button>}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -76,32 +144,65 @@ export default function AdminAccounts() {
         </div>
       </div>
 
-      {showForm && (
-        <div className="overlay" onClick={() => setShowForm(false)}>
+      {(modal?.type === "create" || editing) && (
+        <div className="overlay" onClick={() => setModal(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-head"><h3 style={{ margin: 0 }}>Add Admin Account</h3><button className="modal-close" onClick={() => setShowForm(false)}>&times;</button></div>
+            <div className="modal-head">
+              <h3>{editing ? "Edit Account" : "Add Account"}</h3>
+              <button type="button" className="modal-close" onClick={() => setModal(null)}>&times;</button>
+            </div>
             <div className="modal-body">
               <form onSubmit={handleSubmit}>
                 <div className="field"><label>Full Name</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-                <div className="field"><label>Email</label><input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+                <div className="field"><label>Email</label><input required type="email" disabled={editing} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+                {!isSelf && (
+                  <div className="field">
+                    <label>Role</label>
+                    <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                      <option>Distributor</option>
+                      <option>Head Admin</option>
+                    </select>
+                  </div>
+                )}
+                {showPermissions && <PermissionPicker value={form.permissions} onChange={(permissions) => setForm({ ...form, permissions })} />}
+                {editing && !isSelf && (
+                  <label className="check-row">
+                    <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+                    <span>Account is active</span>
+                  </label>
+                )}
                 <div className="field">
-                  <label>Role</label>
-                  <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                    <option>Admin</option><option>Support Staff</option><option>Content Manager</option>
-                  </select>
+                  <label>{editing ? "New password (leave blank to keep)" : "Temporary password"}</label>
+                  <input type="password" required={!editing} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
                 </div>
                 <div className="field">
-                  <label>Temporary Password</label>
-                  <input required type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-                  <ul className="pw-rules">
-                    {PASSWORD_RULES.map((rule) => (
-                      <li key={rule.key} className={rule.test(form.password) ? "ok" : ""}>{rule.label}</li>
-                    ))}
-                  </ul>
+                  <label>Your password (to confirm)</label>
+                  <input type="password" required autoComplete="current-password" value={form.currentPassword} onChange={(e) => setForm({ ...form, currentPassword: e.target.value })} />
                 </div>
                 <div className="form-actions">
-                  <button type="button" className="btn btn-outline" onClick={() => setShowForm(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary">Create Admin Account</button>
+                  <button type="button" className="btn btn-outline" onClick={() => setModal(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary">{editing ? "Save Changes" : "Create Account"}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modal?.type === "delete" && (
+        <div className="overlay" onClick={() => setModal(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head"><h3>Remove {modal.account.name}?</h3></div>
+            <div className="modal-body">
+              <form onSubmit={handleDelete}>
+                <p className="field-hint">Their products and services stay in the catalogue but become unassigned.</p>
+                <div className="field">
+                  <label>Your password (to confirm)</label>
+                  <input type="password" required autoComplete="current-password" value={form.currentPassword} onChange={(e) => setForm({ ...form, currentPassword: e.target.value })} />
+                </div>
+                <div className="form-actions">
+                  <button type="button" className="btn btn-outline" onClick={() => setModal(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary">Remove Account</button>
                 </div>
               </form>
             </div>

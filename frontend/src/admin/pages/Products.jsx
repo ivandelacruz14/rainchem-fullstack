@@ -3,8 +3,8 @@ import client from "../../api/client";
 import { peso } from "../../utils/format";
 import { useToast } from "../../context/ToastContext";
 
-const CATEGORIES = ["Oils & Fluids", "Coolant", "Filters", "Brakes", "Accessories", "Services"];
-const emptyForm = { name: "", category: CATEGORIES[0], price: "", stock: "", rating: "4.5", shortDesc: "", description: "", specs: "", benefits: "", usage: "" };
+const CATEGORIES = ["Oils & Fluids", "Coolant", "Filters", "Brakes", "Accessories"];
+const emptyForm = { name: "", category: CATEGORIES[0], price: "", stock: "", shortDesc: "", description: "", specs: "", benefits: "", usage: "" };
 
 function resizeImage(file) {
   return new Promise((resolve, reject) => {
@@ -39,7 +39,7 @@ export default function Products() {
   const showToast = useToast();
 
   function loadProducts() {
-    client.get("/api/products").then((res) => setProducts(res.data.products));
+    client.get("/api/products/manage").then((res) => setProducts(res.data.products));
   }
   useEffect(loadProducts, []);
 
@@ -55,7 +55,7 @@ export default function Products() {
     setEditing(product);
     setForm({
       name: product.name, category: product.category, price: product.price, stock: product.stock,
-      rating: product.rating, shortDesc: product.shortDesc, description: product.description,
+      shortDesc: product.shortDesc, description: product.description,
       specs: product.specs.join("\n"), benefits: product.benefits.join("\n"), usage: product.usage.join("\n"),
     });
     setImagePreview(product.imagePhoto);
@@ -75,7 +75,7 @@ export default function Products() {
     e.preventDefault();
     const payload = {
       name: form.name, category: form.category, price: parseFloat(form.price), stock: parseInt(form.stock),
-      rating: parseFloat(form.rating) || 4.5, shortDesc: form.shortDesc, description: form.description,
+      shortDesc: form.shortDesc, description: form.description,
       specs: form.specs.split("\n").map((s) => s.trim()).filter(Boolean),
       benefits: form.benefits.split("\n").map((s) => s.trim()).filter(Boolean),
       usage: form.usage.split("\n").map((s) => s.trim()).filter(Boolean),
@@ -110,9 +110,13 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
 
   async function handleDelete(id) {
     if (!window.confirm("Delete this product? This cannot be undone.")) return;
-    await client.delete(`/api/products/${id}`);
-    showToast("Product deleted", "error");
-    loadProducts();
+    try {
+      await client.delete(`/api/products/${id}`);
+      showToast("Product deleted", "success");
+      loadProducts();
+    } catch (err) {
+      showToast(err.response?.data?.error || "Could not delete this product", "error");
+    }
   }
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
@@ -133,20 +137,20 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
         </div>
         <div className="table-wrap">
           <table className="admin-table">
-            <thead><tr><th></th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Rating</th><th></th></tr></thead>
+            <thead><tr><th></th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Reviews</th><th></th></tr></thead>
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.id}>
                   <td>
-                    <div style={{ width: 40, height: 40, borderRadius: 6, overflow: "hidden", background: "var(--red-100)" }}>
-                      {p.imagePhoto && <img src={p.imagePhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                    <div className="thumb-40">
+                      {p.imagePhoto && <img src={p.imagePhoto} alt="" />}
                     </div>
                   </td>
-                  <td style={{ fontWeight: 600, maxWidth: 260 }}>{p.name}</td>
+                  <td className="strong wrap-cell">{p.name}</td>
                   <td>{p.category}</td>
                   <td>{peso(p.price)}</td>
                   <td>{p.stock < 20 ? <span className="pill pill-low">{p.stock} left</span> : p.stock}</td>
-                  <td>{"\u2605"} {p.rating}</td>
+                  <td>{p.reviews > 0 ? `\u2605 ${p.rating.toFixed(1)} (${p.reviews})` : "None yet"}</td>
                   <td>
                     <div className="row-actions">
                       <button className="icon-action" onClick={() => openEdit(p)}>Edit</button>
@@ -193,7 +197,6 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
                 </div>
                 <div className="field-row">
                   <div className="field"><label>Stock (units available)</label><input required type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
-                  <div className="field"><label>Rating (0-5)</label><input type="number" step="0.1" max="5" value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })} /></div>
                 </div>
                 <div className="field"><label>Short Description</label><input required value={form.shortDesc} onChange={(e) => setForm({ ...form, shortDesc: e.target.value })} /></div>
                 <div className="field"><label>Full Description</label><textarea required rows="3" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>

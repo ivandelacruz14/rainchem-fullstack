@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models.setting import set_setting
 from app.services import paymongo, payment_flow, qrph
-from app.utils.auth_decorators import require_admin
+from app.utils.auth_decorators import require_head_admin
 
 admin_settings_bp = Blueprint("admin_settings", __name__, url_prefix="/api/admin/settings")
 
@@ -34,13 +34,13 @@ def _payload():
 
 
 @admin_settings_bp.get("/payment")
-@require_admin
+@require_head_admin
 def get_payment_settings():
     return jsonify(_payload())
 
 
 @admin_settings_bp.put("/payment")
-@require_admin
+@require_head_admin
 def update_payment_settings():
     data = request.get_json() or {}
     gcash = data.get("gcash") or {}

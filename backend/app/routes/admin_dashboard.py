@@ -1,13 +1,13 @@
 from flask import Blueprint, request, jsonify
 
 from app.models import Order, User, Product, KnowledgeEntry, ChatLog
-from app.utils.auth_decorators import require_admin
+from app.utils.auth_decorators import require_head_admin
 
 admin_dashboard_bp = Blueprint("admin_dashboard", __name__, url_prefix="/api/admin")
 
 
 @admin_dashboard_bp.get("/overview")
-@require_admin
+@require_head_admin
 def overview():
     total_revenue = sum(float(o.total) for o in Order.query.filter(Order.status != "cancelled").all())
     recent_orders = Order.query.order_by(Order.created_at.desc()).limit(5).all()
@@ -32,7 +32,7 @@ def overview():
 
 
 @admin_dashboard_bp.get("/chat-monitor")
-@require_admin
+@require_head_admin
 def chat_monitor():
     resolved_filter = request.args.get("resolved")
     query = ChatLog.query

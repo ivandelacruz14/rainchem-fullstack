@@ -11,7 +11,7 @@ export default function CartDrawer() {
   const { cartOpen, closeCart, requireLogin } = useUI();
   const navigate = useNavigate();
 
-  if (!cartOpen) return null;
+  if (!cartOpen || !user) return null;
 
   function handleCheckout() {
     if (!user) {

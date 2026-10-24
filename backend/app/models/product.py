@@ -19,6 +19,7 @@ class Product(db.Model):
     specs = db.Column(db.JSON, nullable=True)
     benefits = db.Column(db.JSON, nullable=True)
     usage_steps = db.Column(db.JSON, nullable=True)
+    owner_admin_id = db.Column(db.Integer, db.ForeignKey("admins.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -28,8 +29,9 @@ class Product(db.Model):
             "category": self.category,
             "price": float(self.price),
             "stock": self.stock,
-            "rating": float(self.rating),
-            "reviews": self.reviews,
+            "rating": round(float(self.review_average), 1) if self.review_count else None,
+            "reviews": self.review_count or 0,
+            "ownerAdminId": self.owner_admin_id,
             "imageGlyph": self.image_glyph,
             "imagePhoto": self.image_photo,
             "shortDesc": self.short_desc,

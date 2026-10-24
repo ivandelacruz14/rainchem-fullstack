@@ -1,64 +1,105 @@
-import { useEffect, useState } from "react";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useEffect, useMemo, useState } from "react";
 import client from "../../api/client";
-import { peso } from "../../utils/format";
+import SummaryCards from "../components/analytics/SummaryCards";
+import TrendCharts from "../components/analytics/TrendCharts";
+import ProductTable from "../components/analytics/ProductTable";
+import Recommendations from "../components/analytics/Recommendations";
+import ForecastPanel from "../components/analytics/ForecastPanel";
+import ProductHistory from "../components/analytics/ProductHistory";
 
-const COLORS = ["#e1131f", "#f4a340", "#2e7d32", "#1565c0", "#8e24aa", "#00838f", "#6d4c41", "#c2185b"];
+const PERIODS = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+];
 
 export default function Analytics() {
-  const [data, setData] = useState(null);
+  const [granularity, setGranularity] = useState("daily");
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [report, setReport] = useState(null);
+  const [error, setError] = useState("");
+  const [historyId, setHistoryId] = useState(null);
+
+  const params = useMemo(() => {
+    const p = { granularity };
+    if (start) p.start = start;
+    if (end) p.end = end;
+    return p;
+  }, [granularity, start, end]);
 
   useEffect(() => {
-    client.get("/api/admin/analytics/sales").then((res) => setData(res.data));
-  }, []);
+    let cancelled = false;
+    setError("");
+    client.get("/api/admin/analytics/report", { params })
+      .then((res) => { if (!cancelled) setReport(res.data); })
+      .catch((err) => { if (!cancelled) setError(err.response?.data?.error || "Could not load the sales report."); });
+    return () => { cancelled = true; };
+  }, [params]);
 
-  if (!data) return <p>Loading...</p>;
+  function changeGranularity(value) {
+    setGranularity(value);
+    setStart("");
+    setEnd("");
+  }
 
   return (
     <div>
       <div className="admin-topbar">
-        <div><h1>Sales Analytics</h1><p>Revenue and units sold per product.</p></div>
+        <div>
+          <h1>Sales Analytics</h1>
+          <p>Recorded sales come from confirmed orders. Forecasts and recommendations are estimates based on them.</p>
+        </div>
       </div>
 
-     <div className="stat-grid" style={{ marginBottom: 24 }}>
-  <div className="stat-box">
-    <div className="label">Top Seller</div>
-    <div className="value" style={{ fontSize: 18 }}>{data.topSeller?.name || "N/A"}</div>
-    <div className="delta">{data.topSeller ? peso(data.topSeller.revenue) : ""}</div>
-  </div>
-  <div className="stat-box">
-    <div className="label">Lowest Seller</div>
-    <div className="value" style={{ fontSize: 18 }}>{data.lowestSeller?.name || "N/A"}</div>
-    <div className="delta">{data.lowestSeller ? peso(data.lowestSeller.revenue) : ""}</div>
-  </div>
-</div>
-
-      <div className="admin-panel">
-        <h3>Revenue Share by Product</h3>
-        <ResponsiveContainer width="100%" height={380}>
-          <PieChart>
-            <Pie data={data.products} dataKey="revenue" nameKey="name" outerRadius={140} label={(entry) => entry.name}>
-              {data.products.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(value) => peso(value)} />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
+      <div className="admin-panel filter-bar">
+        <div className="tab-bar compact">
+          {PERIODS.map((p) => (
+            <button key={p.value} type="button" className={`tab-btn ${granularity === p.value ? "active" : ""}`} onClick={() => changeGranularity(p.value)}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="date-filters">
+          <label>From<input type="date" value={start || report?.range.start || ""} max={end || undefined} onChange={(e) => setStart(e.target.value)} /></label>
+          <label>To<input type="date" value={end || report?.range.end || ""} min={start || undefined} onChange={(e) => setEnd(e.target.value)} /></label>
+          {(start || end) && <button type="button" className="btn btn-outline btn-sm" onClick={() => { setStart(""); setEnd(""); }}>Reset</button>}
+        </div>
       </div>
 
-      <div className="admin-panel" style={{ marginTop: 24 }}>
-        <h3>Units Sold (High to Low)</h3>
-        <table className="admin-table">
-          <thead><tr><th>Product</th><th>Units Sold</th><th>Revenue</th></tr></thead>
-          <tbody>
-            {[...data.products].sort((a, b) => b.units - a.units).map((p) => (
-              <tr key={p.name}><td>{p.name}</td><td>{p.units}</td><td>{peso(p.revenue)}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {error && <div className="alert alert-error">{error}</div>}
+      {!report && !error && <p className="field-hint">Loading report...</p>}
+
+      {report && (
+        <>
+          <p className="field-hint">
+            Showing {report.range.start} to {report.range.end} ({report.range.days} days), compared with {report.previousRange.start} to {report.previousRange.end}. {report.basis}
+          </p>
+          <SummaryCards report={report} />
+
+          <div className="admin-panel">
+            <h3>Sales trend</h3>
+            <TrendCharts series={report.series} />
+          </div>
+
+          <div className="admin-panel">
+            <h3>Product performance (recorded)</h3>
+            <ProductTable products={report.products} selectedId={historyId} onSelect={setHistoryId} />
+          </div>
+
+          {historyId && <ProductHistory productId={historyId} params={params} onClose={() => setHistoryId(null)} />}
+
+          <div className="admin-panel">
+            <h3>Recommendations <span className="badge">Based on recorded sales</span></h3>
+            <Recommendations items={report.recommendations} />
+          </div>
+
+          <div className="admin-panel">
+            <h3>Estimated future demand <span className="badge">Estimate</span></h3>
+            <ForecastPanel forecast={report.forecast} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

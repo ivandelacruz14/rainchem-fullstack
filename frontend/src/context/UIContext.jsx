@@ -3,19 +3,22 @@ import { useToast } from "./ToastContext";
 
 const UIContext = createContext(null);
 
+const CLOSED_AUTH = { open: false, mode: "login", returnTo: null };
+
 export function UIProvider({ children }) {
   const [cartOpen, setCartOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const [authModal, setAuthModal] = useState({ open: false, mode: "login" });
+  const [authModal, setAuthModal] = useState(CLOSED_AUTH);
   const showToast = useToast();
 
-  function requireLogin(mode = "login", message = null) {
+  // returnTo is a path (with query) to come back to after a successful login.
+  function requireLogin(mode = "login", message = null, returnTo = null) {
     if (message) showToast(message, "error");
-    setAuthModal({ open: true, mode });
+    setAuthModal({ open: true, mode, returnTo });
   }
 
   function closeAuth() {
-    setAuthModal({ open: false, mode: "login" });
+    setAuthModal(CLOSED_AUTH);
   }
 
   return (

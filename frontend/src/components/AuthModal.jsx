@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import client from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useUI } from "../context/UIContext";
@@ -20,15 +21,21 @@ export default function AuthModal() {
   const { authModal, setAuthModal, closeAuth } = useUI();
   const { loginWithToken } = useAuth();
   const showToast = useToast();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({});
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
-  const [devCode, setDevCode] = useState("");
 
   if (!authModal.open) return null;
   const mode = authModal.mode;
+
+  function finishLogin() {
+    const destination = authModal.returnTo;
+    closeAuth();
+    if (destination) navigate(destination);
+  }
 
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -37,7 +44,7 @@ export default function AuthModal() {
   function switchMode(nextMode) {
     setError("");
     setInfo("");
-    setAuthModal({ open: true, mode: nextMode });
+    setAuthModal({ ...authModal, open: true, mode: nextMode });
   }
 
   async function handleLogin(e) {
@@ -47,7 +54,7 @@ export default function AuthModal() {
       const res = await client.post("/api/auth/login", { email: form.email, password: form.password });
       loginWithToken(res.data.token, res.data.user, remember);
       showToast(`Welcome back, ${res.data.user.name.split(" ")[0]}!`, "success");
-      closeAuth();
+      finishLogin();
     } catch (err) {
       const data = err.response?.data;
       if (data?.needsVerification) {
@@ -90,7 +97,7 @@ export default function AuthModal() {
       const res = await client.post("/api/auth/verify-email", { email: pendingEmail, code: form.code });
       loginWithToken(res.data.token, res.data.user);
       showToast(`Account verified! Welcome, ${res.data.user.name.split(" ")[0]}.`, "success");
-      closeAuth();
+      finishLogin();
     } catch (err) {
       setError(err.response?.data?.error || "Incorrect or expired code.");
     }
@@ -122,7 +129,7 @@ export default function AuthModal() {
       const res = await client.post("/api/auth/google", { token });
       loginWithToken(res.data.token, res.data.user);
       showToast(`Welcome, ${res.data.user.name.split(" ")[0]}!`, "success");
-      closeAuth();
+      finishLogin();
     } catch (err) {
       setError(err.response?.data?.error || "Could not sign in with Google.");
     }
@@ -215,11 +222,6 @@ export default function AuthModal() {
               <div className="alert alert-info">
                 We sent a 6-digit verification code to <strong>{pendingEmail}</strong>. Enter it below to activate your account.
               </div>
-              {devCode && (
-                <div className="admin-demo-hint" style={{ marginBottom: 16 }}>
-                  Development mode: check the backend console output for your code.
-                </div>
-              )}
               <form onSubmit={handleVerify}>
                 <div className="field">
                   <label>Verification Code</label>

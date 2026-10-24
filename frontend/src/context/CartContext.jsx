@@ -1,25 +1,68 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
+import client from "../api/client";
+import { useAuth } from "./AuthContext";
+import { FREE_SHIPPING_SUBTOTAL, FREE_SHIPPING_QTY, bulkDiscountRate, computeShipping, priceLine } from "../utils/pricing";
 
 const CartContext = createContext(null);
 
-import { FREE_SHIPPING_SUBTOTAL, FREE_SHIPPING_QTY, bulkDiscountRate, computeShipping, priceLine } from "../utils/pricing";
-
 export { FREE_SHIPPING_SUBTOTAL, FREE_SHIPPING_QTY, bulkDiscountRate, computeShipping };
 
+const LEGACY_CART_KEY = "rainchem_cart";
+
+function cartKey(userId) {
+  return `rainchem_cart:${userId}`;
+}
+
+function readCart(userId) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(cartKey(userId)));
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
 export function CartProvider({ children }) {
-  const [items, setItems] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("rainchem_cart")) || [];
-    } catch {
-      return [];
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const [items, setItems] = useState([]);
+  const loadedFor = useRef(null);
+
+  // The cart belongs to the signed-in account. It is loaded when that account
+  // signs in and cleared from memory when it signs out.
+  useEffect(() => {
+    localStorage.removeItem(LEGACY_CART_KEY);
+    loadedFor.current = null;
+    if (userId === null) {
+      setItems([]);
+      return;
     }
-  });
+    setItems(readCart(userId));
+    loadedFor.current = userId;
+  }, [userId]);
 
   useEffect(() => {
-    localStorage.setItem("rainchem_cart", JSON.stringify(items));
-  }, [items]);
+    if (userId === null || loadedFor.current !== userId) return;
+    localStorage.setItem(cartKey(userId), JSON.stringify(items));
+  }, [items, userId]);
+
+  // Prices and stock shown in the cart always come from the catalogue, not from
+  // whatever was saved when the item was added. The server prices the order again at checkout.
+  useEffect(() => {
+    if (userId === null) return undefined;
+    let cancelled = false;
+    client.get("/api/products").then((res) => {
+      if (cancelled) return;
+      const fresh = new Map(res.data.products.map((p) => [p.id, p]));
+      setItems((prev) => prev
+        .filter((line) => fresh.has(line.product.id))
+        .map((line) => ({ ...line, product: fresh.get(line.product.id) })));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [userId]);
 
   function addItem(product, qty) {
+    if (userId === null) return;
     setItems((prev) => {
       const existing = prev.find((line) => line.product.id === product.id);
       if (existing) {

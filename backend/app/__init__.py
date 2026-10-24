@@ -11,7 +11,7 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     jwt.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": app.config["FRONTEND_URL"]}})
+    cors.init_app(app, resources={r"/api/*": {"origins": app.config["FRONTEND_URLS"]}})
 
     from app.routes import register_routes
     register_routes(app)

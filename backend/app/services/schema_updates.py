@@ -21,7 +21,28 @@ COLUMNS = [
     ("orders", "review_rating", "TINYINT NULL"),
     ("orders", "review_comment", "VARCHAR(500) NULL"),
     ("orders", "reviewed_at", "DATETIME NULL"),
+    ("admins", "permissions", "JSON NULL"),
+    ("admins", "is_active", "BOOLEAN NOT NULL DEFAULT 1"),
+    ("products", "owner_admin_id", "INT NULL"),
 ]
+
+# Copies reviews that customers already left on whole orders into per-product
+# reviews. Only real records are copied, and rows that already exist are skipped.
+BACKFILL_PRODUCT_REVIEWS = """
+INSERT INTO product_reviews (product_id, order_id, user_id, rating, comment, created_at)
+SELECT oi.product_id, o.id, o.user_id, o.review_rating, o.review_comment,
+       COALESCE(o.reviewed_at, o.created_at)
+FROM orders o
+JOIN order_items oi ON oi.order_id = o.id
+WHERE o.review_rating IS NOT NULL
+  AND o.user_id IS NOT NULL
+  AND oi.product_id IS NOT NULL
+  AND o.status = 'delivered'
+  AND NOT EXISTS (
+      SELECT 1 FROM product_reviews pr
+      WHERE pr.order_id = o.id AND pr.product_id = oi.product_id
+  )
+"""
 
 # Photos are stored as base64 text, which does not fit in a plain TEXT column.
 LONGTEXT_COLUMNS = [
@@ -59,6 +80,14 @@ def ensure_schema(db, logger):
         except Exception as error:
             db.session.rollback()
             logger.warning("Could not add %s.%s (maybe another worker did): %s", table, column, error)
+
+    if "product_reviews" in set(inspect(db.engine).get_table_names()):
+        try:
+            db.session.execute(text(BACKFILL_PRODUCT_REVIEWS))
+            db.session.commit()
+        except Exception as error:
+            db.session.rollback()
+            logger.warning("Could not backfill product reviews: %s", error)
 
     if db.engine.dialect.name != "mysql":
         return

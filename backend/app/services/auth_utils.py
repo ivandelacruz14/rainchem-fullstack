@@ -1,3 +1,4 @@
+import hashlib
 import re
 import secrets
 
@@ -34,3 +35,8 @@ def generate_verification_code():
 
 def generate_reset_token():
     return secrets.token_urlsafe(32)
+
+
+def hash_reset_token(token):
+    """Only this hash is stored, so a database leak does not expose usable links."""
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()

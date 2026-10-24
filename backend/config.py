@@ -33,10 +33,14 @@ class Config:
     JWT_SECRET_KEY = SECRET_KEY
     JWT_ACCESS_TOKEN_EXPIRES = 60 * 60 * 24 * 7
 
-    FRONTEND_URL = os.getenv(
-        "FRONTEND_URL",
-        "http://localhost:5173"
-    )
+    FRONTEND_URLS = [
+        url.strip().rstrip("/")
+        for url in os.getenv("FRONTEND_URL", "http://localhost:5173").split(",")
+        if url.strip()
+    ]
+    FRONTEND_URL = FRONTEND_URLS[0]
+
+    SALES_UTC_OFFSET_HOURS = int(os.getenv("SALES_UTC_OFFSET_HOURS", "8"))
 
     SMTP_HOST = os.getenv("SMTP_HOST", "")
     SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -59,5 +63,6 @@ class Config:
 
 class TestConfig(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    SQLALCHEMY_ENGINE_OPTIONS = {}
     JWT_SECRET_KEY = "test-secret"
     SECRET_KEY = "test-secret"

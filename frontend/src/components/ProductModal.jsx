@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import ProductVisual from "./ProductVisual";
 import { peso } from "../utils/format";
 import { useAuth } from "../context/AuthContext";
@@ -7,12 +7,15 @@ import { useCart, bulkDiscountRate } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
 import { useUI } from "../context/UIContext";
 import ProductCard from "./ProductCard";
+import ProductReviews from "./ProductReviews";
+import { StarDisplay } from "./StarRating";
 
 export default function ProductModal({ product, onClose, allProducts = [], onSelectProduct }) {
   const { user } = useAuth();
   const { addItem } = useCart();
   const showToast = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const { requireLogin } = useUI();
   const [qty, setQty] = useState(1);
 
@@ -27,6 +30,15 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
     showToast("Added to cart", "success");
     onClose();
   }
+
+  function askToLogin(mode) {
+    requireLogin(mode, null, location.pathname + location.search);
+  }
+
+  const related = [
+    ...allProducts.filter((p) => p.category === product.category && p.id !== product.id),
+    ...allProducts.filter((p) => p.category !== product.category && p.id !== product.id),
+  ].slice(0, 8);
 
   function handleBuyNow() {
     addItem(product, qty);
@@ -49,7 +61,13 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
             <div>
               <span className="product-cat">{product.category}</span>
               <h2 style={{ margin: "6px 0 4px" }}>{product.name}</h2>
-              <span className="product-rating">{"\u2605"} {product.rating} &middot; {product.reviews} reviews</span>
+              {product.reviews > 0 ? (
+                <span className="product-rating">
+                  <StarDisplay value={product.rating} size={14} /> {product.rating.toFixed(1)} &middot; {product.reviews} review{product.reviews === 1 ? "" : "s"}
+                </span>
+              ) : (
+                <span className="product-rating">No reviews yet</span>
+              )}
               <span className={`stock-count ${product.stock < 20 ? "low" : ""}`} style={{ display: "block", marginTop: 4 }}>
                 {product.stock > 0 ? `${product.stock} units available` : "Out of stock"}
               </span>
@@ -119,29 +137,28 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
                     Log in or create a free account to add this item to your cart or buy it now.
                   </div>
                   <div className="flex gap-12">
-                    <button className="btn btn-outline btn-block" onClick={() => { onClose(); requireLogin("login"); }}>Log In</button>
-                    <button className="btn btn-primary btn-block" onClick={() => { onClose(); requireLogin("register"); }}>Create Account</button>
+                    <button className="btn btn-outline btn-block" onClick={() => askToLogin("login")}>Log In</button>
+                    <button className="btn btn-primary btn-block" onClick={() => askToLogin("register")}>Create Account</button>
                   </div>
                 </>
               )}
-                    </div>
+            </div>
           </div>
 
-          {allProducts.filter((p) => p.category === product.category && p.id !== product.id).length > 0 && (
+          {related.length > 0 && (
             <div className="pd-reco">
               <h4 className="pd-extra-head">You may also like</h4>
               <div className="product-row">
-                {allProducts
-                  .filter((p) => p.category === product.category && p.id !== product.id)
-                  .slice(0, 8)
-                  .map((p) => (
-                    <div className="product-row-item" key={p.id}>
-                      <ProductCard product={p} onOpen={onSelectProduct || (() => {})} />
-                    </div>
-                  ))}
+                {related.map((p) => (
+                  <div className="product-row-item" key={p.id}>
+                    <ProductCard product={p} onOpen={onSelectProduct || (() => {})} />
+                  </div>
+                ))}
               </div>
             </div>
           )}
+
+          <ProductReviews productId={product.id} />
         </div>
       </div>
     </div>

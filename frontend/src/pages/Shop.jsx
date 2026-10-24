@@ -8,7 +8,6 @@ import { CATEGORIES } from "../utils/categories";
 export default function Shop() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
   const [params, setParams] = useSearchParams();
 
@@ -18,8 +17,25 @@ export default function Shop() {
     client.get("/api/products").then((res) => setProducts(res.data.products)).finally(() => setLoading(false));
   }, []);
 
+  const selectedId = Number(params.get("product")) || null;
+  const selected = products.find((p) => p.id === selectedId) || null;
+
   function chooseCategory(name) {
     setParams(name === "All" ? {} : { category: name });
+  }
+
+  // The open product lives in the URL so a product page can be linked to and
+  // a visitor lands back on it after logging in.
+  function openProduct(product) {
+    const next = new URLSearchParams(params);
+    next.set("product", String(product.id));
+    setParams(next);
+  }
+
+  function closeProduct() {
+    const next = new URLSearchParams(params);
+    next.delete("product");
+    setParams(next, { replace: true });
   }
 
   const term = search.trim().toLowerCase();
@@ -56,12 +72,12 @@ export default function Shop() {
         <div className="empty-state">No products found.</div>
       ) : (
         <div className="product-grid">
-          {visible.map((p) => <ProductCard key={p.id} product={p} onOpen={setSelected} />)}
+          {visible.map((p) => <ProductCard key={p.id} product={p} onOpen={openProduct} />)}
         </div>
       )}
 
       {selected && (
-        <ProductModal product={selected} allProducts={products} onSelectProduct={setSelected} onClose={() => setSelected(null)} />
+        <ProductModal product={selected} allProducts={products} onSelectProduct={openProduct} onClose={closeProduct} />
       )}
     </div>
   );

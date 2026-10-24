@@ -2,13 +2,13 @@ from flask import Blueprint, request, jsonify
 
 from app.extensions import db
 from app.models import KnowledgeEntry
-from app.utils.auth_decorators import require_admin
+from app.utils.auth_decorators import require_head_admin
 
 knowledge_bp = Blueprint("knowledge", __name__, url_prefix="/api/admin/knowledge")
 
 
 @knowledge_bp.get("")
-@require_admin
+@require_head_admin
 def list_knowledge():
     status = request.args.get("status")
     query = KnowledgeEntry.query
@@ -19,7 +19,7 @@ def list_knowledge():
 
 
 @knowledge_bp.post("")
-@require_admin
+@require_head_admin
 def create_knowledge():
     data = request.get_json() or {}
     entry = KnowledgeEntry(
@@ -34,7 +34,7 @@ def create_knowledge():
 
 
 @knowledge_bp.put("/<int:entry_id>")
-@require_admin
+@require_head_admin
 def update_knowledge(entry_id):
     entry = KnowledgeEntry.query.get_or_404(entry_id)
     data = request.get_json() or {}
@@ -46,7 +46,7 @@ def update_knowledge(entry_id):
 
 
 @knowledge_bp.post("/<int:entry_id>/approve")
-@require_admin
+@require_head_admin
 def approve_knowledge(entry_id):
     entry = KnowledgeEntry.query.get_or_404(entry_id)
     entry.status = "approved"
@@ -55,7 +55,7 @@ def approve_knowledge(entry_id):
 
 
 @knowledge_bp.delete("/<int:entry_id>")
-@require_admin
+@require_head_admin
 def delete_knowledge(entry_id):
     entry = KnowledgeEntry.query.get_or_404(entry_id)
     db.session.delete(entry)
