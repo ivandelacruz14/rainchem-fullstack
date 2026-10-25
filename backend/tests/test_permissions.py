@@ -33,7 +33,8 @@ def test_missing_permission_blocks_even_with_valid_login(client, make_admin, adm
     assert client.get("/api/admin/orders", headers=h).status_code == 200
 
 
-def test_distributor_manages_only_own_products(client, make_admin, admin_login, make_product):
+def test_distributor_manages_only_own_products(client, make_admin, admin_login, make_product, approve):
+    from app.models import Product
     head_admin = make_admin("head@example.com", "Head Admin")
     d1 = make_admin("d1@example.com", "Distributor", ["products"])
     d2 = make_admin("d2@example.com", "Distributor", ["products"])
@@ -47,19 +48,17 @@ def test_distributor_manages_only_own_products(client, make_admin, admin_login, 
     assert client.put(f"/api/products/{theirs.id}", headers=h, json={"price": 1}).status_code == 403
     assert client.put(f"/api/products/{shared.id}", headers=h, json={"price": 1}).status_code == 403
     assert client.delete(f"/api/products/{theirs.id}", headers=h).status_code == 403
-    assert client.put(f"/api/products/{mine.id}", headers=h, json={"price": 99, "ownerId": d2.id}).status_code == 200
+    # Changes by a distributor are requests until the Head Admin approves them.
+    assert client.put(f"/api/products/{mine.id}", headers=h, json={"price": 99, "ownerId": d2.id}).status_code == 202
 
-    created = client.post("/api/products", headers=h, json={
-        "name": "New", "category": "Coolant", "price": 10, "stock": 5, "shortDesc": "s", "description": "d",
-    })
-    assert created.status_code == 201
-    assert created.get_json()["product"]["ownerId"] == d1.id
+    body = {"name": "New", "category": "Coolant", "price": 10, "stock": 5, "shortDesc": "s", "description": "d", "ownerId": d2.id}
+    created = client.post("/api/products", headers=h, json=body)
+    assert created.status_code == 202
+    head_h = admin_login("head@example.com")
+    assert approve(head_h, created.get_json()["request"]["id"]).status_code == 200
     # A distributor cannot hand products to someone else by sending ownerId.
-    again = client.post("/api/products", headers=h, json={
-        "name": "New2", "category": "Coolant", "price": 10, "stock": 5, "shortDesc": "s", "description": "d",
-        "ownerId": d2.id,
-    })
-    assert again.get_json()["product"]["ownerId"] == d1.id
+    new = Product.query.filter_by(name="New").one()
+    assert new.owner_admin_id == d1.id
 
 
 def test_product_input_is_validated(client, make_admin, admin_login):

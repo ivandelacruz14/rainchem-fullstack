@@ -179,3 +179,12 @@ table.admin-table td { padding: 11px 10px; border-bottom: 1px solid var(--line);
 .pick-item span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .sale-preview { background: var(--fog); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-size: 13.5px; display: flex; flex-direction: column; gap: 4px; }
 @media (max-width: 700px) { .pick-tools input { font-size: 16px; } }
+
+/* Approvals */
+.nav-badge { margin-left: auto; background: var(--red-700); color: #fff; border-radius: 20px; font-size: 11px; padding: 1px 8px; font-weight: 700; }
+.req-pending { background: var(--warn-bg); color: var(--warn-fg); }
+.req-approved { background: var(--ok-bg); color: var(--ok-fg); }
+.req-rejected { background: var(--bad-bg); color: var(--red-900); }
+.req-cancelled { background: var(--fog); color: var(--soft); }
+.request-photo { display: block; max-width: min(260px, 100%); border-radius: 10px; border: 1px solid var(--line); margin-top: 12px; }
+.otp-input { font-family: var(--ff-mono, monospace); font-size: 24px; letter-spacing: 0.4em; text-align: center; max-width: 260px; }

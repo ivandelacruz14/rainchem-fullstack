@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
-from app.models import Admin, Product, Service
+from app.models import Admin, ApprovalOtp, ChangeRequest, Product, ProductSale, Service
 from app.services.auth_utils import is_valid_email, validate_password
 from app.services.permissions import (
     ASSIGNABLE_ROLES, DISTRIBUTOR, PERMISSIONS, clean_permissions, default_permissions, is_head_role, role_info,
@@ -186,6 +186,10 @@ def delete_admin(admin_id):
     # What they owned goes back to the Head Admins.
     Product.query.filter_by(owner_admin_id=admin.id).update({"owner_admin_id": None})
     Service.query.filter_by(owner_admin_id=admin.id).update({"owner_admin_id": None})
+    ProductSale.query.filter_by(created_by=admin.id).update({"created_by": None})
+    ChangeRequest.query.filter_by(requested_by=admin.id).update({"requested_by": None})
+    ChangeRequest.query.filter_by(decided_by=admin.id).update({"decided_by": None})
+    ApprovalOtp.query.filter_by(admin_id=admin.id).delete()
     db.session.delete(admin)
     db.session.commit()
     return jsonify({"message": "Admin account removed"})

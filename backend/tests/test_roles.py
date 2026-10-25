@@ -33,7 +33,8 @@ def test_admin_role_runs_the_shop_but_not_accounts_or_payment_settings(client, m
     assert set(account["permissions"]) == {"products", "services", "orders", "manage_orders", "customers", "chatbot", "analytics"}
     h = admin_login("admin@example.com")
     someone_elses = make_product("HQ item")
-    assert status(client, h, "put", f"/api/products/{someone_elses.id}", json={"price": 99}) == 200  # not limited to own products
+    # Not limited to own products, but still goes through approval like every non-head change.
+    assert status(client, h, "put", f"/api/products/{someone_elses.id}", json={"price": 99}) == 202
     assert status(client, h, "get", "/api/admin/users") == 200
     assert status(client, h, "get", "/api/admin/knowledge") == 200
     assert status(client, h, "get", "/api/admin/analytics/report") == 200

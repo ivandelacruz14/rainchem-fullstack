@@ -1,89 +1,25 @@
-from decimal import Decimal, InvalidOperation
-
 from flask import Blueprint, request, jsonify
+from sqlalchemy import func
 
 from app.extensions import db
-from app.models import Admin, CartItem, OrderItem, Product, ProductReview
+from app.models import Admin, ChangeRequest, Product
+from app.services import change_requests
+from app.services import product_changes as changes
 from app.services.catalog import serialize_product, serialize_products
 from app.services.reviews import reviews_for_product
 from app.utils.auth_decorators import current_admin, require_permission
 
 products_bp = Blueprint("products", __name__, url_prefix="/api/products")
 
-CATEGORIES = ["Oils & Fluids", "Coolant", "Filters", "Brakes", "Accessories"]
-MAX_PRICE = Decimal("1000000")
 
-
-def _visible_to_admin(product, admin):
-    return not admin.is_scoped or product.owner_admin_id == admin.id
-
-
-def _owner_from_payload(data, admin, current_owner=None):
-    """Distributors always own what they create. Only a Head Admin can assign an owner."""
-    if admin.is_scoped:
-        return admin.id if current_owner is None else current_owner
-    if "ownerId" not in data:
-        return current_owner
-    owner_id = data.get("ownerId")
-    if owner_id in (None, "", 0):
-        return None
-    owner = db.session.get(Admin, int(owner_id))
-    if owner is None:
-        raise ValueError("The selected distributor does not exist")
-    return owner.id
-
-
-def _read_fields(data, creating):
-    """Returns (values, errors). Only fields present in the request are returned when updating."""
-    values, errors = {}, []
-
-    def present(key):
-        return creating or key in data
-
-    if present("name"):
-        name = str(data.get("name") or "").strip()
-        if not name:
-            errors.append("Product name is required")
-        values["name"] = name[:200]
-    if present("category"):
-        category = data.get("category") or CATEGORIES[0]
-        if category not in CATEGORIES:
-            errors.append("Choose a valid category")
-        values["category"] = category
-    if present("price"):
-        try:
-            price = Decimal(str(data.get("price")))
-            if not price.is_finite() or price <= 0 or price > MAX_PRICE:
-                raise InvalidOperation
-            values["price"] = price.quantize(Decimal("0.01"))
-        except (InvalidOperation, ValueError, TypeError):
-            errors.append("Enter a price greater than 0")
-    if present("stock"):
-        try:
-            stock = int(data.get("stock"))
-            if stock < 0:
-                raise ValueError
-            values["stock"] = stock
-        except (ValueError, TypeError):
-            errors.append("Stock must be a whole number, 0 or more")
-    if present("shortDesc"):
-        short = str(data.get("shortDesc") or "").strip()
-        if not short:
-            errors.append("A short description is required")
-        values["short_desc"] = short[:255]
-    if present("description"):
-        description = str(data.get("description") or "").strip()
-        if not description:
-            errors.append("A full description is required")
-        values["description"] = description
-    for key, column in (("specs", "specs"), ("benefits", "benefits"), ("usage", "usage_steps")):
-        if key in data or creating:
-            items = data.get(key) or []
-            if not isinstance(items, list):
-                errors.append(f"{key} must be a list")
-            else:
-                values[column] = [str(i).strip() for i in items if str(i).strip()]
-    return values, errors
+def _pending_response(admin, kind, product, payload):
+    """Anyone except a Head Admin only sends a request; nothing changes until it is approved."""
+    request_row = change_requests.submit(admin, kind, product, payload)
+    return jsonify({
+        "pendingApproval": True,
+        "message": "Sent to the Head Admin for approval. Nothing changes until it is approved.",
+        "request": change_requests.to_dict(request_row),
+    }), 202
 
 
 @products_bp.get("")
@@ -105,7 +41,16 @@ def list_manageable_products():
     query = Product.query.filter(Product.category != "Services")
     if admin.is_scoped:
         query = query.filter(Product.owner_admin_id == admin.id)
-    payload = {"products": serialize_products(query.order_by(Product.id).all(), admin_view=True)}
+    products = serialize_products(query.order_by(Product.id).all(), admin_view=True)
+    pending = db.session.query(ChangeRequest.product_id, func.count(ChangeRequest.id)).filter(
+        ChangeRequest.status == "pending", ChangeRequest.product_id.isnot(None)
+    )
+    if not admin.is_head:
+        pending = pending.filter(ChangeRequest.requested_by == admin.id)
+    counts = dict(pending.group_by(ChangeRequest.product_id).all())
+    for product in products:
+        product["pendingRequests"] = counts.get(product["id"], 0)
+    payload = {"products": products}
     if not admin.is_scoped:
         payload["distributors"] = [
             {"id": a.id, "name": a.name} for a in Admin.query.order_by(Admin.name).all() if a.is_scoped
@@ -130,21 +75,19 @@ def product_reviews(product_id):
 def create_product():
     admin = current_admin()
     data = request.get_json() or {}
-    values, errors = _read_fields(data, creating=True)
+    values, errors = changes.read_fields(data, creating=True)
     if errors:
         return jsonify({"error": ". ".join(errors)}), 400
     try:
-        owner_id = _owner_from_payload(data, admin)
-    except ValueError as error:
-        return jsonify({"error": str(error)}), 400
+        owner_id = changes.resolve_owner(data, admin)
+    except changes.ProductChangeError as error:
+        return jsonify({"error": str(error)}), error.status
 
-    product = Product(
-        image_glyph=data.get("imageGlyph") or "oil-synthetic",
-        image_photo=data.get("imagePhoto"),
-        owner_admin_id=owner_id,
-        **values,
-    )
-    db.session.add(product)
+    payload = changes.build_payload(values, data, owner_id, owner_given=True)
+    if not admin.is_head:
+        return _pending_response(admin, "product_create", None, payload)
+
+    product = changes.apply_create(payload)
     db.session.commit()
     return jsonify({"product": serialize_product(product, admin_view=True)}), 201
 
@@ -154,25 +97,23 @@ def create_product():
 def update_product(product_id):
     admin = current_admin()
     product = Product.query.get_or_404(product_id)
-    if not _visible_to_admin(product, admin):
+    if not changes.can_manage(product, admin):
         return jsonify({"error": "You can only manage your own products"}), 403
 
     data = request.get_json() or {}
-    values, errors = _read_fields(data, creating=False)
+    values, errors = changes.read_fields(data, creating=False)
     if errors:
         return jsonify({"error": ". ".join(errors)}), 400
     try:
-        owner_id = _owner_from_payload(data, admin, current_owner=product.owner_admin_id)
-    except ValueError as error:
-        return jsonify({"error": str(error)}), 400
+        owner_id = changes.resolve_owner(data, admin, current_owner=product.owner_admin_id)
+    except changes.ProductChangeError as error:
+        return jsonify({"error": str(error)}), error.status
 
-    for column, value in values.items():
-        setattr(product, column, value)
-    product.owner_admin_id = owner_id
-    # Only overwrite the photo if a new one was actually uploaded.
-    if data.get("imagePhoto"):
-        product.image_photo = data["imagePhoto"]
+    payload = changes.build_payload(values, data, owner_id, owner_given=True)
+    if not admin.is_head:
+        return _pending_response(admin, "product_update", product, payload)
 
+    changes.apply_update(product, payload)
     db.session.commit()
     return jsonify({"product": serialize_product(product, admin_view=True)})
 
@@ -182,17 +123,16 @@ def update_product(product_id):
 def delete_product(product_id):
     admin = current_admin()
     product = Product.query.get_or_404(product_id)
-    if not _visible_to_admin(product, admin):
+    if not changes.can_manage(product, admin):
         return jsonify({"error": "You can only manage your own products"}), 403
+    try:
+        changes.check_deletable(product)
+    except changes.ProductChangeError as error:
+        return jsonify({"error": str(error)}), error.status
 
-    if ProductReview.query.filter_by(product_id=product.id).first():
-        return jsonify({
-            "error": "This product has customer reviews and cannot be deleted. Set its stock to 0 to stop selling it."
-        }), 409
+    if not admin.is_head:
+        return _pending_response(admin, "product_delete", product, {"values": {}})
 
-    # Past order lines keep the product name they were sold under; they just lose the link.
-    OrderItem.query.filter_by(product_id=product.id).update({"product_id": None})
-    CartItem.query.filter_by(product_id=product.id).delete()
-    db.session.delete(product)
+    changes.apply_delete(product)
     db.session.commit()
     return jsonify({"message": "Product deleted"})

@@ -8,6 +8,7 @@ from app.models.review import ProductReview
 from app.models.cart import CartItem
 from app.models.service import Service, ServiceArea, ServiceBooking
 from app.models.promotion import ProductSale
+from app.models.approval import ChangeRequest, ApprovalOtp
 
 __all__ = [
     "User",
@@ -29,4 +30,6 @@ __all__ = [
     "ServiceArea",
     "ServiceBooking",
     "ProductSale",
+    "ChangeRequest",
+    "ApprovalOtp",
 ]

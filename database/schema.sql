@@ -229,6 +229,42 @@ CREATE TABLE product_sales (
     FOREIGN KEY (created_by) REFERENCES admins(id) ON DELETE SET NULL
 );
 
+CREATE TABLE change_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kind VARCHAR(30) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    product_id INT NULL,
+    target_name VARCHAR(200) NOT NULL,
+    payload JSON NULL,
+    image_photo LONGTEXT NULL,
+    requested_by INT NULL,
+    requester_name VARCHAR(120) NOT NULL DEFAULT '',
+    requester_role VARCHAR(60) NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    decided_by INT NULL,
+    decider_name VARCHAR(120) NULL,
+    decided_at DATETIME NULL,
+    decision_note VARCHAR(255) NULL,
+    INDEX ix_change_requests_product (product_id),
+    FOREIGN KEY (requested_by) REFERENCES admins(id) ON DELETE SET NULL,
+    FOREIGN KEY (decided_by) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE approval_otps (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    change_request_id INT NOT NULL,
+    admin_id INT NOT NULL,
+    salt VARCHAR(32) NOT NULL,
+    code_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts SMALLINT NOT NULL DEFAULT 0,
+    used TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_approval_otps_request (change_request_id),
+    FOREIGN KEY (change_request_id) REFERENCES change_requests(id) ON DELETE CASCADE,
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);
+
 CREATE TABLE knowledge_base (
     id INT AUTO_INCREMENT PRIMARY KEY,
     question VARCHAR(500) NOT NULL,

@@ -101,3 +101,43 @@ CREATE TABLE IF NOT EXISTS product_sales (
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
     FOREIGN KEY (created_by) REFERENCES admins(id) ON DELETE SET NULL
 );
+
+-- Rainchem: Head Admin approval for product changes (add, edit, delete) with an emailed one-time code.
+-- The Flask app creates these tables automatically at startup. Run by hand only if you prefer to.
+-- Nothing here changes or deletes existing data.
+
+CREATE TABLE IF NOT EXISTS change_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kind VARCHAR(30) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    product_id INT NULL,
+    target_name VARCHAR(200) NOT NULL,
+    payload JSON NULL,
+    image_photo LONGTEXT NULL,
+    requested_by INT NULL,
+    requester_name VARCHAR(120) NOT NULL DEFAULT '',
+    requester_role VARCHAR(60) NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    decided_by INT NULL,
+    decider_name VARCHAR(120) NULL,
+    decided_at DATETIME NULL,
+    decision_note VARCHAR(255) NULL,
+    INDEX ix_change_requests_product (product_id),
+    FOREIGN KEY (requested_by) REFERENCES admins(id) ON DELETE SET NULL,
+    FOREIGN KEY (decided_by) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS approval_otps (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    change_request_id INT NOT NULL,
+    admin_id INT NOT NULL,
+    salt VARCHAR(32) NOT NULL,
+    code_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts SMALLINT NOT NULL DEFAULT 0,
+    used TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_approval_otps_request (change_request_id),
+    FOREIGN KEY (change_request_id) REFERENCES change_requests(id) ON DELETE CASCADE,
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);

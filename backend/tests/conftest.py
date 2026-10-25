@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from datetime import datetime, timedelta
 
@@ -129,3 +130,34 @@ def days_ago(n, hour=12):
     local_today = (datetime.utcnow() + timedelta(hours=8)).date()
     local = datetime.combine(local_today - timedelta(days=n), datetime.min.time()) + timedelta(hours=hour)
     return local - timedelta(hours=8)
+
+
+@pytest.fixture()
+def mailbox(monkeypatch):
+    """Captures the emails the approval flow sends instead of calling Mailjet."""
+    sent = []
+
+    def fake_send(to_email, subject, body, **kwargs):
+        sent.append({"to": to_email, "subject": subject, "body": body, "kwargs": kwargs})
+        return True
+
+    monkeypatch.setattr("app.services.change_requests.send_email", fake_send)
+    return sent
+
+
+def emailed_code(mailbox):
+    for mail in reversed(mailbox):
+        found = re.search(r"approval code is (\d{6})", mail["body"])
+        if found:
+            return found.group(1)
+    raise AssertionError("no approval code was emailed")
+
+
+@pytest.fixture()
+def approve(client, mailbox):
+    """Runs the full approval: password, emailed code, confirm."""
+    def _approve(head_headers, request_id):
+        started = client.post(f"/api/admin/approvals/{request_id}/approve/start", headers=head_headers, json={"password": PASSWORD})
+        assert started.status_code == 200, started.get_json()
+        return client.post(f"/api/admin/approvals/{request_id}/approve/confirm", headers=head_headers, json={"code": emailed_code(mailbox)})
+    return _approve

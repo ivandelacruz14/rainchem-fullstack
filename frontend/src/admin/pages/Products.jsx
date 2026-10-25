@@ -101,13 +101,11 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
 }
 
     try {
-      if (editing) {
-        await client.put(`/api/products/${editing.id}`, payload);
-        showToast("Product updated", "success");
-      } else {
-        await client.post("/api/products", payload);
-        showToast("Product added", "success");
-      }
+      const res = editing
+        ? await client.put(`/api/products/${editing.id}`, payload)
+        : await client.post("/api/products", payload);
+      if (res.status === 202) showToast(res.data.message, "success");
+      else showToast(editing ? "Product updated" : "Product added", "success");
       setShowForm(false);
       loadProducts();
     } catch (err) {
@@ -118,10 +116,13 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Delete this product? This cannot be undone.")) return;
+    const text = admin?.isHead
+      ? "Delete this product? This cannot be undone."
+      : "Ask the Head Admin to delete this product? Nothing is deleted until they approve.";
+    if (!window.confirm(text)) return;
     try {
-      await client.delete(`/api/products/${id}`);
-      showToast("Product deleted", "success");
+      const res = await client.delete(`/api/products/${id}`);
+      showToast(res.status === 202 ? res.data.message : "Product deleted", "success");
       loadProducts();
     } catch (err) {
       showToast(err.response?.data?.error || "Could not delete this product", "error");
@@ -133,7 +134,7 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
   return (
     <div>
       <div className="admin-topbar">
-        <div><h1>Products</h1><p>{!admin?.isScoped ? "Manage catalog, pricing, and stock levels." : "Your assigned products. Ratings come from customer reviews."}</p></div>
+        <div><h1>Products</h1><p>{admin?.isHead ? "Manage catalog, pricing, and stock levels." : "Changes you make here are sent to the Head Admin for approval first."}</p></div>
         <button className="btn btn-primary" onClick={openAdd}>+ Add Product</button>
       </div>
 
@@ -155,7 +156,7 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
                       {p.imagePhoto && <img src={p.imagePhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                     </div>
                   </td>
-                  <td data-label="Product" className="cell-name">{p.name}</td>
+                  <td data-label="Product" className="cell-name">{p.name}{p.pendingRequests > 0 && <div><span className="pill pill-pending">Pending approval</span></div>}</td>
                   <td data-label="Category">{p.category}</td>
                   {!admin?.isScoped && <td data-label="Owner">{ownerName(p.ownerId)}</td>}
                   <td data-label="Price">{peso(p.price)}</td>

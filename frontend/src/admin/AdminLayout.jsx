@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import client from "../api/client";
 import { useAdminAuth } from "../context/AdminAuthContext";
 import Brand from "../components/Brand";
 import ThemeToggle from "../components/ThemeToggle";
@@ -10,6 +11,7 @@ const NAV_ITEMS = [
     group: "Catalog & Sales",
     links: [
       { to: "/admin/products", label: "Products", permission: "products" },
+      { to: "/admin/approvals", label: "Approvals", permission: "products", badge: true },
       { to: "/admin/sales", label: "Sales & Discounts", permission: "products" },
       { to: "/admin/services", label: "Services", permission: "services" },
       { to: "/admin/orders", label: "Orders", permission: "orders" },
@@ -38,6 +40,16 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pending, setPending] = useState(0);
+
+  useEffect(() => {
+    if (!admin || !can("products")) return undefined;
+    const load = () => client.get("/api/admin/approvals/pending-count").then((res) => setPending(res.data.count)).catch(() => {});
+    load();
+    window.addEventListener("rainchem:approvals-changed", load);
+    return () => window.removeEventListener("rainchem:approvals-changed", load);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [admin?.id, pathname]);
 
   useEffect(() => setSidebarOpen(false), [pathname]);
 
@@ -78,6 +90,7 @@ export default function AdminLayout() {
                   className={({ isActive }) => `admin-nav-link ${isActive ? "active" : ""}`}
                 >
                   {link.label}
+                  {link.badge && pending > 0 && <span className="nav-badge">{pending}</span>}
                 </NavLink>
               ))}
             </div>
