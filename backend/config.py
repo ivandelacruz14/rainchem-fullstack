@@ -33,14 +33,15 @@ class Config:
     JWT_SECRET_KEY = SECRET_KEY
     JWT_ACCESS_TOKEN_EXPIRES = 60 * 60 * 24 * 7
 
-    FRONTEND_URLS = [
-        url.strip().rstrip("/")
-        for url in os.getenv("FRONTEND_URL", "http://localhost:5173").split(",")
-        if url.strip()
-    ]
-    FRONTEND_URL = FRONTEND_URLS[0]
+    # One or more frontend origins, comma separated. The first one is used to
+    # build links in emails (for example the password reset link).
+    FRONTEND_URL = os.getenv(
+        "FRONTEND_URL",
+        "http://localhost:5173"
+    )
 
-    SALES_UTC_OFFSET_HOURS = int(os.getenv("SALES_UTC_OFFSET_HOURS", "8"))
+    # Hours between UTC and the shop's local time, used to group sales by day.
+    STORE_UTC_OFFSET_HOURS = int(os.getenv("STORE_UTC_OFFSET_HOURS", "8"))
 
     SMTP_HOST = os.getenv("SMTP_HOST", "")
     SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -62,7 +63,9 @@ class Config:
 
 
 class TestConfig(Config):
+    TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SQLALCHEMY_ENGINE_OPTIONS = {}
+    FRONTEND_URL = "http://localhost:5173"
     JWT_SECRET_KEY = "test-secret"
     SECRET_KEY = "test-secret"

@@ -24,6 +24,9 @@ STATEMENTS = [
     "ALTER TABLE orders ADD COLUMN review_rating TINYINT NULL",
     "ALTER TABLE orders ADD COLUMN review_comment VARCHAR(500) NULL",
     "ALTER TABLE orders ADD COLUMN reviewed_at DATETIME NULL",
+    "ALTER TABLE admins ADD COLUMN permissions JSON NULL",
+    "ALTER TABLE admins ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1",
+    "ALTER TABLE products ADD COLUMN owner_admin_id INT NULL",
     "UPDATE orders SET payment_status = 'paid', paid_at = created_at WHERE status = 'delivered' AND payment_method = 'Cash on Delivery'",
 ]
 

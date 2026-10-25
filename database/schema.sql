@@ -6,7 +6,9 @@ CREATE TABLE admins (
     name VARCHAR(120) NOT NULL,
     email VARCHAR(180) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(60) NOT NULL DEFAULT 'Admin',
+    role VARCHAR(60) NOT NULL DEFAULT 'Head Admin',
+    permissions JSON NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -59,7 +61,9 @@ CREATE TABLE products (
     specs JSON NULL,
     benefits JSON NULL,
     usage_steps JSON NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    owner_admin_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_admin_id) REFERENCES admins(id) ON DELETE SET NULL
 );
 
 CREATE TABLE orders (
@@ -134,6 +138,80 @@ CREATE TABLE receipts (
 CREATE TABLE settings (
     `key` VARCHAR(80) PRIMARY KEY,
     value LONGTEXT NULL
+);
+
+CREATE TABLE product_reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    order_id INT NOT NULL,
+    user_id INT NOT NULL,
+    rating SMALLINT NOT NULL,
+    comment VARCHAR(500) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_review_order_product (order_id, product_id),
+    INDEX ix_product_reviews_product (product_id),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE cart_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    updated_at DATETIME NULL,
+    UNIQUE KEY uq_cart_user_product (user_id, product_id),
+    INDEX ix_cart_items_user (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+CREATE TABLE services (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    category VARCHAR(80) NULL,
+    description TEXT NOT NULL,
+    requirements TEXT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    owner_admin_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL,
+    FOREIGN KEY (owner_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE service_areas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    service_id INT NOT NULL,
+    area_name VARCHAR(120) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    is_available TINYINT(1) NOT NULL DEFAULT 1,
+    notes VARCHAR(255) NULL,
+    UNIQUE KEY uq_service_area_name (service_id, area_name),
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+);
+
+CREATE TABLE service_bookings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    booking_number VARCHAR(40) NOT NULL UNIQUE,
+    user_id INT NOT NULL,
+    service_id INT NOT NULL,
+    service_area_id INT NULL,
+    service_name VARCHAR(150) NOT NULL,
+    area_name VARCHAR(120) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    customer_name VARCHAR(150) NOT NULL,
+    customer_phone VARCHAR(30) NOT NULL,
+    customer_email VARCHAR(180) NULL,
+    address VARCHAR(255) NOT NULL,
+    preferred_date DATE NULL,
+    notes VARCHAR(500) NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'requested',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (service_id) REFERENCES services(id),
+    FOREIGN KEY (service_area_id) REFERENCES service_areas(id) ON DELETE SET NULL
 );
 
 CREATE TABLE knowledge_base (
@@ -265,6 +343,6 @@ INSERT INTO knowledge_base (question, answer, category, status, hits) VALUES
 ('What is the difference between fully synthetic and semi-synthetic oil?', 'Fully synthetic oil is chemically engineered for more consistent molecule size, giving better performance at high temperatures and longer intervals between changes. Semi-synthetic is a blend of synthetic and mineral oil, more affordable, and still solid for everyday commuting.', 'Oil & Maintenance', 'approved', 22),
 ('How long does delivery take?', 'Metro Manila orders typically arrive within 1-2 business days. Provincial orders take 3-5 business days depending on the courier and location. You can track your order anytime from My Orders using your tracking number.', 'Orders & Shipping', 'approved', 41),
 ('What payment methods do you accept?', 'We currently accept Cash on Delivery, GCash, and major debit or credit cards at checkout.', 'Orders & Shipping', 'approved', 30),
-('Do you offer installation or service for the products I buy?', 'Yes. You can add an Oil Change Service or Radiator Flush & Coolant Service to your cart alongside your parts. Our partner service bays handle installation.', 'Services', 'approved', 15),
+('Do you offer installation or service for the products I buy?', 'Yes. Open the Services page, choose your area, and send a service request. The price and availability shown depend on your area. Our partner service bays handle installation.', 'Services', 'approved', 15),
 ('Does RadCool coolant expire?', 'Unopened RadCool concentrate has a shelf life of about 3 years from the manufacture date. Once diluted and installed in a radiator, we recommend replacing it every 12 months or 10,000 km.', 'Coolant', 'pending', 4),
 ('Can I use car engine oil in my motorcycle?', 'It is not recommended. Car oils often contain friction modifiers meant to save fuel, which can cause wet-clutch slippage in motorcycles. Always use a motorcycle-specific oil rated JASO MA or MA2.', 'Oil & Maintenance', 'pending', 6);

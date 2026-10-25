@@ -2,49 +2,28 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 
 from app.extensions import db
-from app.models import Order, OrderItem, OrderStatusHistory, Product
+from app.models import Order, OrderStatusHistory, Product
 from app.models.order import ORDER_STATUSES
 from app.services.receipt_service import create_receipt_for_order
 from app.services.email_service import send_email
 from app.services.payment_flow import mark_paid, reset_payment
-from app.utils.auth_decorators import require_head_admin, require_permission, current_admin
+from app.models import OrderItem
+from app.services.admin_scope import scope_product_ids
+from app.utils.auth_decorators import current_admin, require_head_admin, require_permission
 
 admin_orders_bp = Blueprint("admin_orders", __name__, url_prefix="/api/admin/orders")
 
 
-def _distributor_view(order, owned_ids):
-    """What a distributor may see of an order: only their own lines, no
-    customer contact details, address line, or payment information."""
-    own_items = [i.to_dict() for i in order.items if i.product_id in owned_ids]
-    return {
-        "id": order.id,
-        "orderNumber": order.order_number,
-        "status": order.status,
-        "statusLabel": order.to_dict()["statusLabel"],
-        "createdAt": order.created_at.isoformat() if order.created_at else None,
-        "customer": {"name": "", "phone": "", "email": ""},
-        "address": {"city": order.address_city, "province": order.address_province, "region": order.address_region},
-        "items": own_items,
-        "ownItemsTotal": round(sum(i["lineTotal"] for i in own_items), 2),
-        "scoped": True,
-    }
-
-
-def _owned_product_ids(admin):
-    return {pid for (pid,) in db.session.query(Product.id).filter_by(owner_admin_id=admin.id)}
-
-
 @admin_orders_bp.get("")
-@require_permission("view_orders")
+@require_permission("orders")
 def list_orders():
     admin = current_admin()
     status = request.args.get("status")
     query = Order.query
-    owned_ids = None
-    if not admin.is_head:
-        owned_ids = _owned_product_ids(admin)
+    ids = scope_product_ids(admin)
+    if ids is not None:
         query = query.filter(Order.id.in_(
-            db.session.query(OrderItem.order_id).filter(OrderItem.product_id.in_(owned_ids or {-1}))
+            db.session.query(OrderItem.order_id).filter(OrderItem.product_id.in_(ids or [-1]))
         ))
     if status == "returns":
         query = query.filter(Order.return_status != "none")
@@ -53,22 +32,16 @@ def list_orders():
     elif status and status != "All":
         query = query.filter_by(status=status)
     orders = query.order_by(Order.created_at.desc()).all()
-    if owned_ids is not None:
-        return jsonify({"orders": [_distributor_view(o, owned_ids) for o in orders]})
-    return jsonify({"orders": [o.to_dict() for o in orders]})
+    if ids is not None:
+        return jsonify({"scope": "limited", "orders": [o.to_scoped_dict(set(ids)) for o in orders]})
+    return jsonify({"scope": "full", "orders": [o.to_dict() for o in orders]})
 
 
 @admin_orders_bp.get("/<int:order_id>")
-@require_permission("view_orders")
+@require_head_admin
 def get_order(order_id):
-    admin = current_admin()
     order = Order.query.get_or_404(order_id)
-    if admin.is_head:
-        return jsonify({"order": order.to_dict()})
-    owned_ids = _owned_product_ids(admin)
-    if not any(i.product_id in owned_ids for i in order.items):
-        return jsonify({"error": "Not found"}), 404
-    return jsonify({"order": _distributor_view(order, owned_ids)})
+    return jsonify({"order": order.to_dict()})
 
 
 @admin_orders_bp.post("/<int:order_id>/confirm")

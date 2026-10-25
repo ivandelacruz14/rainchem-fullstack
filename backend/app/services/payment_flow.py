@@ -100,7 +100,7 @@ def start_checkout(order):
     if order.payment_method != CARD:
         raise paymongo.PaymentError("This order is not set to pay by card.")
 
-    frontend = current_app.config["FRONTEND_URL"].rstrip("/")
+    frontend = current_app.config["FRONTEND_BASE_URL"]
 
     if paymongo.demo_mode():
         order.payment_reference = f"demo-{order.id}"

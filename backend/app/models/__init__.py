@@ -5,6 +5,7 @@ from app.models.order import Order, OrderItem, OrderStatusHistory, Receipt
 from app.models.knowledge import KnowledgeEntry, ChatLog, Notification
 from app.models.setting import Setting
 from app.models.review import ProductReview
+from app.models.cart import CartItem
 from app.models.service import Service, ServiceArea, ServiceBooking
 
 __all__ = [
@@ -22,6 +23,7 @@ __all__ = [
     "Notification",
     "Setting",
     "ProductReview",
+    "CartItem",
     "Service",
     "ServiceArea",
     "ServiceBooking",

@@ -37,20 +37,27 @@ function Shell({ title, onClose, children }) {
 }
 
 export function ReviewModal({ order, onClose, onDone }) {
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState("");
+  const items = order.reviewableItems || [];
+  const [entries, setEntries] = useState(() => Object.fromEntries(items.map((i) => [i.productId, { rating: 0, comment: "" }])));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  function change(productId, patch) {
+    setEntries((prev) => ({ ...prev, [productId]: { ...prev[productId], ...patch } }));
+  }
+
   async function submit() {
-    if (!rating) {
-      setError("Please choose a star rating");
+    const reviews = items
+      .filter((i) => entries[i.productId].rating > 0)
+      .map((i) => ({ productId: i.productId, ...entries[i.productId] }));
+    if (reviews.length === 0) {
+      setError("Please choose a star rating for at least one product");
       return;
     }
     setBusy(true);
     setError("");
     try {
-      await client.post(`/api/orders/${order.id}/review`, { rating, comment });
+      await client.post(`/api/orders/${order.id}/reviews`, { reviews });
       onDone("Thanks for your review!");
     } catch (err) {
       setError(err.response?.data?.error || "Could not save your review");
@@ -59,16 +66,22 @@ export function ReviewModal({ order, onClose, onDone }) {
   }
 
   return (
-    <Shell title="Rate your order" onClose={onClose}>
+    <Shell title="Rate your products" onClose={onClose}>
       <p style={{ marginTop: 0, fontSize: 13.5, color: "var(--muted)" }}>
-        {order.orderNumber}: {order.items.map((i) => i.name).join(", ")}
+        Order {order.orderNumber}. Each product can be reviewed once.
       </p>
       {error && <div className="alert alert-error">{error}</div>}
-      <StarPicker value={rating} onChange={setRating} />
-      <div className="field" style={{ marginTop: 14 }}>
-        <label>Comment (optional)</label>
-        <textarea rows={3} maxLength={500} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="How was the product and the delivery?" />
-      </div>
+      {items.map((item) => (
+        <div className="review-form-item" key={item.productId}>
+          <strong>{item.name}</strong>
+          <StarPicker value={entries[item.productId].rating} onChange={(rating) => change(item.productId, { rating })} />
+          <textarea
+            rows={2} maxLength={500} value={entries[item.productId].comment}
+            onChange={(e) => change(item.productId, { comment: e.target.value })}
+            placeholder="Share how this product worked for you (optional)"
+          />
+        </div>
+      ))}
       <button className="btn btn-primary btn-block" disabled={busy} onClick={submit}>{busy ? "Sending..." : "Submit review"}</button>
     </Shell>
   );

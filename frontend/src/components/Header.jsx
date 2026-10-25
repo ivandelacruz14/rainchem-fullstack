@@ -3,26 +3,27 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useUI } from "../context/UIContext";
 import Brand from "./Brand";
-import AccountMenu from "./AccountMenu";
+import UserMenu from "./UserMenu";
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { requireLogin } = useUI();
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const returnTo = pathname + search;
 
-  useEffect(() => setMenuOpen(false), [pathname]);
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   function openAuth(mode) {
     setMenuOpen(false);
-    requireLogin(mode, null, returnTo);
+    requireLogin(mode);
   }
 
   return (
     <header className="site-header">
       <div className="header-inner">
-        <Link to="/" className="brand" onClick={() => setMenuOpen(false)}>
+        <Link to="/" className="brand">
           <Brand variant="wordmark" height={32} />
         </Link>
 
@@ -31,7 +32,7 @@ export default function Header() {
           <NavLink to="/shop">Shop</NavLink>
           <NavLink to="/services">Services</NavLink>
           <NavLink to="/faqs">FAQs</NavLink>
-          {!user && (
+          {!user && !loading && (
             <div className="nav-auth-mobile">
               <button type="button" className="btn btn-outline btn-sm" onClick={() => openAuth("login")}>Log In</button>
               <button type="button" className="btn btn-primary btn-sm" onClick={() => openAuth("register")}>Sign Up</button>
@@ -41,15 +42,17 @@ export default function Header() {
 
         <div className="nav-actions">
           {user ? (
-            <AccountMenu />
+            <UserMenu />
           ) : (
-            <div className="auth-actions">
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => openAuth("login")}>Log In</button>
-              <button type="button" className="btn btn-primary btn-sm auth-signup" onClick={() => openAuth("register")}>Sign Up</button>
-            </div>
+            !loading && (
+              <div className="auth-buttons">
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => openAuth("login")}>Log In</button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => openAuth("register")}>Sign Up</button>
+              </div>
+            )
           )}
           <button
-            type="button" className="icon-btn nav-toggle" aria-label="Toggle navigation" aria-expanded={menuOpen}
+            type="button" className="icon-btn nav-toggle" aria-label="Menu" aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

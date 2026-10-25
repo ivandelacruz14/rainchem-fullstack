@@ -115,7 +115,7 @@ export default function Orders() {
       </div>
       <div className="admin-panel">
         <div className="table-wrap">
-          <table className="admin-table">
+          <table className="admin-table stack">
             <thead><tr><th>Order</th><th>Customer</th><th>Date</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Tracking</th><th></th></tr></thead>
             <tbody>
               {orders.length === 0 ? (
@@ -123,18 +123,18 @@ export default function Orders() {
               ) : (
                 orders.map((o) => (
                   <tr key={o.id}>
-                    <td className="mono">{o.orderNumber}</td>
-                    <td>{o.customer.name}</td>
-                    <td>{formatDate(o.createdAt).split(",")[0]}</td>
-                    <td>{o.items.reduce((s, i) => s + i.quantity, 0)} item(s)</td>
-                    <td>{peso(o.total)}</td>
-                    <td><span className={`pay-pill pay-${o.paymentStatus}`}>{o.paymentStatusLabel}</span></td>
-                    <td>
+                    <td data-label="Order" className="mono">{o.orderNumber}</td>
+                    <td data-label="Customer">{o.customer.name}</td>
+                    <td data-label="Date">{formatDate(o.createdAt).split(",")[0]}</td>
+                    <td data-label="Items">{o.items.reduce((s, i) => s + i.quantity, 0)} item(s)</td>
+                    <td data-label="Total">{peso(o.total)}</td>
+                    <td data-label="Payment"><span className={`pay-pill pay-${o.paymentStatus}`}>{o.paymentStatusLabel}</span></td>
+                    <td data-label="Status">
                       <span className={`status-pill status-${o.status}`}>{o.statusLabel}</span>
                       {o.returnInfo.status === "requested" && <div style={{ fontSize: 11, color: "var(--warn-fg)", marginTop: 4, fontWeight: 700 }}>Return requested</div>}
                     </td>
-                    <td className="mono" style={{ fontSize: 12 }}>{o.trackingNumber}</td>
-                    <td style={{ whiteSpace: "nowrap" }}>
+                    <td data-label="Tracking" className="mono" style={{ fontSize: 12 }}>{o.trackingNumber}</td>
+                    <td data-label="" className="row-cell" style={{ whiteSpace: "nowrap" }}>
                       <button className="icon-action" style={{ width: "auto", padding: "0 10px" }} onClick={() => { setReturnNote(""); setSelected(o); }}>View</button>
                       {o.hasReceipt && (
                         <button className="icon-action" style={{ width: "auto", padding: "0 10px", marginLeft: 6 }} onClick={() => setReceiptFor(o.id)}>Print</button>
@@ -169,7 +169,13 @@ export default function Orders() {
               ))}
               <div className="cart-summary-row total"><span>Total</span><span>{peso(selected.total)}</span></div>
 
-              {selected.review && (
+              {selected.reviews?.map((r) => (
+                <div className="order-note" style={{ marginTop: 12 }} key={r.productId}>
+                  Review of {r.name}: {"\u2605".repeat(r.rating)}{"\u2606".repeat(5 - r.rating)}
+                  {r.comment ? ` "${r.comment}"` : ""}
+                </div>
+              ))}
+              {selected.review && !selected.reviews?.length && (
                 <div className="order-note" style={{ marginTop: 12 }}>
                   Customer review: {"\u2605".repeat(selected.review.rating)}{"\u2606".repeat(5 - selected.review.rating)}
                   {selected.review.comment ? ` "${selected.review.comment}"` : ""}

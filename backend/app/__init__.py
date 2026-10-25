@@ -5,13 +5,21 @@ from config import Config
 from app.extensions import db, jwt, cors
 
 
+def frontend_origins(raw):
+    """FRONTEND_URL may hold several origins; trailing slashes would break CORS matching."""
+    return [part.strip().rstrip("/") for part in (raw or "").split(",") if part.strip()]
+
+
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
     db.init_app(app)
     jwt.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": app.config["FRONTEND_URLS"]}})
+    origins = frontend_origins(app.config["FRONTEND_URL"])
+    app.config["FRONTEND_ORIGINS"] = origins
+    app.config["FRONTEND_BASE_URL"] = origins[0] if origins else "http://localhost:5173"
+    cors.init_app(app, resources={r"/api/*": {"origins": origins}})
 
     from app.routes import register_routes
     register_routes(app)

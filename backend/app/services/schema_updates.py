@@ -22,27 +22,9 @@ COLUMNS = [
     ("orders", "review_comment", "VARCHAR(500) NULL"),
     ("orders", "reviewed_at", "DATETIME NULL"),
     ("admins", "permissions", "JSON NULL"),
-    ("admins", "is_active", "BOOLEAN NOT NULL DEFAULT 1"),
+    ("admins", "is_active", "TINYINT(1) NOT NULL DEFAULT 1"),
     ("products", "owner_admin_id", "INT NULL"),
 ]
-
-# Copies reviews that customers already left on whole orders into per-product
-# reviews. Only real records are copied, and rows that already exist are skipped.
-BACKFILL_PRODUCT_REVIEWS = """
-INSERT INTO product_reviews (product_id, order_id, user_id, rating, comment, created_at)
-SELECT oi.product_id, o.id, o.user_id, o.review_rating, o.review_comment,
-       COALESCE(o.reviewed_at, o.created_at)
-FROM orders o
-JOIN order_items oi ON oi.order_id = o.id
-WHERE o.review_rating IS NOT NULL
-  AND o.user_id IS NOT NULL
-  AND oi.product_id IS NOT NULL
-  AND o.status = 'delivered'
-  AND NOT EXISTS (
-      SELECT 1 FROM product_reviews pr
-      WHERE pr.order_id = o.id AND pr.product_id = oi.product_id
-  )
-"""
 
 # Photos are stored as base64 text, which does not fit in a plain TEXT column.
 LONGTEXT_COLUMNS = [
@@ -81,13 +63,7 @@ def ensure_schema(db, logger):
             db.session.rollback()
             logger.warning("Could not add %s.%s (maybe another worker did): %s", table, column, error)
 
-    if "product_reviews" in set(inspect(db.engine).get_table_names()):
-        try:
-            db.session.execute(text(BACKFILL_PRODUCT_REVIEWS))
-            db.session.commit()
-        except Exception as error:
-            db.session.rollback()
-            logger.warning("Could not backfill product reviews: %s", error)
+    backfill_single_product_reviews(db, logger)
 
     if db.engine.dialect.name != "mysql":
         return
@@ -107,3 +83,35 @@ def ensure_schema(db, logger):
         except Exception as error:
             db.session.rollback()
             logger.warning("Could not widen %s.%s: %s", table, column, error)
+
+
+def backfill_single_product_reviews(db, logger):
+    """Orders reviewed before per-product reviews existed carried one rating for the whole
+    order. When such an order had exactly one product, that rating is unambiguous, so it is
+    copied to the product reviews table. Orders with several products are left alone because
+    the rating cannot be attributed to a single product. Safe to run repeatedly."""
+    from app.models import Order, ProductReview
+
+    try:
+        legacy = Order.query.filter(Order.review_rating.isnot(None), Order.user_id.isnot(None)).all()
+        added = 0
+        for order in legacy:
+            product_ids = {i.product_id for i in order.items}
+            if len(order.items) != 1 or None in product_ids:
+                continue
+            product_id = next(iter(product_ids))
+            exists = ProductReview.query.filter_by(order_id=order.id, product_id=product_id).first()
+            if exists:
+                continue
+            db.session.add(ProductReview(
+                product_id=product_id, order_id=order.id, user_id=order.user_id,
+                rating=order.review_rating, comment=order.review_comment,
+                created_at=order.reviewed_at or order.created_at,
+            ))
+            added += 1
+        db.session.commit()
+        if added:
+            logger.info("Copied %s earlier order reviews to product reviews", added)
+    except Exception as error:
+        db.session.rollback()
+        logger.warning("Could not copy earlier reviews: %s", error)

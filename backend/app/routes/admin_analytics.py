@@ -1,43 +1,50 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
-from app.extensions import db
 from app.models import Product
 from app.services import sales_analytics as analytics
-from app.utils.auth_decorators import require_permission, current_admin
+from app.services.admin_scope import scope_product_ids
+from app.utils.auth_decorators import current_admin, require_permission
 
 admin_analytics_bp = Blueprint("admin_analytics", __name__, url_prefix="/api/admin/analytics")
 
 
-def _scope_owner_id():
-    admin = current_admin()
-    return None if admin.is_head else admin.id
-
-
-def _range_from_request():
-    granularity = request.args.get("granularity", "daily")
-    start, end = analytics.resolve_range(granularity, request.args.get("start"), request.args.get("end"))
-    return granularity, start, end
+def _bad_request(error):
+    return jsonify({"error": str(error)}), 400
 
 
 @admin_analytics_bp.get("/report")
-@require_permission("view_sales")
+@require_permission("analytics")
 def sales_report():
+    """Query: granularity=daily|weekly|monthly, start=YYYY-MM-DD, end=YYYY-MM-DD."""
     try:
-        granularity, start, end = _range_from_request()
-    except analytics.RangeError as error:
-        return jsonify({"error": str(error)}), 400
-    return jsonify(analytics.build_report(granularity, start, end, _scope_owner_id()))
+        start, end = analytics.resolve_range(request.args.get("start"), request.args.get("end"))
+        report = analytics.build_report(
+            start, end, request.args.get("granularity", "daily"), scope_product_ids(current_admin()),
+        )
+    except analytics.ReportError as error:
+        return _bad_request(error)
+    return jsonify(report)
 
 
 @admin_analytics_bp.get("/products/<int:product_id>/history")
-@require_permission("view_sales")
+@require_permission("analytics")
 def product_history(product_id):
-    product = db.session.get(Product, product_id)
-    owner_id = _scope_owner_id()
-    if product is None or (owner_id is not None and product.owner_admin_id != owner_id):
-        return jsonify({"error": "Product not found"}), 404
+    ids = scope_product_ids(current_admin())
+    if ids is not None and product_id not in ids:
+        return jsonify({"error": "You can only view sales of your own products"}), 403
+    product = Product.query.get_or_404(product_id)
     try:
-        granularity, start, end = _range_from_request()
-    except analytics.RangeError as error:
-        return jsonify({"error": str(error)}), 400
-    return jsonify(analytics.build_product_history(product, granularity, start, end))
+        start, end = analytics.resolve_range(request.args.get("start"), request.args.get("end"))
+        history = analytics.build_product_history(
+            product_id, start, end, request.args.get("granularity", "weekly"),
+        )
+    except analytics.ReportError as error:
+        return _bad_request(error)
+    history["product"] = {"id": product.id, "name": product.name}
+    return jsonify(history)
+
+
+@admin_analytics_bp.get("/insights")
+@require_permission("analytics")
+def insights():
+    return jsonify(analytics.build_insights(scope_product_ids(current_admin())))

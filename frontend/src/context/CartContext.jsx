@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import client from "../api/client";
 import { useAuth } from "./AuthContext";
+import { useToast } from "./ToastContext";
 import { FREE_SHIPPING_SUBTOTAL, FREE_SHIPPING_QTY, bulkDiscountRate, computeShipping, priceLine } from "../utils/pricing";
 
 const CartContext = createContext(null);
@@ -9,87 +10,88 @@ export { FREE_SHIPPING_SUBTOTAL, FREE_SHIPPING_QTY, bulkDiscountRate, computeShi
 
 const LEGACY_CART_KEY = "rainchem_cart";
 
-function cartKey(userId) {
-  return `rainchem_cart:${userId}`;
+function errorText(err, fallback) {
+  return err.response?.data?.error || fallback;
 }
 
-function readCart(userId) {
-  try {
-    const saved = JSON.parse(localStorage.getItem(cartKey(userId)));
-    return Array.isArray(saved) ? saved : [];
-  } catch {
-    return [];
-  }
-}
-
+/**
+ * The cart lives on the server, tied to the signed-in account, so it cannot be mixed up
+ * between people sharing a device and always shows current prices and stock.
+ */
 export function CartProvider({ children }) {
   const { user } = useAuth();
+  const showToast = useToast();
   const userId = user?.id ?? null;
   const [items, setItems] = useState([]);
-  const loadedFor = useRef(null);
 
-  // The cart belongs to the signed-in account. It is loaded when that account
-  // signs in and cleared from memory when it signs out.
   useEffect(() => {
-    localStorage.removeItem(LEGACY_CART_KEY);
-    loadedFor.current = null;
-    if (userId === null) {
+    if (!userId) {
       setItems([]);
-      return;
+      return undefined;
     }
-    setItems(readCart(userId));
-    loadedFor.current = userId;
-  }, [userId]);
-
-  useEffect(() => {
-    if (userId === null || loadedFor.current !== userId) return;
-    localStorage.setItem(cartKey(userId), JSON.stringify(items));
-  }, [items, userId]);
-
-  // Prices and stock shown in the cart always come from the catalogue, not from
-  // whatever was saved when the item was added. The server prices the order again at checkout.
-  useEffect(() => {
-    if (userId === null) return undefined;
     let cancelled = false;
-    client.get("/api/products").then((res) => {
-      if (cancelled) return;
-      const fresh = new Map(res.data.products.map((p) => [p.id, p]));
-      setItems((prev) => prev
-        .filter((line) => fresh.has(line.product.id))
-        .map((line) => ({ ...line, product: fresh.get(line.product.id) })));
-    }).catch(() => {});
+
+    async function load() {
+      try {
+        let res = await client.get("/api/cart");
+        // Carts saved in the browser before accounts had a server cart: move them over once.
+        const legacy = readLegacyCart();
+        if (legacy.length && res.data.items.length === 0) {
+          for (const line of legacy) {
+            try {
+              res = await client.post("/api/cart/items", { productId: line.product.id, qty: line.qty });
+            } catch { /* skip lines that are no longer available */ }
+          }
+        }
+        if (!cancelled) setItems(res.data.items);
+      } catch { /* the cart stays empty; the next action will surface any real problem */ }
+      finally {
+        localStorage.removeItem(LEGACY_CART_KEY);
+      }
+    }
+    load();
     return () => { cancelled = true; };
   }, [userId]);
 
-  function addItem(product, qty) {
-    if (userId === null) return;
-    setItems((prev) => {
-      const existing = prev.find((line) => line.product.id === product.id);
-      if (existing) {
-        return prev.map((line) =>
-          line.product.id === product.id ? { ...line, qty: line.qty + qty } : line
-        );
-      }
-      return [...prev, { product, qty }];
-    });
-  }
+  const apply = useCallback((res) => setItems(res.data.items), []);
+
+  const addItem = useCallback(async (product, qty = 1) => {
+    try {
+      apply(await client.post("/api/cart/items", { productId: product.id, qty }));
+      return true;
+    } catch (err) {
+      showToast(errorText(err, "Could not add this item to your cart"), "error");
+      return false;
+    }
+  }, [apply, showToast]);
+
+  const setQty = useCallback(async (productId, qty) => {
+    try {
+      apply(await client.put(`/api/cart/items/${productId}`, { qty }));
+    } catch (err) {
+      showToast(errorText(err, "Could not update your cart"), "error");
+    }
+  }, [apply, showToast]);
 
   function changeQty(productId, delta) {
-    setItems((prev) =>
-      prev
-        .map((line) =>
-          line.product.id === productId ? { ...line, qty: line.qty + delta } : line
-        )
-        .filter((line) => line.qty > 0)
-    );
+    const line = items.find((l) => l.product.id === productId);
+    if (line) setQty(productId, line.qty + delta);
   }
 
-  function removeItem(productId) {
-    setItems((prev) => prev.filter((line) => line.product.id !== productId));
+  async function removeItem(productId) {
+    try {
+      apply(await client.delete(`/api/cart/items/${productId}`));
+    } catch (err) {
+      showToast(errorText(err, "Could not update your cart"), "error");
+    }
   }
 
-  function clearCart() {
+  async function clearCart() {
     setItems([]);
+    if (!userId) return;
+    try {
+      await client.delete("/api/cart");
+    } catch { /* the order already cleared what was bought */ }
   }
 
   const lines = items.map((line) => {
@@ -117,6 +119,15 @@ export function CartProvider({ children }) {
       {children}
     </CartContext.Provider>
   );
+}
+
+function readLegacyCart() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LEGACY_CART_KEY));
+    return Array.isArray(saved) ? saved.filter((l) => l?.product?.id && l.qty > 0) : [];
+  } catch {
+    return [];
+  }
 }
 
 export function useCart() {

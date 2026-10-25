@@ -111,6 +111,22 @@ class Order(db.Model):
         return bool(delivered) and datetime.utcnow() - delivered <= timedelta(days=RETURN_WINDOW_DAYS)
 
     @property
+    def reviewable_items(self):
+        """Order lines the customer may still review: only after delivery, only
+        while no return is open, and once per product."""
+        if self.status != "delivered" or self.return_status != "none":
+            return []
+        if self.review_rating is not None:  # reviewed as a whole before per-product reviews existed
+            return []
+        reviewed = {r.product_id for r in self.reviews}
+        seen, items = set(), []
+        for item in self.items:
+            if item.product_id and item.product_id not in reviewed and item.product_id not in seen:
+                items.append(item)
+                seen.add(item.product_id)
+        return items
+
+    @property
     def tab(self):
         if self.status == "cancelled" or self.return_status != "none":
             return "return"
@@ -121,7 +137,7 @@ class Order(db.Model):
         if self.status == "shipped":
             return "to_receive"
         if self.status == "delivered":
-            return "to_review" if self.review_rating is None else "completed"
+            return "to_review" if self.reviewable_items else "completed"
         return "completed"
 
     def to_dict(self):
@@ -157,7 +173,18 @@ class Order(db.Model):
             "canPay": self.status != "cancelled" and self.is_online_payment and self.payment_status in ("unpaid", "verifying"),
             "canChangePayment": self.status == "pending_confirmation" and self.payment_status in ("unpaid", "verifying"),
             "canReceive": self.status == "shipped" and self.return_status == "none",
-            "canReview": self.status == "delivered" and self.review_rating is None and self.return_status == "none",
+            "canReview": bool(self.reviewable_items),
+            "reviewableItems": [{"productId": i.product_id, "name": i.product_name} for i in self.reviewable_items],
+            "reviews": [
+                {
+                    "productId": r.product_id,
+                    "name": next((i.product_name for i in self.items if i.product_id == r.product_id), ""),
+                    "rating": r.rating,
+                    "comment": r.comment,
+                    "reviewedAt": r.created_at.isoformat() if r.created_at else None,
+                }
+                for r in self.reviews
+            ],
             "canReturn": self.can_return,
             "returnWindowDays": RETURN_WINDOW_DAYS,
             "returnInfo": {
@@ -182,6 +209,25 @@ class Order(db.Model):
             "hasReceipt": self.receipt is not None,
             "items": [item.to_dict() for item in self.items],
             "history": [h.to_dict() for h in self.history],
+        }
+
+
+    def to_scoped_dict(self, product_ids):
+        """Read-only view for a distributor: only their own lines, the customer's
+        first name and delivery area, and no contact, payment or receipt details."""
+        items = [i for i in self.items if i.product_id in product_ids]
+        subtotal = sum(float(i.unit_price) * i.quantity for i in items)
+        first_name = (self.customer_name or "").strip().split(" ")[0]
+        return {
+            "id": self.id,
+            "orderNumber": self.order_number,
+            "status": self.status,
+            "statusLabel": STATUS_LABELS.get(self.status, self.status),
+            "customerFirstName": first_name,
+            "area": ", ".join(p for p in (self.address_city, self.address_province) if p),
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "items": [i.to_dict() for i in items],
+            "subtotal": round(subtotal, 2),
         }
 
 

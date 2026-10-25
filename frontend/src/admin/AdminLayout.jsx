@@ -1,19 +1,19 @@
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAdminAuth } from "../context/AdminAuthContext";
 import Brand from "../components/Brand";
 import ThemeToggle from "../components/ThemeToggle";
 
 const NAV_ITEMS = [
-  { group: "Overview", links: [{ to: "/admin", label: "Dashboard", end: true, headOnly: true }] },
+  { group: "Overview", links: [{ to: "/admin", label: "Dashboard", end: true }] },
   {
     group: "Catalog & Sales",
     links: [
-      { to: "/admin/products", label: "Products", permission: "manage_products" },
-      { to: "/admin/services", label: "Services", permission: "manage_services" },
-      { to: "/admin/orders", label: "Orders", permission: "view_orders" },
+      { to: "/admin/products", label: "Products", permission: "products" },
+      { to: "/admin/services", label: "Services", permission: "services" },
+      { to: "/admin/orders", label: "Orders", permission: "orders" },
       { to: "/admin/users", label: "Users", headOnly: true },
-      { to: "/admin/analytics", label: "Sales Analytics", permission: "view_sales" },
+      { to: "/admin/analytics", label: "Sales Analytics", permission: "analytics" },
     ],
   },
   {
@@ -27,7 +27,7 @@ const NAV_ITEMS = [
     group: "System",
     links: [
       { to: "/admin/payments", label: "Payment Settings", headOnly: true },
-      { to: "/admin/accounts", label: "Accounts & Roles", headOnly: true },
+      { to: "/admin/accounts", label: "Admin Accounts", headOnly: true },
     ],
   },
 ];
@@ -40,27 +40,33 @@ export default function AdminLayout() {
 
   useEffect(() => setSidebarOpen(false), [pathname]);
 
+  useEffect(() => {
+    document.body.classList.toggle("no-scroll", sidebarOpen);
+    return () => document.body.classList.remove("no-scroll");
+  }, [sidebarOpen]);
+
   function handleLogout() {
+    navigate("/admin/login", { replace: true });
     logout();
-    navigate("/admin/login");
   }
 
-  const visible = (link) => (link.headOnly ? admin.isHead : can(link.permission));
+  const allowed = (link) => (link.headOnly ? admin?.isHead : link.permission ? can(link.permission) : true);
 
   return (
     <div className="admin-shell">
-      <header className="admin-topbar-mobile">
-        <button type="button" className="btn btn-outline btn-sm" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((v) => !v)}>
-          {sidebarOpen ? "Close" : "Menu"}
+      <header className="admin-mobilebar">
+        <button type="button" className="btn btn-outline btn-sm" aria-label="Open menu" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((v) => !v)}>
+          &#9776; Menu
         </button>
-        <span className="admin-topbar-title">Rainchem Admin</span>
+        <span className="admin-mobilebar-title">Admin Console</span>
       </header>
+
       {sidebarOpen && <div className="admin-backdrop" onClick={() => setSidebarOpen(false)} />}
 
       <aside className={`admin-sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="brand"><Brand height={90} onDark /></div>
         {NAV_ITEMS.map((section) => {
-          const links = section.links.filter(visible);
+          const links = section.links.filter(allowed);
           if (links.length === 0) return null;
           return (
             <div key={section.group}>
@@ -79,15 +85,16 @@ export default function AdminLayout() {
         <div className="sidebar-foot">
           <div className="sidebar-user">
             Signed in as<br /><strong>{admin?.name}</strong>
-            <span className="badge">{admin?.role}</span>
+            <span className="sidebar-role">{admin?.role}</span>
           </div>
           <div className="sidebar-theme">
-            <ThemeToggle className="sidebar-theme-btn" />
+            <ThemeToggle className="theme-toggle sidebar-theme-btn" />
             <span>Dark / light mode</span>
           </div>
-          <button type="button" className="admin-nav-link danger" onClick={handleLogout}>Log Out</button>
+          <button type="button" className="admin-nav-link logout" onClick={handleLogout}>Log Out</button>
         </div>
       </aside>
+
       <main className="admin-main">
         <Outlet />
       </main>

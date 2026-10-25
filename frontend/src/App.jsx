@@ -1,12 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-import { AdminAuthProvider } from "./context/AdminAuthContext";
+import { AdminAuthProvider, useAdminAuth } from "./context/AdminAuthContext";
 import { CartProvider } from "./context/CartContext";
 import { ToastProvider } from "./context/ToastContext";
 import { UIProvider } from "./context/UIContext";
 
 import Layout from "./components/Layout";
-import { ProtectedRoute, AdminProtectedRoute, AdminPermissionRoute } from "./components/ProtectedRoute";
+import { ProtectedRoute, AdminProtectedRoute, PermissionRoute } from "./components/ProtectedRoute";
 
 import Home from "./pages/Home";
 import Shop from "./pages/Shop";
@@ -28,6 +28,7 @@ import AccountAddress from "./pages/account/AccountAddress";
 import AccountProfile from "./pages/account/AccountProfile";
 import AccountSettings from "./pages/account/AccountSettings";
 import AccountHelp from "./pages/account/AccountHelp";
+import AccountServices from "./pages/account/AccountServices";
 
 import AdminLogin from "./admin/AdminLogin";
 import AdminLayout from "./admin/AdminLayout";
@@ -39,30 +40,18 @@ import Knowledge from "./admin/pages/Knowledge";
 import ChatMonitor from "./admin/pages/ChatMonitor";
 import AdminAccounts from "./admin/pages/AdminAccounts";
 import Analytics from "./admin/pages/Analytics";
-import AdminServices from "./admin/pages/Services";
-import DistributorOrders from "./admin/pages/DistributorOrders";
-import { useAdminAuth } from "./context/AdminAuthContext";
 import PaymentSettings from "./admin/pages/PaymentSettings";
+import AdminServices from "./admin/pages/AdminServices";
+import ScopedOrders from "./admin/pages/ScopedOrders";
 
-function Guard({ permission, headOnly, children }) {
-  return <AdminPermissionRoute permission={permission} headOnly={headOnly}>{children}</AdminPermissionRoute>;
-}
-
-function AdminHome() {
+function OrdersRoute() {
   const { admin } = useAdminAuth();
-  if (admin.isHead) return <Overview />;
-  const first = [
-    ["manage_products", "products"], ["view_orders", "orders"],
-    ["view_sales", "analytics"], ["manage_services", "services"],
-  ].find(([permission]) => admin.permissions.includes(permission));
-  return first
-    ? <Navigate to={`/admin/${first[1]}`} replace />
-    : <div className="alert alert-info">Your account has no permissions yet. Ask a Head Admin to grant access.</div>;
-}
-
-function AdminOrdersPage() {
-  const { admin } = useAdminAuth();
-  return admin.isHead ? <Orders /> : <DistributorOrders />;
+  if (admin?.isHead) return <Orders />;
+  return (
+    <PermissionRoute permission="orders">
+      <ScopedOrders />
+    </PermissionRoute>
+  );
 }
 
 export default function App() {
@@ -90,6 +79,7 @@ export default function App() {
                     <Route path="/account" element={<ProtectedRoute><AccountLayout /></ProtectedRoute>}>
                       <Route index element={<AccountOverview />} />
                       <Route path="orders" element={<AccountOrders />} />
+                      <Route path="services" element={<AccountServices />} />
                       <Route path="track" element={<AccountTrack />} />
                       <Route path="address" element={<AccountAddress />} />
                       <Route path="profile" element={<AccountProfile />} />
@@ -100,17 +90,16 @@ export default function App() {
 
                   <Route path="/admin/login" element={<AdminLogin />} />
                   <Route path="/admin" element={<AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>}>
-                    <Route index element={<AdminHome />} />
-                    <Route path="products" element={<Guard permission="manage_products"><Products /></Guard>} />
-                    <Route path="services" element={<Guard permission="manage_services"><AdminServices /></Guard>} />
-                    <Route path="orders" element={<Guard permission="view_orders"><AdminOrdersPage /></Guard>} />
-                    <Route path="users" element={<Guard headOnly><Users /></Guard>} />
-                    <Route path="knowledge" element={<Guard headOnly><Knowledge /></Guard>} />
-                    <Route path="monitor" element={<Guard headOnly><ChatMonitor /></Guard>} />
-                    <Route path="accounts" element={<Guard headOnly><AdminAccounts /></Guard>} />
-                    <Route path="analytics" element={<Guard permission="view_sales"><Analytics /></Guard>} />
-                    <Route path="payments" element={<Guard headOnly><PaymentSettings /></Guard>} />
-                    <Route path="*" element={<Navigate to="/admin" replace />} />
+                    <Route index element={<Overview />} />
+                    <Route path="products" element={<PermissionRoute permission="products"><Products /></PermissionRoute>} />
+                    <Route path="orders" element={<OrdersRoute />} />
+                    <Route path="users" element={<PermissionRoute headOnly><Users /></PermissionRoute>} />
+                    <Route path="knowledge" element={<PermissionRoute headOnly><Knowledge /></PermissionRoute>} />
+                    <Route path="monitor" element={<PermissionRoute headOnly><ChatMonitor /></PermissionRoute>} />
+                    <Route path="accounts" element={<PermissionRoute headOnly><AdminAccounts /></PermissionRoute>} />
+                    <Route path="analytics" element={<PermissionRoute permission="analytics"><Analytics /></PermissionRoute>} />
+                    <Route path="services" element={<PermissionRoute permission="services"><AdminServices /></PermissionRoute>} />
+                    <Route path="payments" element={<PermissionRoute headOnly><PaymentSettings /></PermissionRoute>} />
                   </Route>
                 </Routes>
               </UIProvider>

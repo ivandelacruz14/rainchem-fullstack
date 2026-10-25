@@ -1,8 +1,6 @@
 from app.routes.auth import auth_bp
 from app.routes.admin_auth import admin_auth_bp
 from app.routes.products import products_bp
-from app.routes.reviews import reviews_bp
-from app.routes.services import services_bp, admin_services_bp
 from app.routes.orders import orders_bp
 from app.routes.payments import payments_bp
 from app.routes.admin_orders import admin_orders_bp
@@ -12,15 +10,15 @@ from app.routes.chat import chat_bp
 from app.routes.admin_dashboard import admin_dashboard_bp
 from app.routes.admin_analytics import admin_analytics_bp
 from app.routes.admin_settings import admin_settings_bp
+from app.routes.cart import cart_bp
+from app.routes.services import services_bp
+from app.routes.admin_services import admin_services_bp
 
 
 def register_routes(app):
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_auth_bp)
     app.register_blueprint(products_bp)
-    app.register_blueprint(reviews_bp)
-    app.register_blueprint(services_bp)
-    app.register_blueprint(admin_services_bp)
     app.register_blueprint(orders_bp)
     app.register_blueprint(payments_bp)
     app.register_blueprint(admin_orders_bp)
@@ -30,3 +28,6 @@ def register_routes(app):
     app.register_blueprint(admin_dashboard_bp)
     app.register_blueprint(admin_analytics_bp)
     app.register_blueprint(admin_settings_bp)
+    app.register_blueprint(cart_bp)
+    app.register_blueprint(services_bp)
+    app.register_blueprint(admin_services_bp)

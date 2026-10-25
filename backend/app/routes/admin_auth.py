@@ -2,34 +2,25 @@ from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
-from app.models import Admin
-from app.models.admin import PERMISSIONS, ROLE_DISTRIBUTOR, ROLE_HEAD_ADMIN
-from app.services.auth_utils import validate_password, is_valid_email
-from app.utils.auth_decorators import (
-    create_admin_token, require_admin, require_head_admin, current_admin,
-)
+from app.models import Admin, Product, Service
+from app.services.auth_utils import is_valid_email, validate_password
+from app.services.permissions import ASSIGNABLE_ROLES, DISTRIBUTOR, PERMISSIONS, clean_permissions
+from app.utils.auth_decorators import create_admin_token, current_admin, require_admin, require_head_admin
 
 admin_auth_bp = Blueprint("admin_auth", __name__, url_prefix="/api/admin/auth")
 
-CREATABLE_ROLES = (ROLE_HEAD_ADMIN, ROLE_DISTRIBUTOR)
+
+def _error(message, status=400):
+    return jsonify({"error": message}), status
 
 
-def _clean_permissions(raw):
-    if not isinstance(raw, list):
-        return []
-    return [key for key in PERMISSIONS if key in raw]
+def _actor_confirmed(data):
+    """Sensitive account actions need the acting Head Admin's own password again."""
+    return check_password_hash(current_admin().password_hash, str(data.get("confirmPassword") or ""))
 
 
-def _confirm_acting_password(data):
-    """Account-management changes need the acting Head Admin's own password."""
-    return check_password_hash(current_admin().password_hash, data.get("currentPassword") or "")
-
-
-def _remaining_active_heads(excluding_id=None):
-    query = Admin.query.filter(Admin.role != ROLE_DISTRIBUTOR, Admin.is_active.is_(True))
-    if excluding_id is not None:
-        query = query.filter(Admin.id != excluding_id)
-    return query.count()
+def _active_heads():
+    return [a for a in Admin.query.filter_by(is_active=True).all() if a.is_head]
 
 
 @admin_auth_bp.post("/login")
@@ -40,9 +31,9 @@ def admin_login():
 
     admin = Admin.query.filter_by(email=email).first()
     if not admin or not check_password_hash(admin.password_hash, password):
-        return jsonify({"error": "Incorrect email or password"}), 401
+        return _error("Incorrect email or password", 401)
     if not admin.is_active:
-        return jsonify({"error": "This account has been disabled. Contact a Head Admin."}), 403
+        return _error("This account has been disabled. Contact the Head Admin.", 403)
 
     return jsonify({"token": create_admin_token(admin), "admin": admin.to_dict()})
 
@@ -50,45 +41,63 @@ def admin_login():
 @admin_auth_bp.get("/me")
 @require_admin
 def admin_me():
-    return jsonify({"admin": current_admin().to_dict(), "permissionCatalog": PERMISSIONS})
+    return jsonify({"admin": current_admin().to_dict()})
+
+
+@admin_auth_bp.put("/me/password")
+@require_admin
+def change_own_password():
+    admin = current_admin()
+    data = request.get_json() or {}
+    if not check_password_hash(admin.password_hash, str(data.get("currentPassword") or "")):
+        return _error("Current password is incorrect")
+    problems = validate_password(data.get("newPassword") or "")
+    if problems:
+        return _error("Password requirements not met: " + ", ".join(problems))
+    admin.password_hash = generate_password_hash(data["newPassword"])
+    db.session.commit()
+    return jsonify({"message": "Password updated"})
 
 
 @admin_auth_bp.get("/accounts")
 @require_head_admin
 def list_admins():
     admins = Admin.query.order_by(Admin.created_at).all()
-    return jsonify({"admins": [a.to_dict() for a in admins], "permissionCatalog": PERMISSIONS})
+    return jsonify({
+        "admins": [a.to_dict() for a in admins],
+        "roles": ASSIGNABLE_ROLES,
+        "permissions": [{"key": k, "label": v} for k, v in PERMISSIONS.items()],
+    })
 
 
 @admin_auth_bp.post("/accounts")
 @require_head_admin
 def create_admin():
     data = request.get_json() or {}
+    if not _actor_confirmed(data):
+        return _error("Enter your own password to confirm this change", 403)
+
     name = (data.get("name") or "").strip()
     email = (data.get("email") or "").strip().lower()
-    role = data.get("role") or ROLE_DISTRIBUTOR
+    role = data.get("role") or DISTRIBUTOR
     password = data.get("password") or ""
 
-    if not _confirm_acting_password(data):
-        return jsonify({"error": "Your own password is incorrect"}), 403
     if not name:
-        return jsonify({"error": "Please enter a name"}), 400
+        return _error("Please enter a name")
     if not is_valid_email(email):
-        return jsonify({"error": "Please enter a valid email address"}), 400
-    if role not in CREATABLE_ROLES:
-        return jsonify({"error": "Role must be Head Admin or Distributor"}), 400
+        return _error("Please enter a valid email address")
+    if role not in ASSIGNABLE_ROLES:
+        return _error("Choose Head Admin or Distributor")
     if Admin.query.filter_by(email=email).first():
-        return jsonify({"error": "An admin with this email already exists"}), 400
-
-    password_errors = validate_password(password)
-    if password_errors:
-        return jsonify({"error": "Password requirements not met: " + ", ".join(password_errors)}), 400
+        return _error("An admin with this email already exists")
+    problems = validate_password(password)
+    if problems:
+        return _error("Password requirements not met: " + ", ".join(problems))
 
     admin = Admin(
-        name=name, email=email, role=role,
+        name=name, email=email, role=role, is_active=True,
         password_hash=generate_password_hash(password),
-        permissions=_clean_permissions(data.get("permissions")) if role == ROLE_DISTRIBUTOR else None,
-        is_active=True,
+        permissions=clean_permissions(data.get("permissions")) if role == DISTRIBUTOR else None,
     )
     db.session.add(admin)
     db.session.commit()
@@ -98,69 +107,70 @@ def create_admin():
 @admin_auth_bp.put("/accounts/<int:admin_id>")
 @require_head_admin
 def update_admin(admin_id):
-    data = request.get_json() or {}
     actor = current_admin()
-    target = Admin.query.get_or_404(admin_id)
+    data = request.get_json() or {}
+    if not _actor_confirmed(data):
+        return _error("Enter your own password to confirm this change", 403)
 
-    if not _confirm_acting_password(data):
-        return jsonify({"error": "Your own password is incorrect"}), 403
-
-    is_self = target.id == actor.id
-    wants_role = data.get("role", target.role)
-    wants_active = data.get("isActive", target.is_active)
-
-    if is_self and (wants_role != target.role or wants_active is False or "permissions" in data):
-        return jsonify({"error": "You cannot change your own role, status or permissions"}), 400
-    if wants_role != target.role and wants_role not in CREATABLE_ROLES:
-        return jsonify({"error": "Role must be Head Admin or Distributor"}), 400
-
-    losing_head = target.is_head and (wants_role == ROLE_DISTRIBUTOR or wants_active is False)
-    if losing_head and _remaining_active_heads(excluding_id=target.id) < 1:
-        return jsonify({"error": "At least one active Head Admin must remain"}), 400
+    admin = Admin.query.get_or_404(admin_id)
+    if admin.id == actor.id:
+        return _error("You cannot change your own role, permissions or status")
 
     if "name" in data:
         name = (data.get("name") or "").strip()
         if not name:
-            return jsonify({"error": "Please enter a name"}), 400
-        target.name = name
+            return _error("Please enter a name")
+        admin.name = name
+    if "role" in data:
+        if data["role"] not in ASSIGNABLE_ROLES:
+            return _error("Choose Head Admin or Distributor")
+        admin.role = data["role"]
+    if "isActive" in data:
+        admin.is_active = bool(data["isActive"])
+    if "permissions" in data or "role" in data:
+        admin.permissions = (
+            clean_permissions(data.get("permissions", admin.permissions)) if admin.role == DISTRIBUTOR else None
+        )
 
-    target.role = wants_role
-    target.is_active = bool(wants_active)
-    if target.is_distributor:
-        if "permissions" in data:
-            target.permissions = _clean_permissions(data.get("permissions"))
-    else:
-        target.permissions = None
-
-    new_password = data.get("newPassword")
-    if new_password:
-        password_errors = validate_password(new_password)
-        if password_errors:
-            return jsonify({"error": "Password requirements not met: " + ", ".join(password_errors)}), 400
-        target.password_hash = generate_password_hash(new_password)
-
+    if not _active_heads():
+        db.session.rollback()
+        return _error("At least one active Head Admin must remain")
     db.session.commit()
-    return jsonify({"admin": target.to_dict()})
+    return jsonify({"admin": admin.to_dict()})
+
+
+@admin_auth_bp.post("/accounts/<int:admin_id>/password")
+@require_head_admin
+def reset_admin_password(admin_id):
+    data = request.get_json() or {}
+    if not _actor_confirmed(data):
+        return _error("Enter your own password to confirm this change", 403)
+    admin = Admin.query.get_or_404(admin_id)
+    problems = validate_password(data.get("newPassword") or "")
+    if problems:
+        return _error("Password requirements not met: " + ", ".join(problems))
+    admin.password_hash = generate_password_hash(data["newPassword"])
+    db.session.commit()
+    return jsonify({"message": "Password reset. Share the new password with them securely."})
 
 
 @admin_auth_bp.delete("/accounts/<int:admin_id>")
 @require_head_admin
 def delete_admin(admin_id):
-    data = request.get_json(silent=True) or {}
     actor = current_admin()
-    target = Admin.query.get_or_404(admin_id)
+    data = request.get_json(silent=True) or {}
+    if not _actor_confirmed(data):
+        return _error("Enter your own password to confirm this change", 403)
 
-    if not _confirm_acting_password(data):
-        return jsonify({"error": "Your own password is incorrect"}), 403
-    if target.id == actor.id:
-        return jsonify({"error": "You cannot remove your own account"}), 400
-    if target.is_head and _remaining_active_heads(excluding_id=target.id) < 1:
-        return jsonify({"error": "At least one active Head Admin must remain"}), 400
+    admin = Admin.query.get_or_404(admin_id)
+    if admin.id == actor.id:
+        return _error("You cannot remove your own account")
+    if admin.is_head and len(_active_heads()) <= 1 and admin.is_active:
+        return _error("At least one active Head Admin must remain")
 
-    # Their products and services stay in the catalogue; ownership is released.
-    from app.models import Product, Service
-    Product.query.filter_by(owner_admin_id=target.id).update({"owner_admin_id": None})
-    Service.query.filter_by(owner_admin_id=target.id).update({"owner_admin_id": None})
-    db.session.delete(target)
+    # What they owned goes back to the Head Admins.
+    Product.query.filter_by(owner_admin_id=admin.id).update({"owner_admin_id": None})
+    Service.query.filter_by(owner_admin_id=admin.id).update({"owner_admin_id": None})
+    db.session.delete(admin)
     db.session.commit()
-    return jsonify({"message": "Account removed"})
+    return jsonify({"message": "Admin account removed"})

@@ -22,16 +22,17 @@ class Product(db.Model):
     owner_admin_id = db.Column(db.Integer, db.ForeignKey("admins.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def to_dict(self):
+    def to_dict(self, average_rating=0.0, review_count=0):
+        """Public view. Rating and review count come from real review records
+        (see services/catalog.py); the old rating/reviews columns are not shown."""
         return {
             "id": self.id,
             "name": self.name,
             "category": self.category,
             "price": float(self.price),
             "stock": self.stock,
-            "rating": round(float(self.review_average), 1) if self.review_count else None,
-            "reviews": self.review_count or 0,
-            "ownerAdminId": self.owner_admin_id,
+            "rating": round(float(average_rating or 0), 1),
+            "reviews": int(review_count or 0),
             "imageGlyph": self.image_glyph,
             "imagePhoto": self.image_photo,
             "shortDesc": self.short_desc,
@@ -40,3 +41,8 @@ class Product(db.Model):
             "benefits": self.benefits or [],
             "usage": self.usage_steps or [],
         }
+
+    def to_admin_dict(self, average_rating=0.0, review_count=0):
+        data = self.to_dict(average_rating, review_count)
+        data["ownerId"] = self.owner_admin_id
+        return data

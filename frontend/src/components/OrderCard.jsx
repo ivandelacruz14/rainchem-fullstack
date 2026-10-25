@@ -64,7 +64,12 @@ export default function OrderCard({ order, onCancel, onPay, onReceive, onReview,
           {ret.note && <div style={{ marginTop: 4 }}>Note from Rainchem: {ret.note}</div>}
         </div>
       )}
-      {order.review && (
+      {order.reviews?.map((r) => (
+        <div className="order-note" key={r.productId}>
+          Your review of {r.name || "this product"}: <Stars value={r.rating} />{r.comment ? ` "${r.comment}"` : ""}
+        </div>
+      ))}
+      {order.review && !order.reviews?.length && (
         <div className="order-note">Your review: <Stars value={order.review.rating} />{order.review.comment ? ` "${order.review.comment}"` : ""}</div>
       )}
 
@@ -85,7 +90,7 @@ export default function OrderCard({ order, onCancel, onPay, onReceive, onReview,
           <button className="btn btn-primary btn-sm" onClick={() => onReceive(order.id)}>Order Received</button>
         )}
         {order.canReview && onReview && (
-          <button className="btn btn-primary btn-sm" onClick={() => onReview(order)}>Rate Order</button>
+          <button className="btn btn-primary btn-sm" onClick={() => onReview(order)}>Rate Products</button>
         )}
         {order.canReturn && onReturn && (
           <button className="btn btn-outline btn-sm" onClick={() => onReturn(order)}>Return</button>

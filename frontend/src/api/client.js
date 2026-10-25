@@ -2,38 +2,34 @@ import axios from "axios";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "");
 
-export const USER_TOKEN_KEY = "rainchem_token";
-export const ADMIN_TOKEN_KEY = "rainchem_admin_token";
-export const UNAUTHORIZED_EVENT = "rainchem:unauthorized";
+export const SESSION_EXPIRED_EVENT = "rainchem:session-expired";
 
 const client = axios.create({ baseURL: API_URL });
 
-export function readToken(key) {
+// Admin pages, and any call to an /api/admin route, use the admin login.
+function isAdminRequest(config) {
+  return window.location.pathname.startsWith("/admin") || (config?.url || "").startsWith("/api/admin");
+}
+
+function readToken(key) {
   return localStorage.getItem(key) || sessionStorage.getItem(key);
 }
 
-function isAdminRequest(config) {
-  const path = (config.url || "").replace(API_URL, "");
-  return path.startsWith("/api/admin") || window.location.pathname.startsWith("/admin");
-}
-
+// Storefront pages only ever send the customer token, admin pages only the admin token.
 client.interceptors.request.use((config) => {
-  // Customer and admin sessions are kept apart: each only ever sends its own token.
-  const token = readToken(isAdminRequest(config) ? ADMIN_TOKEN_KEY : USER_TOKEN_KEY);
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  const token = isAdminRequest(config) ? readToken("rainchem_admin_token") : readToken("rainchem_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
+// An expired or revoked login should sign the person out instead of leaving broken screens.
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    const status = error.response?.status;
-    const url = error.config?.url || "";
-    const isLoginAttempt = /\/(login|google|verify-email)$/.test(url);
-    if (status === 401 && !isLoginAttempt && !isAdminRequest(error.config || {})) {
-      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    const sentToken = Boolean(error.config?.headers?.Authorization);
+    const isLoginCall = /\/login$|\/google$/.test(error.config?.url || "");
+    if (error.response?.status === 401 && sentToken && !isLoginCall) {
+      window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT, { detail: { scope: isAdminRequest(error.config) ? "admin" : "user" } }));
     }
     return Promise.reject(error);
   },

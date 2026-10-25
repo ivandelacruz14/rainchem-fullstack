@@ -4,14 +4,16 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 
 from app.extensions import db
-from app.models import Order, OrderItem, OrderStatusHistory, Product, User
+from app.models import CartItem, Order, OrderItem, OrderStatusHistory, Product, User
 from app.models.order import COD
-from app.services import payment_flow, review_service
+from app.services import payment_flow
 from app.services.auth_utils import is_valid_email, is_valid_phone
 from app.services.pricing import bulk_discount_rate, compute_shipping, unit_price_after_discount, money
 from app.services.receipt_service import generate_order_number, generate_tracking_number, create_receipt_for_order
 from app.services.email_service import send_email
+from app.services.catalog import serialize_products
 from app.services.recommendations import get_recommendations
+from app.services.reviews import ReviewError, submit_reviews
 from app.utils.auth_decorators import require_user, current_user_id
 
 orders_bp = Blueprint("orders", __name__, url_prefix="/api/orders")
@@ -21,7 +23,13 @@ orders_bp = Blueprint("orders", __name__, url_prefix="/api/orders")
 @require_user
 def create_order():
     data = request.get_json() or {}
-    cart_items = data.get("items") or []
+    cart_items = data.get("items")
+    if not cart_items:
+        # No lines in the request: fall back to the saved cart of the signed-in customer.
+        cart_items = [
+            {"productId": row.product_id, "qty": row.quantity}
+            for row in CartItem.query.filter_by(user_id=current_user_id()).all()
+        ]
     customer = data.get("customer") or {}
     address = data.get("address") or {}
     payment_method = data.get("paymentMethod", COD)
@@ -108,6 +116,11 @@ def create_order():
         user.address_zip = address.get("zip", user.address_zip)
         user.phone = customer.get("phone", user.phone)
 
+    CartItem.query.filter(
+        CartItem.user_id == current_user_id(),
+        CartItem.product_id.in_([line["product"].id for line in line_items]),
+    ).delete(synchronize_session=False)
+
     db.session.commit()
 
     online = order.is_online_payment
@@ -127,7 +140,7 @@ def create_order():
     recommendations = get_recommendations(order)
     return jsonify({
         "order": order.to_dict(),
-        "recommendations": [p.to_dict() for p in recommendations],
+        "recommendations": serialize_products(recommendations),
         # Online methods continue on our own payment page, where the customer can
         # see the GCash details / card button and switch method.
         "payPath": f"/payment/{order.id}" if online else None,
@@ -206,30 +219,47 @@ def mark_received(order_id):
     return jsonify({"order": order.to_dict()})
 
 
-@orders_bp.post("/<int:order_id>/review")
+def _review_response(order):
+    return jsonify({"order": order.to_dict()})
+
+
+@orders_bp.post("/<int:order_id>/reviews")
 @require_user
-def review_order(order_id):
+def review_order_items(order_id):
+    """Body: {"reviews": [{"productId": 1, "rating": 5, "comment": "..."}]}"""
     order = Order.query.get_or_404(order_id)
     if order.user_id != current_user_id():
         return jsonify({"error": "Not found"}), 404
-    if order.status != "delivered" or order.return_status not in review_service.REVIEWABLE_RETURN_STATES:
-        return jsonify({"error": "You can review an order once it has been delivered"}), 400
-    if order.review_rating is not None:
-        return jsonify({"error": "You already reviewed this order"}), 400
-
-    data = request.get_json() or {}
+    entries = (request.get_json() or {}).get("reviews")
+    if not isinstance(entries, list):
+        return jsonify({"error": "Send the reviews as a list"}), 400
     try:
-        rating = review_service.clean_rating(data.get("rating"))
-        comment = review_service.clean_comment(data.get("comment"))
-    except review_service.ReviewError as error:
-        return jsonify({"error": error.message}), error.status
+        submit_reviews(order, entries)
+    except ReviewError as error:
+        return jsonify({"error": str(error)}), 400
+    return _review_response(order)
 
-    order.review_rating = rating
-    order.review_comment = comment
-    order.reviewed_at = datetime.utcnow()
-    review_service.add_reviews_for_order(order, rating, comment)
-    db.session.commit()
-    return jsonify({"order": order.to_dict()})
+
+@orders_bp.post("/<int:order_id>/review")
+@require_user
+def review_order(order_id):
+    """Rates every product in the order that has not been reviewed yet with one rating
+    and comment. Kept so older clients keep working."""
+    order = Order.query.get_or_404(order_id)
+    if order.user_id != current_user_id():
+        return jsonify({"error": "Not found"}), 404
+    data = request.get_json() or {}
+    entries = [
+        {"productId": item.product_id, "rating": data.get("rating"), "comment": data.get("comment")}
+        for item in order.reviewable_items
+    ]
+    if not entries:
+        return jsonify({"error": "There is nothing left to review on this order"}), 400
+    try:
+        submit_reviews(order, entries)
+    except ReviewError as error:
+        return jsonify({"error": str(error)}), 400
+    return _review_response(order)
 
 
 @orders_bp.post("/<int:order_id>/return")
@@ -253,10 +283,12 @@ def request_return(order_id):
 
 
 @orders_bp.get("/track/<tracking_number>")
+@require_user
 def track_order(tracking_number):
-    order = Order.query.filter_by(tracking_number=tracking_number).first()
+    """Tracking numbers are short, so only the customer who placed the order can look one up."""
+    order = Order.query.filter_by(tracking_number=tracking_number, user_id=current_user_id()).first()
     if not order:
-        order = Order.query.filter_by(order_number=tracking_number).first()
+        order = Order.query.filter_by(order_number=tracking_number, user_id=current_user_id()).first()
     if not order:
         return jsonify({"error": "No order found with that tracking number"}), 404
     return jsonify({"order": order.to_dict()})
@@ -276,3 +308,4 @@ def get_receipt(order_id):
         "order": order.to_dict(),
         "receipt": order.receipt.to_dict(),
     })
+    

@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import client, { ADMIN_TOKEN_KEY } from "../api/client";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import client, { SESSION_EXPIRED_EVENT } from "../api/client";
 
 const AdminAuthContext = createContext(null);
 
@@ -8,31 +8,42 @@ export function AdminAuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!localStorage.getItem(ADMIN_TOKEN_KEY)) {
+    const token = localStorage.getItem("rainchem_admin_token");
+    if (!token) {
       setLoading(false);
       return;
     }
     client
       .get("/api/admin/auth/me")
       .then((res) => setAdmin(res.data.admin))
-      .catch(() => localStorage.removeItem(ADMIN_TOKEN_KEY))
+      .catch((err) => {
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          localStorage.removeItem("rainchem_admin_token");
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
+  const logout = useCallback(() => {
+    localStorage.removeItem("rainchem_admin_token");
+    setAdmin(null);
+  }, []);
+
+  useEffect(() => {
+    function onExpired(event) {
+      if (event.detail?.scope === "admin") logout();
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, [logout]);
+
   function loginWithToken(token, adminData) {
-    localStorage.setItem(ADMIN_TOKEN_KEY, token);
+    localStorage.setItem("rainchem_admin_token", token);
     setAdmin(adminData);
   }
 
-  function logout() {
-    localStorage.removeItem(ADMIN_TOKEN_KEY);
-    setAdmin(null);
-  }
-
-  // Mirrors the backend rule; the backend still enforces it on every request.
   function can(permission) {
-    if (!admin) return false;
-    return admin.isHead || (admin.permissions || []).includes(permission);
+    return Boolean(admin && (admin.isHead || admin.permissions?.includes(permission)));
   }
 
   return (

@@ -1,26 +1,32 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import client, { USER_TOKEN_KEY, UNAUTHORIZED_EVENT, readToken } from "../api/client";
+import client, { SESSION_EXPIRED_EVENT } from "../api/client";
+import { useToast } from "./ToastContext";
 
 const AuthContext = createContext(null);
 
 function clearStoredToken() {
-  localStorage.removeItem(USER_TOKEN_KEY);
-  sessionStorage.removeItem(USER_TOKEN_KEY);
+  localStorage.removeItem("rainchem_token");
+  sessionStorage.removeItem("rainchem_token");
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const showToast = useToast();
 
   useEffect(() => {
-    if (!readToken(USER_TOKEN_KEY)) {
+    const token = localStorage.getItem("rainchem_token") || sessionStorage.getItem("rainchem_token");
+    if (!token) {
       setLoading(false);
       return;
     }
     client
       .get("/api/auth/me")
       .then((res) => setUser(res.data.user))
-      .catch(clearStoredToken)
+      .catch((err) => {
+        // Only drop the login when the server says it is invalid, not on a network blip.
+        if (err.response?.status === 401 || err.response?.status === 403) clearStoredToken();
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -29,15 +35,27 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  // An expired or revoked token reported by the backend ends the session here too.
   useEffect(() => {
-    window.addEventListener(UNAUTHORIZED_EVENT, logout);
-    return () => window.removeEventListener(UNAUTHORIZED_EVENT, logout);
-  }, [logout]);
+    function onExpired(event) {
+      if (event.detail?.scope !== "user") return;
+      clearStoredToken();
+      setUser((current) => {
+        if (current) showToast("Your session has ended. Please log in again.", "error");
+        return null;
+      });
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, [showToast]);
 
   function loginWithToken(token, userData, remember = true) {
-    clearStoredToken();
-    (remember ? localStorage : sessionStorage).setItem(USER_TOKEN_KEY, token);
+    if (remember) {
+      localStorage.setItem("rainchem_token", token);
+      sessionStorage.removeItem("rainchem_token");
+    } else {
+      sessionStorage.setItem("rainchem_token", token);
+      localStorage.removeItem("rainchem_token");
+    }
     setUser(userData);
   }
 

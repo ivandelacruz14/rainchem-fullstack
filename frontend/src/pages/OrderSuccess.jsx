@@ -17,9 +17,8 @@ export default function OrderSuccess() {
 
   const { order, recommendations = [] } = state;
 
-  function handleAddRec(product) {
-    addItem(product, 1);
-    showToast("Added to cart", "success");
+  async function handleAddRec(product) {
+    if (await addItem(product, 1)) showToast("Added to cart", "success");
   }
 
   return (

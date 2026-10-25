@@ -8,7 +8,8 @@ from app.models import Notification
 
 
 def send_email(to_email, subject, body, user_id=None, sensitive=False):
-    """sensitive=True keeps codes and reset links out of the notifications table."""
+    """Sends through Mailjet. `sensitive` emails (reset links, codes) are never
+    stored in the notifications table and never printed to the logs."""
     api_key = os.environ.get("MAILJET_API_KEY", "")
     api_secret = os.environ.get("MAILJET_API_SECRET", "")
     sender_email = current_app.config.get("SMTP_FROM", "")
@@ -42,8 +43,13 @@ def send_email(to_email, subject, body, user_id=None, sensitive=False):
 
     if not sent:
         print(f"\n--- EMAIL NOT SENT to {to_email} ---\nREASON: {error_detail}\n---\n", flush=True)
+        # Only when running `python run.py` locally (Flask debug mode): show the
+        # message so a reset link or code can be copied. Never on a deployed server.
+        if current_app.debug:
+            print(f"SUBJECT: {subject}\n{body}\n", flush=True)
 
-    stored_body = "[content withheld: contains a code or link]" if sensitive else body
+    stored_body = "[content not stored: contains a private link or code]" if sensitive else body
     db.session.add(Notification(user_id=user_id, channel="email", subject=subject, body=stored_body))
     db.session.commit()
     return sent
+

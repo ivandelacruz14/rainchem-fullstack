@@ -26,6 +26,7 @@ export default function Overview() {
   if (error) return <div className="alert alert-error">{error}</div>;
   if (!data) return <p style={{ color: "var(--soft)" }}>Loading dashboard...</p>;
   const { stats, recentOrders, topFaqs } = data;
+  const limited = data.scope === "limited";
   const maxHits = Math.max(1, ...topFaqs.map((f) => f.hits));
 
   return (
@@ -33,12 +34,20 @@ export default function Overview() {
       <div className="admin-topbar">
         <div><h1>Dashboard Overview</h1><p>Live snapshot of your store, customers, and AI assistant.</p></div>
       </div>
-      <div className="stat-grid">
-        <div className="stat-box"><div className="label">Total Revenue</div><div className="value">{peso(stats.totalRevenue)}</div><div className="delta">{stats.orderCount} orders total</div></div>
-        <div className="stat-box"><div className="label">Registered Users</div><div className="value">{stats.userCount}</div><div className="delta">{stats.verifiedUserCount} verified</div></div>
-        <div className="stat-box"><div className="label">Products Listed</div><div className="value">{stats.productCount}</div><div className="delta">{stats.lowStockCount} low stock</div></div>
-        <div className="stat-box"><div className="label">Pending KB Approvals</div><div className="value">{stats.pendingKnowledgeCount}</div><div className="delta">{stats.chatCount} chat interactions</div></div>
-      </div>
+      {limited ? (
+        <div className="stat-grid">
+          <div className="stat-box"><div className="label">Sales Revenue</div><div className="value">{peso(stats.totalRevenue)}</div><div className="delta">{stats.orderCount} confirmed orders with your products</div></div>
+          <div className="stat-box"><div className="label">Your Products</div><div className="value">{stats.productCount}</div><div className="delta">{stats.lowStockCount} low stock</div></div>
+        </div>
+      ) : (
+        <div className="stat-grid">
+          <div className="stat-box"><div className="label">Sales Revenue</div><div className="value">{peso(stats.totalRevenue)}</div><div className="delta">{stats.saleOrderCount} confirmed orders &middot; {stats.orderCount} orders total</div></div>
+          <div className="stat-box"><div className="label">Registered Users</div><div className="value">{stats.userCount}</div><div className="delta">{stats.verifiedUserCount} verified</div></div>
+          <div className="stat-box"><div className="label">Products Listed</div><div className="value">{stats.productCount}</div><div className="delta">{stats.lowStockCount} low stock</div></div>
+          <div className="stat-box"><div className="label">Pending KB Approvals</div><div className="value">{stats.pendingKnowledgeCount}</div><div className="delta">{stats.chatCount} chat interactions</div></div>
+        </div>
+      )}
+      {limited ? null : (
       <div className="two-col">
         <div className="admin-panel">
           <div className="panel-head">
@@ -77,6 +86,7 @@ export default function Overview() {
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }

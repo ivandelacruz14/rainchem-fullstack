@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import ProductVisual from "./ProductVisual";
 import { peso } from "../utils/format";
 import { useAuth } from "../context/AuthContext";
@@ -7,15 +7,14 @@ import { useCart, bulkDiscountRate } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
 import { useUI } from "../context/UIContext";
 import ProductCard from "./ProductCard";
-import ProductReviews from "./ProductReviews";
-import { StarDisplay } from "./StarRating";
+import ReviewSection from "./reviews/ReviewSection";
+import StarRating from "./reviews/StarRating";
 
 export default function ProductModal({ product, onClose, allProducts = [], onSelectProduct }) {
   const { user } = useAuth();
   const { addItem } = useCart();
   const showToast = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
   const { requireLogin } = useUI();
   const [qty, setQty] = useState(1);
 
@@ -25,25 +24,20 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
   const discountedUnit = product.price * (1 - rate);
   const nextTier = qty < 5 ? 5 : qty < 10 ? 10 : 20;
 
-  function handleAddToCart() {
-    addItem(product, qty);
-    showToast("Added to cart", "success");
-    onClose();
+  const returnTo = `/shop?product=${product.id}`;
+
+  async function handleAddToCart() {
+    if (await addItem(product, qty)) {
+      showToast("Added to cart", "success");
+      onClose();
+    }
   }
 
-  function askToLogin(mode) {
-    requireLogin(mode, null, location.pathname + location.search);
-  }
-
-  const related = [
-    ...allProducts.filter((p) => p.category === product.category && p.id !== product.id),
-    ...allProducts.filter((p) => p.category !== product.category && p.id !== product.id),
-  ].slice(0, 8);
-
-  function handleBuyNow() {
-    addItem(product, qty);
-    onClose();
-    navigate("/checkout");
+  async function handleBuyNow() {
+    if (await addItem(product, qty)) {
+      onClose();
+      navigate("/checkout");
+    }
   }
 
   return (
@@ -63,7 +57,7 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
               <h2 style={{ margin: "6px 0 4px" }}>{product.name}</h2>
               {product.reviews > 0 ? (
                 <span className="product-rating">
-                  <StarDisplay value={product.rating} size={14} /> {product.rating.toFixed(1)} &middot; {product.reviews} review{product.reviews === 1 ? "" : "s"}
+                  <StarRating value={product.rating} size={14} /> {product.rating.toFixed(1)} &middot; {product.reviews} review{product.reviews === 1 ? "" : "s"}
                 </span>
               ) : (
                 <span className="product-rating">No reviews yet</span>
@@ -137,28 +131,31 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
                     Log in or create a free account to add this item to your cart or buy it now.
                   </div>
                   <div className="flex gap-12">
-                    <button className="btn btn-outline btn-block" onClick={() => askToLogin("login")}>Log In</button>
-                    <button className="btn btn-primary btn-block" onClick={() => askToLogin("register")}>Create Account</button>
+                    <button className="btn btn-outline btn-block" onClick={() => { onClose(); requireLogin("login", null, returnTo); }}>Log In</button>
+                    <button className="btn btn-primary btn-block" onClick={() => { onClose(); requireLogin("register", null, returnTo); }}>Create Account</button>
                   </div>
                 </>
               )}
-            </div>
+                    </div>
           </div>
 
-          {related.length > 0 && (
+          {allProducts.filter((p) => p.category === product.category && p.id !== product.id).length > 0 && (
             <div className="pd-reco">
               <h4 className="pd-extra-head">You may also like</h4>
               <div className="product-row">
-                {related.map((p) => (
-                  <div className="product-row-item" key={p.id}>
-                    <ProductCard product={p} onOpen={onSelectProduct || (() => {})} />
-                  </div>
-                ))}
+                {allProducts
+                  .filter((p) => p.category === product.category && p.id !== product.id)
+                  .slice(0, 8)
+                  .map((p) => (
+                    <div className="product-row-item" key={p.id}>
+                      <ProductCard product={p} onOpen={onSelectProduct || (() => {})} />
+                    </div>
+                  ))}
               </div>
             </div>
           )}
 
-          <ProductReviews productId={product.id} />
+          <ReviewSection key={product.id} productId={product.id} onNavigate={onClose} />
         </div>
       </div>
     </div>

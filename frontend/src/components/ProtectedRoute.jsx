@@ -1,26 +1,22 @@
-import { useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAdminAuth } from "../context/AdminAuthContext";
-import { Navigate } from "react-router-dom";
 import { useUI } from "../context/UIContext";
 
 export function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const { requireLogin } = useUI();
-  const { pathname, search } = useLocation();
+  const location = useLocation();
+  const blocked = !loading && !user;
+
+  useEffect(() => {
+    if (blocked) requireLogin("login", "Please log in to continue", location.pathname + location.search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocked]);
+
   if (loading) return null;
-  if (!user) {
-    return (
-      <div className="container narrow-page">
-        <div className="panel login-required">
-          <h2>Please log in</h2>
-          <p>You need an account to view this page.</p>
-          <button type="button" className="btn btn-primary btn-block" onClick={() => requireLogin("login", null, pathname + search)}>Log In</button>
-          <button type="button" className="btn btn-outline btn-block" onClick={() => requireLogin("register", null, pathname + search)}>Create Account</button>
-        </div>
-      </div>
-    );
-  }
+  if (!user) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -31,13 +27,14 @@ export function AdminProtectedRoute({ children }) {
   return children;
 }
 
-export function AdminPermissionRoute({ permission, headOnly = false, children }) {
+export function PermissionRoute({ permission, headOnly = false, children }) {
   const { admin, can } = useAdminAuth();
   const allowed = headOnly ? admin?.isHead : can(permission);
-  if (!allowed) {
-    return (
-      <div className="alert alert-error">You do not have access to this section. Ask a Head Admin if you need it.</div>
-    );
-  }
-  return children;
+  if (allowed) return children;
+  return (
+    <div className="admin-panel">
+      <h3>No access</h3>
+      <p style={{ color: "var(--soft)" }}>Your account does not have permission to open this page. Ask the Head Admin if you need it.</p>
+    </div>
+  );
 }

@@ -18,23 +18,24 @@ const PASSWORD_RULES = [
 
 export default function AuthModal() {
   const [remember, setRemember] = useState(true);
-  const { authModal, setAuthModal, closeAuth } = useUI();
+  const { authModal, switchAuthMode, closeAuth } = useUI();
+  const navigate = useNavigate();
   const { loginWithToken } = useAuth();
   const showToast = useToast();
-  const navigate = useNavigate();
 
   const [form, setForm] = useState({});
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
+  const [devCode, setDevCode] = useState("");
 
   if (!authModal.open) return null;
   const mode = authModal.mode;
 
   function finishLogin() {
-    const destination = authModal.returnTo;
+    const returnTo = authModal.returnTo;
     closeAuth();
-    if (destination) navigate(destination);
+    if (returnTo) navigate(returnTo);
   }
 
   function update(field, value) {
@@ -44,7 +45,7 @@ export default function AuthModal() {
   function switchMode(nextMode) {
     setError("");
     setInfo("");
-    setAuthModal({ ...authModal, open: true, mode: nextMode });
+    switchAuthMode(nextMode);
   }
 
   async function handleLogin(e) {
@@ -222,6 +223,11 @@ export default function AuthModal() {
               <div className="alert alert-info">
                 We sent a 6-digit verification code to <strong>{pendingEmail}</strong>. Enter it below to activate your account.
               </div>
+              {devCode && (
+                <div className="admin-demo-hint" style={{ marginBottom: 16 }}>
+                  Development mode: check the backend console output for your code.
+                </div>
+              )}
               <form onSubmit={handleVerify}>
                 <div className="field">
                   <label>Verification Code</label>

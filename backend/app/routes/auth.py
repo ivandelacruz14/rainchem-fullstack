@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,13 +7,42 @@ from app.extensions import db
 from app.models import User, EmailVerification, PasswordReset
 from app.services.auth_utils import (
     validate_password, is_valid_email, is_valid_phone,
-    generate_verification_code, generate_reset_token, hash_reset_token,
+    generate_verification_code, generate_reset_token,
 )
 from app.services.email_service import send_email
 from app.services.google_auth import verify_google_token
 from app.utils.auth_decorators import create_user_token, require_user, current_user_id
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+
+RESET_TOKEN_MINUTES = 30
+RESET_REQUEST_COOLDOWN_SECONDS = 60
+
+
+def hash_reset_token(token):
+    """Only a hash of the reset token is stored, so a database leak does not leak working links."""
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+
+
+def find_reset_request(token):
+    """Returns (reset_row, problem) where problem is None, "invalid", "used" or "expired"."""
+    if not token or len(token) > 200:
+        return None, "invalid"
+    row = PasswordReset.query.filter_by(token=hash_reset_token(token)).first()
+    if row is None:
+        return None, "invalid"
+    if row.used:
+        return row, "used"
+    if row.expires_at < datetime.utcnow():
+        return row, "expired"
+    return row, None
+
+
+RESET_PROBLEM_MESSAGES = {
+    "invalid": "This reset link is not valid. Please request a new one.",
+    "used": "This reset link has already been used. Please request a new one if you still need to reset your password.",
+    "expired": "This reset link has expired. Please request a new one.",
+}
 
 
 @auth_bp.post("/register")
@@ -180,56 +210,29 @@ def google_login():
     return jsonify({"token": token, "user": user.to_dict()})
 
 
-RESET_TOKEN_MINUTES = 30
-RESET_REQUEST_COOLDOWN_SECONDS = 60
-
-
-def _reset_state(token):
-    """Returns (reset_row, reason). reason is None when the token is usable."""
-    if not token:
-        return None, "invalid"
-    row = PasswordReset.query.filter_by(token=hash_reset_token(token)).first()
-    if row is None:
-        return None, "invalid"
-    if row.used:
-        return row, "used"
-    if row.expires_at < datetime.utcnow():
-        return row, "expired"
-    return row, None
-
-
-RESET_MESSAGES = {
-    "invalid": "This reset link is not valid. Please request a new one.",
-    "used": "This reset link has already been used. Please request a new one if you still need to reset your password.",
-    "expired": "This reset link has expired. Please request a new one.",
-}
-
-
 @auth_bp.post("/forgot-password")
 def forgot_password():
     data = request.get_json() or {}
     email = (data.get("email") or "").strip().lower()
+    user = User.query.filter_by(email=email).first() if is_valid_email(email) else None
 
+    # Same answer whether or not the address is registered.
     generic_response = jsonify({
         "message": "If an account with that email exists, a reset link has been sent."
     })
-
-    if not is_valid_email(email):
-        return generic_response
-    user = User.query.filter_by(email=email).first()
     if not user:
         return generic_response
 
-    latest = (
-        PasswordReset.query.filter_by(user_id=user.id)
-        .order_by(PasswordReset.created_at.desc()).first()
-    )
-    if latest and latest.created_at and (
-        datetime.utcnow() - latest.created_at < timedelta(seconds=RESET_REQUEST_COOLDOWN_SECONDS)
-    ):
+    cutoff = datetime.utcnow() - timedelta(seconds=RESET_REQUEST_COOLDOWN_SECONDS)
+    recent = PasswordReset.query.filter(
+        PasswordReset.user_id == user.id, PasswordReset.used.is_(False), PasswordReset.created_at > cutoff,
+    ).first()
+    if recent:
         return generic_response
 
+    # A new request replaces any earlier link that was never used.
     PasswordReset.query.filter_by(user_id=user.id, used=False).update({"used": True})
+
     token = generate_reset_token()
     db.session.add(PasswordReset(
         user_id=user.id, token=hash_reset_token(token),
@@ -237,26 +240,24 @@ def forgot_password():
     ))
     db.session.commit()
 
-    frontend_url = current_app.config["FRONTEND_URL"]
-    if frontend_url.startswith("http://localhost") and not current_app.debug:
-        current_app.logger.warning("FRONTEND_URL points at localhost; reset links will not work for real users")
-
-    reset_link = f"{frontend_url}/reset-password?token={token}"
+    reset_link = f"{current_app.config['FRONTEND_BASE_URL']}/reset-password?token={token}"
     send_email(
         email, "Reset your Rainchem password",
         f"Hi {user.name},\n\nUse the link below to reset your password. "
-        f"It expires in {RESET_TOKEN_MINUTES} minutes and can be used once.\n\n{reset_link}\n\n"
+        f"It expires in {RESET_TOKEN_MINUTES} minutes and can only be used once.\n\n{reset_link}\n\n"
         "If you did not request this, you can ignore this email.",
         user_id=user.id, sensitive=True,
     )
     return generic_response
 
 
-@auth_bp.get("/reset-password/validate")
-def validate_reset_token():
-    _, reason = _reset_state(request.args.get("token") or "")
-    if reason:
-        return jsonify({"valid": False, "reason": reason, "error": RESET_MESSAGES[reason]}), 400
+@auth_bp.get("/reset-password/check")
+def check_reset_token():
+    """Lets the reset page tell a bad link from a good one before the person types a password.
+    Opening this never uses up the token."""
+    _, problem = find_reset_request(request.args.get("token", ""))
+    if problem:
+        return jsonify({"valid": False, "reason": problem, "error": RESET_PROBLEM_MESSAGES[problem]})
     return jsonify({"valid": True})
 
 
@@ -266,9 +267,9 @@ def reset_password():
     token = data.get("token") or ""
     new_password = data.get("password") or ""
 
-    reset_request, reason = _reset_state(token)
-    if reason:
-        return jsonify({"error": RESET_MESSAGES[reason], "reason": reason}), 400
+    reset_request, problem = find_reset_request(token)
+    if problem:
+        return jsonify({"error": RESET_PROBLEM_MESSAGES[problem], "reason": problem}), 400
 
     password_errors = validate_password(new_password)
     if password_errors:
@@ -280,7 +281,6 @@ def reset_password():
     user = db.session.get(User, reset_request.user_id)
     user.password_hash = generate_password_hash(new_password)
     PasswordReset.query.filter_by(user_id=user.id, used=False).update({"used": True})
-    reset_request.used = True
     db.session.commit()
 
     send_email(user.email, "Your Rainchem password was changed",

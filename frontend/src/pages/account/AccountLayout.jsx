@@ -6,8 +6,8 @@ export default function AccountLayout() {
   const navigate = useNavigate();
 
   function handleLogout() {
+    navigate("/", { replace: true });
     logout();
-    navigate("/");
   }
 
   return (
@@ -15,6 +15,7 @@ export default function AccountLayout() {
       <div className="account-nav">
         <NavLink to="/account" end className={({ isActive }) => (isActive ? "active" : "")}>Overview</NavLink>
         <NavLink to="/account/orders" className={({ isActive }) => (isActive ? "active" : "")}>My Orders</NavLink>
+        <NavLink to="/account/services" className={({ isActive }) => (isActive ? "active" : "")}>Service Requests</NavLink>
         <NavLink to="/account/track" className={({ isActive }) => (isActive ? "active" : "")}>Track Order</NavLink>
         <NavLink to="/account/address" className={({ isActive }) => (isActive ? "active" : "")}>Addresses</NavLink>
         <NavLink to="/account/profile" className={({ isActive }) => (isActive ? "active" : "")}>Profile</NavLink>

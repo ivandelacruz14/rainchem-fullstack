@@ -1,16 +1,14 @@
 """Sales reporting built only from recorded orders.
 
-Recorded sales are order lines on orders that have been confirmed or moved
-further along (confirmed, processing, shipped, delivered), excluding orders
-whose return was approved. Dates use the shop's local time (UTC offset from
-SALES_UTC_OFFSET_HOURS, default +8 for the Philippines), taken from the order
-creation time. Anything under "forecast" or "recommendations" is an estimate
-derived from those records, not a recorded figure.
+A recorded sale is an order that the shop confirmed and that was not cancelled,
+returned or refunded. Dates are grouped in the shop's local time
+(STORE_UTC_OFFSET_HOURS). Revenue is merchandise revenue: shipping fees are not included.
+Forecasts are labelled estimates and are only produced when enough history exists.
 """
+import math
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from statistics import pstdev
 
 from flask import current_app
 
@@ -18,43 +16,94 @@ from app.extensions import db
 from app.models import Order, OrderItem, Product
 
 SALE_STATUSES = ("confirmed", "processing", "shipped", "delivered")
+NOT_A_SALE_PAYMENT_STATES = ("refund_pending", "refunded")
 GRANULARITIES = ("daily", "weekly", "monthly")
-MAX_RANGE_DAYS = 732
-LEGACY_SERVICE_CATEGORY = "Services"
+MAX_RANGE_DAYS = 366
 
-RESTOCK_WINDOW_DAYS = 28
-RESTOCK_COVER_DAYS = 14
-FORECAST_HISTORY_WEEKS = 8
-FORECAST_HORIZON_WEEKS = 4
-FORECAST_MIN_WEEKS_WITH_SALES = 3
-FORECAST_MIN_UNITS = 5
+LOOKBACK_WEEKS = 8
+MIN_HISTORY_DAYS = 28
+MIN_ORDERS_FOR_ESTIMATE = 3
+RESTOCK_WITHIN_DAYS = 21
+FORECAST_DAYS = 30
 
 
-class RangeError(ValueError):
+class ReportError(ValueError):
     pass
 
 
-def _offset():
-    return timedelta(hours=current_app.config.get("SALES_UTC_OFFSET_HOURS", 8))
+def utc_offset():
+    return timedelta(hours=current_app.config.get("STORE_UTC_OFFSET_HOURS", 8))
 
 
 def local_today():
-    return (datetime.utcnow() + _offset()).date()
+    return (datetime.utcnow() + utc_offset()).date()
 
 
-def month_start(day):
-    return day.replace(day=1)
+def to_local_date(utc_datetime):
+    return (utc_datetime + utc_offset()).date()
 
 
-def week_start(day):
-    return day - timedelta(days=day.weekday())
+def parse_day(value, name):
+    try:
+        return date.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        raise ReportError(f"{name} must be a date like 2026-10-24")
+
+
+def resolve_range(start_raw, end_raw):
+    end = parse_day(end_raw, "End date") if end_raw else local_today()
+    start = parse_day(start_raw, "Start date") if start_raw else end - timedelta(days=29)
+    if end < start:
+        raise ReportError("The end date cannot be before the start date")
+    if (end - start).days + 1 > MAX_RANGE_DAYS:
+        raise ReportError(f"Choose a range of at most {MAX_RANGE_DAYS} days")
+    return start, end
+
+
+def previous_range(start, end):
+    length = (end - start).days + 1
+    prev_end = start - timedelta(days=1)
+    return prev_end - timedelta(days=length - 1), prev_end
+
+
+def fetch_sale_lines(start, end, product_ids=None):
+    """Order lines of recorded sales placed from `start` to `end` (inclusive, local dates)."""
+    offset = utc_offset()
+    start_utc = datetime.combine(start, time.min) - offset
+    end_utc = datetime.combine(end + timedelta(days=1), time.min) - offset
+
+    query = (
+        db.session.query(OrderItem, Order)
+        .join(Order, Order.id == OrderItem.order_id)
+        .filter(
+            Order.status.in_(SALE_STATUSES),
+            Order.return_status != "approved",
+            Order.payment_status.notin_(NOT_A_SALE_PAYMENT_STATES),
+            Order.created_at >= start_utc,
+            Order.created_at < end_utc,
+        )
+    )
+    if product_ids is not None:
+        query = query.filter(OrderItem.product_id.in_(list(product_ids) or [-1]))
+
+    lines = []
+    for item, order in query.all():
+        lines.append({
+            "day": to_local_date(order.created_at),
+            "orderId": order.id,
+            "productId": item.product_id,
+            "name": item.product_name,
+            "qty": item.quantity,
+            "revenue": Decimal(item.unit_price) * item.quantity,
+        })
+    return lines
 
 
 def bucket_start(day, granularity):
     if granularity == "weekly":
-        return week_start(day)
+        return day - timedelta(days=day.weekday())
     if granularity == "monthly":
-        return month_start(day)
+        return day.replace(day=1)
     return day
 
 
@@ -67,91 +116,32 @@ def next_bucket(day, granularity):
 
 
 def bucket_label(day, granularity):
+    if granularity == "weekly":
+        end = day + timedelta(days=6)
+        return f"{day.strftime('%b')} {day.day} - {end.strftime('%b')} {end.day}"
     if granularity == "monthly":
         return day.strftime("%b %Y")
-    if granularity == "weekly":
-        return "Wk of " + day.strftime("%b %d")
-    return day.strftime("%b %d")
-
-
-def resolve_range(granularity, start_raw, end_raw):
-    if granularity not in GRANULARITIES:
-        raise RangeError("granularity must be daily, weekly or monthly")
-    today = local_today()
-    try:
-        end = date.fromisoformat(end_raw) if end_raw else today
-        if start_raw:
-            start = date.fromisoformat(start_raw)
-        elif granularity == "weekly":
-            start = week_start(end) - timedelta(weeks=11)
-        elif granularity == "monthly":
-            first = month_start(end)
-            start = first
-            for _ in range(11):
-                start = month_start(start - timedelta(days=1))
-        else:
-            start = end - timedelta(days=29)
-    except ValueError:
-        raise RangeError("Dates must be in YYYY-MM-DD format")
-    if start > end:
-        raise RangeError("The start date must be on or before the end date")
-    if (end - start).days > MAX_RANGE_DAYS:
-        raise RangeError("The date range is limited to two years")
-    return start, end
-
-
-def _money(value):
-    return Decimal(str(value or 0))
-
-
-def fetch_lines(start, end, owner_admin_id=None, product_id=None):
-    """Recorded sale lines between two local dates, inclusive."""
-    offset = _offset()
-    start_utc = datetime.combine(start, datetime.min.time()) - offset
-    end_utc = datetime.combine(end + timedelta(days=1), datetime.min.time()) - offset
-
-    query = (
-        db.session.query(
-            Order.id, Order.created_at, OrderItem.product_id, OrderItem.product_name,
-            OrderItem.quantity, OrderItem.unit_price,
-        )
-        .join(OrderItem, OrderItem.order_id == Order.id)
-        .filter(
-            Order.status.in_(SALE_STATUSES),
-            Order.return_status != "approved",
-            Order.created_at >= start_utc,
-            Order.created_at < end_utc,
-        )
-    )
-    if owner_admin_id is not None:
-        query = query.join(Product, Product.id == OrderItem.product_id).filter(
-            Product.owner_admin_id == owner_admin_id
-        )
-    if product_id is not None:
-        query = query.filter(OrderItem.product_id == product_id)
-
-    lines = []
-    for order_id, created_at, pid, name, qty, unit_price in query.all():
-        lines.append({
-            "orderId": order_id,
-            "day": (created_at + offset).date(),
-            "productId": pid,
-            "name": name,
-            "units": int(qty),
-            "revenue": _money(unit_price) * int(qty),
-        })
-    return lines
+    return f"{day.strftime('%b')} {day.day}"
 
 
 def summarize(lines):
     revenue = sum((l["revenue"] for l in lines), Decimal(0))
+    units = sum(l["qty"] for l in lines)
     orders = len({l["orderId"] for l in lines})
+    average = (revenue / orders) if orders else Decimal(0)
     return {
         "revenue": float(round(revenue, 2)),
-        "unitsSold": sum(l["units"] for l in lines),
+        "units": units,
         "orders": orders,
-        "averageOrderValue": float(round(revenue / orders, 2)) if orders else 0.0,
+        "averageOrderValue": float(round(average, 2)),
     }
+
+
+def change_percent(current, previous):
+    """None when there is nothing to compare against (never a made-up number)."""
+    if not previous:
+        return None
+    return round((current - previous) / previous * 100, 1)
 
 
 def build_series(lines, start, end, granularity):
@@ -161,251 +151,263 @@ def build_series(lines, start, end, granularity):
         buckets[cursor] = {"revenue": Decimal(0), "units": 0, "orders": set()}
         cursor = next_bucket(cursor, granularity)
     for line in lines:
-        slot = buckets.get(bucket_start(line["day"], granularity))
-        if slot is None:
-            continue
-        slot["revenue"] += line["revenue"]
-        slot["units"] += line["units"]
-        slot["orders"].add(line["orderId"])
+        bucket = buckets[bucket_start(line["day"], granularity)]
+        bucket["revenue"] += line["revenue"]
+        bucket["units"] += line["qty"]
+        bucket["orders"].add(line["orderId"])
     return [
         {
-            "label": bucket_label(day, granularity),
             "start": day.isoformat(),
-            "revenue": float(round(slot["revenue"], 2)),
-            "units": slot["units"],
-            "orders": len(slot["orders"]),
+            "label": bucket_label(day, granularity),
+            "revenue": float(round(data["revenue"], 2)),
+            "units": data["units"],
+            "orders": len(data["orders"]),
         }
-        for day, slot in buckets.items()
+        for day, data in buckets.items()
     ]
 
 
-def _percent_change(current, previous):
-    if not previous:
-        return None
-    return round((current - previous) / previous * 100, 1)
+def catalog_products(product_ids=None):
+    query = Product.query.filter(Product.category != "Services")
+    if product_ids is not None:
+        query = query.filter(Product.id.in_(list(product_ids) or [-1]))
+    return query.order_by(Product.id).all()
 
 
-def _group_by_product(lines):
-    grouped = {}
-    for line in lines:
-        key = line["productId"] if line["productId"] is not None else f"name:{line['name']}"
-        entry = grouped.setdefault(key, {
-            "productId": line["productId"], "name": line["name"],
-            "units": 0, "revenue": Decimal(0), "orders": set(),
-        })
-        entry["units"] += line["units"]
-        entry["revenue"] += line["revenue"]
-        entry["orders"].add(line["orderId"])
-    return grouped
+def product_rows(current_lines, previous_lines, products):
+    """One row per catalog product, including products with no sales in the range."""
+    def tally(lines):
+        totals = defaultdict(lambda: {"units": 0, "revenue": Decimal(0), "orders": set(), "name": ""})
+        for line in lines:
+            key = line["productId"] if line["productId"] is not None else f"name:{line['name']}"
+            row = totals[key]
+            row["units"] += line["qty"]
+            row["revenue"] += line["revenue"]
+            row["orders"].add(line["orderId"])
+            row["name"] = line["name"]
+        return totals
 
+    now, before = tally(current_lines), tally(previous_lines)
+    total_revenue = sum((r["revenue"] for r in now.values()), Decimal(0))
 
-def catalog_products(owner_admin_id=None):
-    query = Product.query.filter(Product.category != LEGACY_SERVICE_CATEGORY)
-    if owner_admin_id is not None:
-        query = query.filter(Product.owner_admin_id == owner_admin_id)
-    return query.all()
-
-
-def product_table(lines, previous_lines, catalog):
-    current = _group_by_product(lines)
-    previous = _group_by_product(previous_lines)
-    total_revenue = sum((e["revenue"] for e in current.values()), Decimal(0))
-    stock_by_id = {p.id: p for p in catalog}
-
-    rows = []
-    seen = set()
-    for key, entry in current.items():
-        seen.add(key)
-        prev = previous.get(key)
-        product = stock_by_id.get(entry["productId"])
-        rows.append({
-            "productId": entry["productId"],
-            "name": entry["name"],
-            "category": product.category if product else None,
-            "stock": product.stock if product else None,
-            "units": entry["units"],
-            "revenue": float(round(entry["revenue"], 2)),
-            "orders": len(entry["orders"]),
-            "share": float(round(entry["revenue"] / total_revenue * 100, 1)) if total_revenue else 0.0,
-            "previousUnits": prev["units"] if prev else 0,
-            "previousRevenue": float(round(prev["revenue"], 2)) if prev else 0.0,
-            "unitsChange": _percent_change(entry["units"], prev["units"] if prev else 0),
-        })
-    for product in catalog:
-        if product.id in seen:
+    rows, seen = [], set()
+    for product in products:
+        seen.add(product.id)
+        cur, prev = now.get(product.id), before.get(product.id)
+        rows.append(_row(product.id, product.name, product.category, product.stock, cur, prev, total_revenue))
+    for key, cur in now.items():  # sold in the range but no longer in the catalog
+        if key in seen:
             continue
-        prev = previous.get(product.id)
-        rows.append({
-            "productId": product.id, "name": product.name, "category": product.category,
-            "stock": product.stock, "units": 0, "revenue": 0.0, "orders": 0, "share": 0.0,
-            "previousUnits": prev["units"] if prev else 0,
-            "previousRevenue": float(round(prev["revenue"], 2)) if prev else 0.0,
-            "unitsChange": _percent_change(0, prev["units"]) if prev else None,
-        })
-    rows.sort(key=lambda r: (-r["revenue"], -r["units"], r["name"]))
+        rows.append(_row(None, cur["name"], None, None, cur, before.get(key), total_revenue))
     return rows
 
 
-def best_and_lowest(rows):
-    sold = [r for r in rows if r["units"] > 0]
-    if not sold:
-        return None, None
-    by_units = sorted(sold, key=lambda r: (-r["units"], -r["revenue"]))
-    best = by_units[0]
-    lowest = by_units[-1] if len(by_units) > 1 else None
-    return best, lowest
+def _row(product_id, name, category, stock, cur, prev, total_revenue):
+    units = cur["units"] if cur else 0
+    revenue = cur["revenue"] if cur else Decimal(0)
+    prev_units = prev["units"] if prev else 0
+    prev_revenue = prev["revenue"] if prev else Decimal(0)
+    return {
+        "productId": product_id,
+        "name": name,
+        "category": category,
+        "stock": stock,
+        "units": units,
+        "revenue": float(round(revenue, 2)),
+        "orders": len(cur["orders"]) if cur else 0,
+        "revenueShare": round(float(revenue / total_revenue) * 100, 1) if total_revenue else 0,
+        "previousUnits": prev_units,
+        "previousRevenue": float(round(prev_revenue, 2)),
+        "unitsChange": change_percent(units, prev_units),
+        "revenueChange": change_percent(float(revenue), float(prev_revenue)),
+        "discontinued": product_id is None,
+    }
 
 
-def recommendations(rows, owner_admin_id=None):
-    """Rule-based suggestions. Each one states the figures it is based on."""
-    items = []
-    sold = [r for r in rows if r["units"] > 0]
+def build_report(start, end, granularity, product_ids=None):
+    if granularity not in GRANULARITIES:
+        raise ReportError("Choose daily, weekly or monthly")
+    prev_start, prev_end = previous_range(start, end)
 
-    for row in sorted(sold, key=lambda r: -r["revenue"])[:3]:
-        items.append({
-            "type": "prioritize", "productId": row["productId"], "name": row["name"],
-            "message": f"Recorded {row['units']} units and {row['share']}% of revenue in the selected period.",
-        })
+    current = fetch_sale_lines(start, end, product_ids)
+    previous = fetch_sale_lines(prev_start, prev_end, product_ids)
+    rows = product_rows(current, previous, catalog_products(product_ids))
 
+    sold = sorted((r for r in rows if r["units"] > 0), key=lambda r: (-r["units"], -r["revenue"]))
+    ranked_for_lowest = sorted(
+        (r for r in rows if not r["discontinued"]), key=lambda r: (r["units"], r["revenue"], r["name"])
+    )
+
+    summary, prior = summarize(current), summarize(previous)
+    return {
+        "range": {
+            "start": start.isoformat(), "end": end.isoformat(),
+            "previousStart": prev_start.isoformat(), "previousEnd": prev_end.isoformat(),
+            "granularity": granularity,
+        },
+        "summary": summary,
+        "previous": prior,
+        "change": {
+            "revenue": change_percent(summary["revenue"], prior["revenue"]),
+            "units": change_percent(summary["units"], prior["units"]),
+            "orders": change_percent(summary["orders"], prior["orders"]),
+        },
+        "series": build_series(current, start, end, granularity),
+        "products": sorted(rows, key=lambda r: (-r["units"], -r["revenue"], r["name"])),
+        "bestSelling": sold[:5],
+        "lowestSelling": ranked_for_lowest[:5],
+        "basis": "Recorded sales: orders that were confirmed and not cancelled, returned or refunded. "
+                 "Revenue excludes shipping fees.",
+    }
+
+
+def build_product_history(product_id, start, end, granularity):
+    if granularity not in GRANULARITIES:
+        raise ReportError("Choose daily, weekly or monthly")
+    lines = fetch_sale_lines(start, end, [product_id])
+    return {
+        "range": {"start": start.isoformat(), "end": end.isoformat(), "granularity": granularity},
+        "summary": summarize(lines),
+        "series": build_series(lines, start, end, granularity),
+    }
+
+
+def recorded_revenue(product_ids=None):
+    """Merchandise revenue of every recorded sale, all time. Used on the dashboard overview."""
+    query = (
+        db.session.query(OrderItem, Order)
+        .join(Order, Order.id == OrderItem.order_id)
+        .filter(
+            Order.status.in_(SALE_STATUSES),
+            Order.return_status != "approved",
+            Order.payment_status.notin_(NOT_A_SALE_PAYMENT_STATES),
+        )
+    )
+    if product_ids is not None:
+        query = query.filter(OrderItem.product_id.in_(list(product_ids) or [-1]))
+    total, orders = Decimal(0), set()
+    for item, order in query.all():
+        total += Decimal(item.unit_price) * item.quantity
+        orders.add(order.id)
+    return float(round(total, 2)), len(orders)
+
+
+def first_sale_day(product_ids=None):
+    query = (
+        db.session.query(db.func.min(Order.created_at))
+        .join(OrderItem, OrderItem.order_id == Order.id)
+        .filter(
+            Order.status.in_(SALE_STATUSES),
+            Order.return_status != "approved",
+            Order.payment_status.notin_(NOT_A_SALE_PAYMENT_STATES),
+        )
+    )
+    if product_ids is not None:
+        query = query.filter(OrderItem.product_id.in_(list(product_ids) or [-1]))
+    first = query.scalar()
+    return to_local_date(first) if first else None
+
+
+def weighted_average(values):
+    """Recent weeks count more: weights 1, 2, 3 ... oldest to newest."""
+    weights = range(1, len(values) + 1)
+    return sum(v * w for v, w in zip(values, weights)) / sum(weights)
+
+
+def build_insights(product_ids=None):
+    """Demand estimates and suggestions. Everything here is derived from recorded weekly
+    sales of the last LOOKBACK_WEEKS full weeks; nothing is guaranteed."""
     today = local_today()
-    window_start = today - timedelta(days=RESTOCK_WINDOW_DAYS - 1)
-    recent = _group_by_product(fetch_lines(window_start, today, owner_admin_id))
-    for product in catalog_products(owner_admin_id):
-        entry = recent.get(product.id)
-        if not entry:
-            continue
-        daily_rate = entry["units"] / RESTOCK_WINDOW_DAYS
-        cover_days = product.stock / daily_rate if daily_rate else None
-        if cover_days is not None and cover_days < RESTOCK_COVER_DAYS:
-            items.append({
-                "type": "restock", "productId": product.id, "name": product.name,
-                "message": (
-                    f"{product.stock} in stock; sold {entry['units']} units in the last "
-                    f"{RESTOCK_WINDOW_DAYS} days. At that pace stock lasts about {round(cover_days)} days."
-                ),
-            })
+    this_week = today - timedelta(days=today.weekday())
+    week_starts = [this_week - timedelta(days=7 * n) for n in range(LOOKBACK_WEEKS, 0, -1)]
+    window_start, window_end = week_starts[0], this_week - timedelta(days=1)
 
-    for row in rows:
-        if row["units"] == 0 and (row["stock"] or 0) > 0 and row["previousUnits"] == 0:
-            items.append({
-                "type": "promote", "productId": row["productId"], "name": row["name"],
-                "message": "No recorded sales in this period or the one before it. Consider a promotion or better placement.",
-            })
-        elif row["previousUnits"] >= 3 and row["unitsChange"] is not None and row["unitsChange"] <= -30:
-            items.append({
-                "type": "attention", "productId": row["productId"], "name": row["name"],
-                "message": f"Units sold fell {abs(row['unitsChange'])}% against the previous period ({row['previousUnits']} to {row['units']}).",
-            })
-    return items
+    first_day = first_sale_day(product_ids)
+    history_days = (today - first_day).days if first_day else 0
+    enough_history = history_days >= MIN_HISTORY_DAYS
 
-
-def forecast(owner_admin_id=None):
-    """Next-weeks demand estimate from weekly history. Not a guarantee."""
-    this_week = week_start(local_today())
-    history_start = this_week - timedelta(weeks=FORECAST_HISTORY_WEEKS)
-    history_end = this_week - timedelta(days=1)
-    lines = fetch_lines(history_start, history_end, owner_admin_id)
-
-    weekly = defaultdict(lambda: defaultdict(int))
-    totals = defaultdict(lambda: {"units": 0, "revenue": Decimal(0)})
+    lines = fetch_sale_lines(window_start, window_end, product_ids)
+    weekly = defaultdict(lambda: [0] * LOOKBACK_WEEKS)
+    order_ids = defaultdict(set)
     for line in lines:
         if line["productId"] is None:
             continue
-        weekly[line["productId"]][week_start(line["day"])] += line["units"]
-        totals[line["productId"]]["units"] += line["units"]
-        totals[line["productId"]]["revenue"] += line["revenue"]
+        index = (bucket_start(line["day"], "weekly") - window_start).days // 7
+        weekly[line["productId"]][index] += line["qty"]
+        order_ids[line["productId"]].add(line["orderId"])
 
-    week_starts = [history_start + timedelta(weeks=i) for i in range(FORECAST_HISTORY_WEEKS)]
-    results = []
-    expected_revenue = Decimal(0)
-    for product in catalog_products(owner_admin_id):
-        series = [weekly[product.id].get(w, 0) for w in week_starts]
-        weeks_with_sales = sum(1 for v in series if v > 0)
-        total_units = sum(series)
-        entry = {
+    items, suggestions = [], []
+    for product in catalog_products(product_ids):
+        units = weekly.get(product.id, [0] * LOOKBACK_WEEKS)
+        orders = len(order_ids.get(product.id, ()))
+        item = {
             "productId": product.id, "name": product.name, "stock": product.stock,
-            "weeklyHistory": series,
+            "weeklyUnits": units, "ordersInWindow": orders,
+            "status": "not_enough_data",
         }
-        if weeks_with_sales < FORECAST_MIN_WEEKS_WITH_SALES or total_units < FORECAST_MIN_UNITS:
-            entry.update({"sufficientData": False, "confidence": None})
-            results.append(entry)
-            continue
+        if not enough_history:
+            item["note"] = f"Needs at least {MIN_HISTORY_DAYS} days of recorded sales; there are {history_days} so far."
+        elif sum(units) == 0:
+            item["status"] = "no_recent_sales"
+            item["note"] = f"No sales recorded in the last {LOOKBACK_WEEKS} weeks."
+            if product.stock > 0:
+                suggestions.append({
+                    "type": "promote", "productId": product.id, "name": product.name,
+                    "message": f"{product.name} had no recorded sales in the last {LOOKBACK_WEEKS} weeks "
+                               f"and {product.stock} units are in stock. It may need promotion.",
+                })
+        elif orders < MIN_ORDERS_FOR_ESTIMATE:
+            item["note"] = f"Only {orders} order(s) in the last {LOOKBACK_WEEKS} weeks, too few for an estimate."
+        else:
+            per_week = weighted_average(units)
+            recent, prior = sum(units[LOOKBACK_WEEKS // 2:]), sum(units[:LOOKBACK_WEEKS // 2])
+            if prior == 0:
+                trend = "up"
+            else:
+                ratio = recent / prior
+                trend = "up" if ratio >= 1.15 else "down" if ratio <= 0.85 else "flat"
+            estimate = per_week * FORECAST_DAYS / 7
+            days_of_stock = round(product.stock / (per_week / 7), 1) if per_week > 0 else None
+            item.update({
+                "status": "estimate",
+                "estimatedWeeklyUnits": round(per_week, 1),
+                "estimatedUnitsNext30Days": round(estimate),
+                "estimateLow": math.floor(min(units) * FORECAST_DAYS / 7),
+                "estimateHigh": math.ceil(max(units) * FORECAST_DAYS / 7),
+                "trend": trend,
+                "daysOfStock": days_of_stock,
+            })
+            if days_of_stock is not None and days_of_stock < RESTOCK_WITHIN_DAYS:
+                shortfall = max(0, math.ceil(estimate - product.stock))
+                suggestions.append({
+                    "type": "restock", "productId": product.id, "name": product.name,
+                    "message": f"{product.name}: {product.stock} in stock covers about {days_of_stock} days "
+                               f"at the recent pace. Roughly {shortfall} more units would cover the next {FORECAST_DAYS} days.",
+                })
+            elif trend == "up":
+                suggestions.append({
+                    "type": "prioritize", "productId": product.id, "name": product.name,
+                    "message": f"{product.name} is selling faster than before (about {round(per_week, 1)} units a week). "
+                               "Keep it in stock and visible.",
+                })
+            elif trend == "down" and days_of_stock and days_of_stock > 90:
+                suggestions.append({
+                    "type": "promote", "productId": product.id, "name": product.name,
+                    "message": f"{product.name} sales are slowing and current stock would last about "
+                               f"{days_of_stock} days. A promotion may help.",
+                })
+        items.append(item)
 
-        recent = series[-4:]
-        weights = [1, 2, 3, 4]
-        per_week = sum(v * w for v, w in zip(recent, weights)) / sum(weights)
-        spread = pstdev(series)
-        expected_units = round(per_week * FORECAST_HORIZON_WEEKS)
-        low = max(0, round((per_week - spread) * FORECAST_HORIZON_WEEKS))
-        high = round((per_week + spread) * FORECAST_HORIZON_WEEKS)
-        avg_price = totals[product.id]["revenue"] / totals[product.id]["units"]
-        expected_revenue += avg_price * expected_units
-        entry.update({
-            "sufficientData": True,
-            "confidence": "moderate" if weeks_with_sales >= 6 else "low",
-            "expectedUnits": expected_units,
-            "lowUnits": low,
-            "highUnits": high,
-            "needsRestock": product.stock < expected_units,
-        })
-        results.append(entry)
-
-    results.sort(key=lambda r: (not r["sufficientData"], -(r.get("expectedUnits") or 0), r["name"]))
+    order = {"restock": 0, "prioritize": 1, "promote": 2}
+    suggestions.sort(key=lambda s: (order[s["type"]], s["name"]))
     return {
-        "isEstimate": True,
-        "horizonWeeks": FORECAST_HORIZON_WEEKS,
-        "historyWeeks": FORECAST_HISTORY_WEEKS,
-        "weekLabels": [bucket_label(w, "weekly") for w in week_starts],
-        "method": (
-            "Weighted average of the last four complete weeks of recorded sales, "
-            "with the range based on week-to-week variation. Products need sales in at "
-            f"least {FORECAST_MIN_WEEKS_WITH_SALES} of the last {FORECAST_HISTORY_WEEKS} weeks "
-            f"and {FORECAST_MIN_UNITS} units to be estimated."
-        ),
-        "expectedRevenue": float(round(expected_revenue, 2)),
-        "products": results,
-    }
-
-
-def build_report(granularity, start, end, owner_admin_id=None):
-    lines = fetch_lines(start, end, owner_admin_id)
-    span = (end - start).days + 1
-    previous_end = start - timedelta(days=1)
-    previous_start = previous_end - timedelta(days=span - 1)
-    previous_lines = fetch_lines(previous_start, previous_end, owner_admin_id)
-
-    summary = summarize(lines)
-    previous_summary = summarize(previous_lines)
-    rows = product_table(lines, previous_lines, catalog_products(owner_admin_id))
-    best, lowest = best_and_lowest(rows)
-
-    return {
-        "granularity": granularity,
-        "range": {"start": start.isoformat(), "end": end.isoformat(), "days": span},
-        "previousRange": {"start": previous_start.isoformat(), "end": previous_end.isoformat()},
-        "summary": summary,
-        "previousSummary": previous_summary,
-        "change": {
-            "revenue": _percent_change(summary["revenue"], previous_summary["revenue"]),
-            "unitsSold": _percent_change(summary["unitsSold"], previous_summary["unitsSold"]),
-            "orders": _percent_change(summary["orders"], previous_summary["orders"]),
-        },
-        "series": build_series(lines, start, end, granularity),
-        "products": rows,
-        "bestSeller": best,
-        "lowestSeller": lowest,
-        "recommendations": recommendations(rows, owner_admin_id),
-        "forecast": forecast(owner_admin_id),
-        "basis": "Recorded sales: confirmed, processing, shipped and delivered orders, excluding approved returns.",
-    }
-
-
-def build_product_history(product, granularity, start, end):
-    lines = fetch_lines(start, end, product_id=product.id)
-    return {
-        "product": {"id": product.id, "name": product.name, "stock": product.stock, "price": float(product.price)},
-        "granularity": granularity,
-        "range": {"start": start.isoformat(), "end": end.isoformat()},
-        "summary": summarize(lines),
-        "series": build_series(lines, start, end, granularity),
+        "enoughHistory": enough_history,
+        "historyDays": history_days,
+        "window": {"start": window_start.isoformat(), "end": window_end.isoformat(), "weeks": LOOKBACK_WEEKS},
+        "method": f"Estimates use a weighted average of weekly units over the last {LOOKBACK_WEEKS} full weeks "
+                  "(recent weeks count more). The range is the slowest and fastest recorded week. "
+                  "A product needs a few orders and about a month of shop history before an estimate is shown.",
+        "disclaimer": "These are estimates from past sales, not guarantees. Actual demand can differ.",
+        "products": items,
+        "suggestions": suggestions,
     }
