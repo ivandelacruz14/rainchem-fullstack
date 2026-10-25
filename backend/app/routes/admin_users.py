@@ -2,13 +2,13 @@ from flask import Blueprint, request, jsonify
 
 from app.extensions import db
 from app.models import User, Order
-from app.utils.auth_decorators import require_head_admin
+from app.utils.auth_decorators import require_permission
 
 admin_users_bp = Blueprint("admin_users", __name__, url_prefix="/api/admin/users")
 
 
 @admin_users_bp.get("/summary")
-@require_head_admin
+@require_permission("customers")
 def users_summary():
     """Aggregate counts only, safe to show without revealing anyone's
     identity. The admin dashboard uses this until an admin explicitly asks
@@ -19,7 +19,7 @@ def users_summary():
 
 
 @admin_users_bp.get("")
-@require_head_admin
+@require_permission("customers")
 def list_users():
     search = (request.args.get("search") or "").lower()
     query = User.query
@@ -38,7 +38,7 @@ def list_users():
 
 
 @admin_users_bp.get("/<int:user_id>")
-@require_head_admin
+@require_permission("customers")
 def get_user(user_id):
     user = User.query.get_or_404(user_id)
     orders = Order.query.filter_by(user_id=user_id).order_by(Order.created_at.desc()).all()
@@ -48,7 +48,7 @@ def get_user(user_id):
 
 
 @admin_users_bp.delete("/<int:user_id>")
-@require_head_admin
+@require_permission("customers")
 def deactivate_user(user_id):
     user = User.query.get_or_404(user_id)
     db.session.delete(user)

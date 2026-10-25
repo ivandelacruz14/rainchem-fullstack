@@ -4,7 +4,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.extensions import db
 from app.models import Admin, Product, Service
 from app.services.auth_utils import is_valid_email, validate_password
-from app.services.permissions import ASSIGNABLE_ROLES, DISTRIBUTOR, PERMISSIONS, clean_permissions
+from app.services.permissions import (
+    ASSIGNABLE_ROLES, DISTRIBUTOR, PERMISSIONS, clean_permissions, default_permissions, is_head_role, role_info,
+)
 from app.utils.auth_decorators import create_admin_token, current_admin, require_admin, require_head_admin
 
 admin_auth_bp = Blueprint("admin_auth", __name__, url_prefix="/api/admin/auth")
@@ -17,6 +19,16 @@ def _error(message, status=400):
 def _actor_confirmed(data):
     """Sensitive account actions need the acting Head Admin's own password again."""
     return check_password_hash(current_admin().password_hash, str(data.get("confirmPassword") or ""))
+
+
+def _permissions_for(role, requested):
+    """Stored permissions for a role: none for a Head Admin (they have everything), the
+    role's starting set when nothing was chosen, otherwise only what that role may hold."""
+    if is_head_role(role):
+        return None
+    if requested is None:
+        return default_permissions(role)
+    return clean_permissions(requested, role)
 
 
 def _active_heads():
@@ -66,6 +78,7 @@ def list_admins():
     return jsonify({
         "admins": [a.to_dict() for a in admins],
         "roles": ASSIGNABLE_ROLES,
+        "roleInfo": role_info(),
         "permissions": [{"key": k, "label": v} for k, v in PERMISSIONS.items()],
     })
 
@@ -87,7 +100,7 @@ def create_admin():
     if not is_valid_email(email):
         return _error("Please enter a valid email address")
     if role not in ASSIGNABLE_ROLES:
-        return _error("Choose Head Admin or Distributor")
+        return _error("Choose a valid role")
     if Admin.query.filter_by(email=email).first():
         return _error("An admin with this email already exists")
     problems = validate_password(password)
@@ -97,7 +110,7 @@ def create_admin():
     admin = Admin(
         name=name, email=email, role=role, is_active=True,
         password_hash=generate_password_hash(password),
-        permissions=clean_permissions(data.get("permissions")) if role == DISTRIBUTOR else None,
+        permissions=_permissions_for(role, data.get("permissions")),
     )
     db.session.add(admin)
     db.session.commit()
@@ -121,16 +134,18 @@ def update_admin(admin_id):
         if not name:
             return _error("Please enter a name")
         admin.name = name
-    if "role" in data:
+    role_changed = False
+    if "role" in data and data["role"] != admin.role:
         if data["role"] not in ASSIGNABLE_ROLES:
-            return _error("Choose Head Admin or Distributor")
+            return _error("Choose a valid role")
         admin.role = data["role"]
+        role_changed = True
     if "isActive" in data:
         admin.is_active = bool(data["isActive"])
-    if "permissions" in data or "role" in data:
-        admin.permissions = (
-            clean_permissions(data.get("permissions", admin.permissions)) if admin.role == DISTRIBUTOR else None
-        )
+    if "permissions" in data:
+        admin.permissions = _permissions_for(admin.role, data["permissions"])
+    elif role_changed:
+        admin.permissions = _permissions_for(admin.role, None)
 
     if not _active_heads():
         db.session.rollback()

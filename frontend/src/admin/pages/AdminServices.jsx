@@ -67,7 +67,7 @@ export default function AdminServices() {
       name: form.name, category: form.category, description: form.description, requirements: form.requirements,
       isActive: form.isActive, areas: form.areas.filter((a) => a.name.trim() || a.price !== ""),
     };
-    if (admin?.isHead) payload.ownerId = form.ownerId ? Number(form.ownerId) : null;
+    if (!admin?.isScoped) payload.ownerId = form.ownerId ? Number(form.ownerId) : null;
     setBusy(true);
     try {
       if (editing === "new") await client.post("/api/admin/services", payload);
@@ -140,7 +140,7 @@ export default function AdminServices() {
                 <div>
                   <h3 style={{ margin: 0 }}>{s.name} {!s.isActive && <span className="pill pill-low">Off</span>}</h3>
                   <p className="field-hint" style={{ margin: "2px 0 0" }}>
-                    {s.category || "No category"}{admin?.isHead && ` \u00b7 ${ownerName(s.ownerId)}`}
+                    {s.category || "No category"}{!admin?.isScoped && ` \u00b7 ${ownerName(s.ownerId)}`}
                   </p>
                 </div>
                 <div className="row-actions">
@@ -209,7 +209,7 @@ export default function AdminServices() {
               </div>
               <div className="field"><label>Description</label><textarea required rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
               <div className="field"><label>Requirements or conditions (optional)</label><textarea rows={2} value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} /></div>
-              {admin?.isHead && (
+              {!admin?.isScoped && (
                 <div className="field">
                   <label>Assigned to</label>
                   <select value={form.ownerId} onChange={(e) => setForm({ ...form, ownerId: e.target.value })}>

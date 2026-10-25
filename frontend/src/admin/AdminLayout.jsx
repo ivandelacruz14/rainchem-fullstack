@@ -13,15 +13,15 @@ const NAV_ITEMS = [
       { to: "/admin/sales", label: "Sales & Discounts", permission: "products" },
       { to: "/admin/services", label: "Services", permission: "services" },
       { to: "/admin/orders", label: "Orders", permission: "orders" },
-      { to: "/admin/users", label: "Users", headOnly: true },
+      { to: "/admin/users", label: "Users", permission: "customers" },
       { to: "/admin/analytics", label: "Sales Analytics", permission: "analytics" },
     ],
   },
   {
     group: "AI / RAG Chatbot",
     links: [
-      { to: "/admin/knowledge", label: "Knowledge Base", headOnly: true },
-      { to: "/admin/monitor", label: "Chat Monitor", headOnly: true },
+      { to: "/admin/knowledge", label: "Knowledge Base", permission: "chatbot" },
+      { to: "/admin/monitor", label: "Chat Monitor", permission: "chatbot" },
     ],
   },
   {

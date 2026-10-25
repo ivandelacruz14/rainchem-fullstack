@@ -42,14 +42,12 @@ export default function Products() {
   const { admin } = useAdminAuth();
 
   function loadProducts() {
-    client.get("/api/products/manage").then((res) => setProducts(res.data.products));
+    client.get("/api/products/manage").then((res) => {
+      setProducts(res.data.products);
+      setDistributors(res.data.distributors || []);
+    });
   }
   useEffect(loadProducts, []);
-
-  useEffect(() => {
-    if (!admin?.isHead) return;
-    client.get("/api/admin/auth/accounts").then((res) => setDistributors(res.data.admins.filter((a) => !a.isHead)));
-  }, [admin?.isHead]);
 
   const ownerName = (id) => (id ? distributors.find((d) => d.id === id)?.name || "Distributor" : "Head office");
 
@@ -91,7 +89,7 @@ export default function Products() {
       usage: form.usage.split("\n").map((s) => s.trim()).filter(Boolean),
     };
     if (pendingImage) payload.imagePhoto = pendingImage;
-    if (admin?.isHead) payload.ownerId = form.ownerId ? Number(form.ownerId) : null;
+    if (!admin?.isScoped) payload.ownerId = form.ownerId ? Number(form.ownerId) : null;
 
     if (!form.price || isNaN(parseFloat(form.price))) {
   showToast("Please enter a valid price", "error");
@@ -135,7 +133,7 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
   return (
     <div>
       <div className="admin-topbar">
-        <div><h1>Products</h1><p>{admin?.isHead ? "Manage catalog, pricing, and stock levels." : "Your assigned products. Ratings come from customer reviews."}</p></div>
+        <div><h1>Products</h1><p>{!admin?.isScoped ? "Manage catalog, pricing, and stock levels." : "Your assigned products. Ratings come from customer reviews."}</p></div>
         <button className="btn btn-primary" onClick={openAdd}>+ Add Product</button>
       </div>
 
@@ -148,7 +146,7 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
         </div>
         <div className="table-wrap">
           <table className="admin-table stack">
-            <thead><tr><th></th><th>Product</th><th>Category</th>{admin?.isHead && <th>Owner</th>}<th>Price</th><th>Stock</th><th>Reviews</th><th></th></tr></thead>
+            <thead><tr><th></th><th>Product</th><th>Category</th>{!admin?.isScoped && <th>Owner</th>}<th>Price</th><th>Stock</th><th>Reviews</th><th></th></tr></thead>
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.id}>
@@ -159,7 +157,7 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
                   </td>
                   <td data-label="Product" className="cell-name">{p.name}</td>
                   <td data-label="Category">{p.category}</td>
-                  {admin?.isHead && <td data-label="Owner">{ownerName(p.ownerId)}</td>}
+                  {!admin?.isScoped && <td data-label="Owner">{ownerName(p.ownerId)}</td>}
                   <td data-label="Price">{peso(p.price)}</td>
                   <td data-label="Stock">{p.stock < 20 ? <span className="pill pill-low">{p.stock} left</span> : p.stock}</td>
                   <td data-label="Reviews">{p.reviews > 0 ? `\u2605 ${p.rating.toFixed(1)} (${p.reviews})` : "None yet"}</td>
@@ -209,7 +207,7 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
                 </div>
                 <div className="field-row">
                   <div className="field"><label>Stock (units available)</label><input required type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
-                  {admin?.isHead ? (
+                  {!admin?.isScoped ? (
                     <div className="field">
                       <label>Assigned to</label>
                       <select value={form.ownerId} onChange={(e) => setForm({ ...form, ownerId: e.target.value })}>

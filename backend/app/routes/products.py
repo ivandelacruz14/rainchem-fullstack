@@ -15,12 +15,12 @@ MAX_PRICE = Decimal("1000000")
 
 
 def _visible_to_admin(product, admin):
-    return admin.is_head or product.owner_admin_id == admin.id
+    return not admin.is_scoped or product.owner_admin_id == admin.id
 
 
 def _owner_from_payload(data, admin, current_owner=None):
     """Distributors always own what they create. Only a Head Admin can assign an owner."""
-    if not admin.is_head:
+    if admin.is_scoped:
         return admin.id if current_owner is None else current_owner
     if "ownerId" not in data:
         return current_owner
@@ -103,9 +103,14 @@ def list_manageable_products():
     only their own products for a distributor."""
     admin = current_admin()
     query = Product.query.filter(Product.category != "Services")
-    if not admin.is_head:
+    if admin.is_scoped:
         query = query.filter(Product.owner_admin_id == admin.id)
-    return jsonify({"products": serialize_products(query.order_by(Product.id).all(), admin_view=True)})
+    payload = {"products": serialize_products(query.order_by(Product.id).all(), admin_view=True)}
+    if not admin.is_scoped:
+        payload["distributors"] = [
+            {"id": a.id, "name": a.name} for a in Admin.query.order_by(Admin.name).all() if a.is_scoped
+        ]
+    return jsonify(payload)
 
 
 @products_bp.get("/<int:product_id>")

@@ -25,6 +25,8 @@ def list_orders():
         query = query.filter(Order.id.in_(
             db.session.query(OrderItem.order_id).filter(OrderItem.product_id.in_(ids or [-1]))
         ))
+    # Without the manage_orders permission the list is the read-only view: no contact or payment details.
+    limited = ids is not None or not admin.has_permission("manage_orders")
     if status == "returns":
         query = query.filter(Order.return_status != "none")
     elif status == "verifying":
@@ -32,20 +34,21 @@ def list_orders():
     elif status and status != "All":
         query = query.filter_by(status=status)
     orders = query.order_by(Order.created_at.desc()).all()
-    if ids is not None:
-        return jsonify({"scope": "limited", "orders": [o.to_scoped_dict(set(ids)) for o in orders]})
+    if limited:
+        keep = None if ids is None else set(ids)
+        return jsonify({"scope": "limited", "orders": [o.to_scoped_dict(keep) for o in orders]})
     return jsonify({"scope": "full", "orders": [o.to_dict() for o in orders]})
 
 
 @admin_orders_bp.get("/<int:order_id>")
-@require_head_admin
+@require_permission("manage_orders")
 def get_order(order_id):
     order = Order.query.get_or_404(order_id)
     return jsonify({"order": order.to_dict()})
 
 
 @admin_orders_bp.post("/<int:order_id>/confirm")
-@require_head_admin
+@require_permission("manage_orders")
 def confirm_order(order_id):
     order = Order.query.get_or_404(order_id)
     if order.status != "pending_confirmation":
@@ -73,7 +76,7 @@ def confirm_order(order_id):
 
 
 @admin_orders_bp.post("/<int:order_id>/status")
-@require_head_admin
+@require_permission("manage_orders")
 def update_status(order_id):
     order = Order.query.get_or_404(order_id)
     data = request.get_json() or {}
@@ -114,7 +117,7 @@ def update_status(order_id):
 
 
 @admin_orders_bp.get("/<int:order_id>/receipt")
-@require_head_admin
+@require_permission("manage_orders")
 def get_receipt(order_id):
     order = Order.query.get_or_404(order_id)
     if not order.receipt and order.status in ("confirmed", "processing", "shipped", "delivered"):
@@ -125,14 +128,14 @@ def get_receipt(order_id):
 
 
 @admin_orders_bp.get("/<int:order_id>/payment-proof")
-@require_head_admin
+@require_permission("manage_orders")
 def get_payment_proof(order_id):
     order = Order.query.get_or_404(order_id)
     return jsonify({"proof": order.payment_proof})
 
 
 @admin_orders_bp.post("/<int:order_id>/payment/verify")
-@require_head_admin
+@require_permission("manage_orders")
 def verify_payment(order_id):
     """Admin checked the GCash account and the payment arrived."""
     order = Order.query.get_or_404(order_id)
@@ -147,7 +150,7 @@ def verify_payment(order_id):
 
 
 @admin_orders_bp.post("/<int:order_id>/payment/reject")
-@require_head_admin
+@require_permission("manage_orders")
 def reject_payment(order_id):
     """The reference/screenshot did not match a real payment. Send the order back
     to unpaid so the customer can try again or pick another method."""
@@ -171,7 +174,7 @@ def reject_payment(order_id):
 
 
 @admin_orders_bp.post("/<int:order_id>/return/<decision>")
-@require_head_admin
+@require_permission("manage_orders")
 def decide_return(order_id, decision):
     order = Order.query.get_or_404(order_id)
     if decision not in ("approve", "reject"):
@@ -208,7 +211,7 @@ def decide_return(order_id, decision):
 
 
 @admin_orders_bp.post("/<int:order_id>/refunded")
-@require_head_admin
+@require_permission("manage_orders")
 def mark_refunded(order_id):
     order = Order.query.get_or_404(order_id)
     if order.payment_status != "refund_pending":

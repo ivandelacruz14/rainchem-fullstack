@@ -13,7 +13,20 @@ const PASSWORD_RULES = [
   { key: "sym", label: "One symbol", test: (p) => /[^A-Za-z0-9]/.test(p) },
 ];
 
-const EMPTY = { name: "", email: "", role: "Distributor", password: "", permissions: [], confirmPassword: "" };
+const EMPTY = { name: "", email: "", role: "Support Staff", password: "", permissions: [], confirmPassword: "" };
+
+const ROLE_NOTES = {
+  "Head Admin": "Full control, including admin accounts and payment settings.",
+  Admin: "Runs the shop day to day: all products, services, orders, customers, chatbot and reports. Cannot manage admin accounts or payment settings.",
+  "Support Staff": "Handles orders, customers and the chatbot. Does not manage products, prices or reports unless you tick them.",
+  Distributor: "Only sees and manages their own products and services. Cannot see customers or other distributors' sales.",
+  "Content Manager": "Older role: products, services, reports and the chatbot.",
+};
+
+const PERMISSION_NAMES = {
+  products: "Products", services: "Services", orders: "View orders", manage_orders: "Manage orders",
+  customers: "Customers", chatbot: "Chatbot", analytics: "Reports",
+};
 
 function PermissionChecks({ options, value, onChange }) {
   function toggle(key) {
@@ -36,7 +49,8 @@ export default function AdminAccounts() {
   const showToast = useToast();
   const [admins, setAdmins] = useState([]);
   const [permissionOptions, setPermissionOptions] = useState([]);
-  const [roles, setRoles] = useState(["Head Admin", "Distributor"]);
+  const [roles, setRoles] = useState([]);
+  const [roleInfo, setRoleInfo] = useState({});
   const [dialog, setDialog] = useState(null); // {type: create|edit|password|delete, account?}
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -46,14 +60,15 @@ export default function AdminAccounts() {
       setAdmins(res.data.admins);
       setPermissionOptions(res.data.permissions);
       setRoles(res.data.roles);
+      setRoleInfo(res.data.roleInfo);
     });
   }
   useEffect(load, []);
 
   function open(type, account = null) {
     setForm(account
-      ? { ...EMPTY, name: account.name, role: account.isHead ? "Head Admin" : "Distributor", permissions: account.permissions, isActive: account.isActive }
-      : EMPTY);
+      ? { ...EMPTY, name: account.name, role: account.role, permissions: account.permissions, isActive: account.isActive }
+      : { ...EMPTY, permissions: roleInfo["Support Staff"]?.preset || [] });
     setDialog({ type, account });
   }
 
@@ -102,7 +117,15 @@ export default function AdminAccounts() {
   }
 
   const type = dialog?.type;
-  const isDistributor = form.role === "Distributor";
+  const info = roleInfo[form.role];
+  const isHeadRole = form.role === "Head Admin" || form.role === "Super Admin";
+  const roleOptions = roles.includes(form.role) ? roles : [...roles, form.role]; // an older role stays selectable
+  const visibleOptions = permissionOptions.filter((opt) => !info || info.allowed.includes(opt.key));
+
+  function chooseRole(role) {
+    // A new role starts from that role's usual permissions; they can still be adjusted below.
+    setForm((prev) => ({ ...prev, role, permissions: roleInfo[role]?.preset || [] }));
+  }
   const titles = { create: "Add account", edit: "Edit account", password: "Reset password", delete: "Remove account" };
 
   return (
@@ -126,7 +149,9 @@ export default function AdminAccounts() {
                   <td data-label="Email" className="cell-wrap">{a.email}</td>
                   <td data-label="Role"><span className="badge">{a.role}</span></td>
                   <td data-label="Access">
-                    {a.isHead ? "Full access" : a.permissions.length ? a.permissions.join(", ") : "Dashboard only"}
+                    {a.isHead ? "Full access" : a.permissions.length
+                      ? a.permissions.map((key) => PERMISSION_NAMES[key] || key).join(", ")
+                      : "Dashboard only"}
                   </td>
                   <td data-label="Status">{a.isActive ? "Active" : <span className="pill pill-low">Disabled</span>}</td>
                   <td data-label="Created">{formatDate(a.createdAt).split(",")[0]}</td>
@@ -166,17 +191,18 @@ export default function AdminAccounts() {
                   )}
                   <div className="field">
                     <label>Role</label>
-                    <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                      {roles.map((r) => <option key={r}>{r}</option>)}
+                    <select value={form.role} onChange={(e) => chooseRole(e.target.value)}>
+                      {roleOptions.map((r) => <option key={r}>{r}</option>)}
                     </select>
+                    <p className="field-hint">{ROLE_NOTES[form.role] || ""}</p>
                   </div>
-                  {isDistributor ? (
-                    <div className="field">
-                      <label>What this distributor can do</label>
-                      <PermissionChecks options={permissionOptions} value={form.permissions} onChange={(permissions) => setForm({ ...form, permissions })} />
-                    </div>
+                  {isHeadRole ? (
+                    <div className="alert alert-info">Head Admins can do everything, including managing accounts and payment settings.</div>
                   ) : (
-                    <div className="alert alert-info">Head Admins can do everything, including managing accounts.</div>
+                    <div className="field">
+                      <label>What this account can do</label>
+                      <PermissionChecks options={visibleOptions} value={form.permissions} onChange={(permissions) => setForm({ ...form, permissions })} />
+                    </div>
                   )}
                   {type === "edit" && (
                     <label className="perm-item">

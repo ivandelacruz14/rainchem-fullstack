@@ -18,11 +18,11 @@ TRANSITIONS = {
 
 
 def _manageable(service, admin):
-    return admin.is_head or service.owner_admin_id == admin.id
+    return not admin.is_scoped or service.owner_admin_id == admin.id
 
 
 def _owner_id(data, admin, current_owner=None):
-    if not admin.is_head:
+    if admin.is_scoped:
         return admin.id if current_owner is None else current_owner
     if "ownerId" not in data:
         return current_owner
@@ -60,12 +60,12 @@ def _read_basics(data, creating):
 def list_services():
     admin = current_admin()
     query = Service.query.order_by(Service.name)
-    if not admin.is_head:
+    if admin.is_scoped:
         query = query.filter(Service.owner_admin_id == admin.id)
     payload = {"services": [s.to_dict(admin_view=True) for s in query.all()]}
-    if admin.is_head:
+    if not admin.is_scoped:
         payload["distributors"] = [
-            {"id": a.id, "name": a.name} for a in Admin.query.order_by(Admin.name).all() if not a.is_head
+            {"id": a.id, "name": a.name} for a in Admin.query.order_by(Admin.name).all() if a.is_scoped
         ]
     return jsonify(payload)
 
@@ -136,7 +136,7 @@ def delete_service(service_id):
 def list_bookings():
     admin = current_admin()
     query = ServiceBooking.query.join(Service, Service.id == ServiceBooking.service_id)
-    if not admin.is_head:
+    if admin.is_scoped:
         query = query.filter(Service.owner_admin_id == admin.id)
     status = request.args.get("status")
     if status in BOOKING_STATUSES:

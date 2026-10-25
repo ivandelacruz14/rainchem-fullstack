@@ -46,8 +46,8 @@ import AdminSales from "./admin/pages/AdminSales";
 import ScopedOrders from "./admin/pages/ScopedOrders";
 
 function OrdersRoute() {
-  const { admin } = useAdminAuth();
-  if (admin?.isHead) return <Orders />;
+  const { can } = useAdminAuth();
+  if (can("manage_orders")) return <Orders />;
   return (
     <PermissionRoute permission="orders">
       <ScopedOrders />
@@ -94,9 +94,9 @@ export default function App() {
                     <Route index element={<Overview />} />
                     <Route path="products" element={<PermissionRoute permission="products"><Products /></PermissionRoute>} />
                     <Route path="orders" element={<OrdersRoute />} />
-                    <Route path="users" element={<PermissionRoute headOnly><Users /></PermissionRoute>} />
-                    <Route path="knowledge" element={<PermissionRoute headOnly><Knowledge /></PermissionRoute>} />
-                    <Route path="monitor" element={<PermissionRoute headOnly><ChatMonitor /></PermissionRoute>} />
+                    <Route path="users" element={<PermissionRoute permission="customers"><Users /></PermissionRoute>} />
+                    <Route path="knowledge" element={<PermissionRoute permission="chatbot"><Knowledge /></PermissionRoute>} />
+                    <Route path="monitor" element={<PermissionRoute permission="chatbot"><ChatMonitor /></PermissionRoute>} />
                     <Route path="accounts" element={<PermissionRoute headOnly><AdminAccounts /></PermissionRoute>} />
                     <Route path="analytics" element={<PermissionRoute permission="analytics"><Analytics /></PermissionRoute>} />
                     <Route path="services" element={<PermissionRoute permission="services"><AdminServices /></PermissionRoute>} />

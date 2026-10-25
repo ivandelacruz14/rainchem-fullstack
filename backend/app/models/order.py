@@ -215,7 +215,7 @@ class Order(db.Model):
     def to_scoped_dict(self, product_ids):
         """Read-only view for a distributor: only their own lines, the customer's
         first name and delivery area, and no contact, payment or receipt details."""
-        items = [i for i in self.items if i.product_id in product_ids]
+        items = [i for i in self.items if product_ids is None or i.product_id in product_ids]
         subtotal = sum(float(i.unit_price) * i.quantity for i in items)
         first_name = (self.customer_name or "").strip().split(" ")[0]
         return {
