@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import { peso } from "../utils/format";
+import PriceTag from "../components/PriceTag";
 import ProductVisual from "../components/ProductVisual";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
@@ -52,7 +52,7 @@ export default function OrderSuccess() {
                 <div className="reco-thumb" onClick={() => navigate("/")}> <ProductVisual product={p} widthPercent={50} /></div>
                 <div className="reco-name">{p.name}</div>
                 <div className="reco-bottom">
-                  <span className="reco-price">{peso(p.price)}</span>
+                  <PriceTag product={p} size={15} />
                   <button className="icon-add" title="Add to cart" onClick={() => handleAddRec(p)}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="9" cy="21" r="1" /><circle cx="19" cy="21" r="1" />

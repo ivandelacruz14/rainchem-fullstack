@@ -162,7 +162,7 @@ export default function Checkout() {
           </div>
           {savings > 0 && (
             <div className="cart-summary-row" style={{ color: "var(--ok-text)", fontWeight: 600, marginTop: 10 }}>
-              <span>Bulk savings</span><span>-{peso(savings)}</span>
+              <span>Savings</span><span>-{peso(savings)}</span>
             </div>
           )}
           <div className="cart-summary-row"><span>Subtotal</span><span>{peso(subtotal)}</span></div>

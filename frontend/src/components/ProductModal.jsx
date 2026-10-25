@@ -8,6 +8,8 @@ import { useToast } from "../context/ToastContext";
 import { useUI } from "../context/UIContext";
 import ProductCard from "./ProductCard";
 import ReviewSection from "./reviews/ReviewSection";
+import PriceTag from "./PriceTag";
+import { priceLine } from "../utils/pricing";
 import StarRating from "./reviews/StarRating";
 
 export default function ProductModal({ product, onClose, allProducts = [], onSelectProduct }) {
@@ -20,8 +22,10 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
 
   if (!product) return null;
 
-  const rate = bulkDiscountRate(qty);
-  const discountedUnit = product.price * (1 - rate);
+  const priced = priceLine(product.price, qty, product.salePercent);
+  const rate = priced.rate;
+  const discountedUnit = priced.unitPrice;
+  const saleBeatsBulk = product.onSale && product.salePercent / 100 >= bulkDiscountRate(qty);
   const nextTier = qty < 5 ? 5 : qty < 10 ? 10 : 20;
 
   const returnTo = `/shop?product=${product.id}`;
@@ -104,7 +108,13 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
                 <div>7-day return &middot; 30-day defect replacement &middot; Rainchem-verified product</div>
               </div>
 
-              <div className="product-price" style={{ fontSize: 26 }}>{peso(product.price)}</div>
+              <div style={{ marginTop: 6 }}><PriceTag product={product} size={26} /></div>
+              {product.onSale && (
+                <p className="field-hint" style={{ margin: "4px 0 0" }}>
+                  {product.saleLabel ? `${product.saleLabel}. ` : ""}Sale until {new Date(product.saleEndDate + "T00:00:00").toLocaleDateString("en-PH", { month: "short", day: "numeric" })}.
+                  {" "}Sale and bulk discounts do not stack; you get the bigger one.
+                </p>
+              )}
 
               {user ? (
                 <>
@@ -117,7 +127,7 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
                   </div>
                   <p className="field-hint" style={{ marginTop: -8, marginBottom: 14 }}>
                     {rate > 0
-                      ? <span style={{ color: "var(--ok-text)", fontWeight: 600 }}>{Math.round(rate * 100)}% bulk discount applied - {peso(discountedUnit)} per unit &middot; {peso(discountedUnit * qty)} total</span>
+                      ? <span style={{ color: "var(--ok-text)", fontWeight: 600 }}>{Math.round(rate * 100)}% {saleBeatsBulk ? "sale" : "bulk"} discount applied - {peso(discountedUnit)} per unit &middot; {peso(priced.lineTotal)} total</span>
                       : qty < 20 ? `Buy ${nextTier - qty} more to unlock a bulk discount` : ""}
                   </p>
                   <div className="flex gap-12">

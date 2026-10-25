@@ -10,6 +10,7 @@ const NAV_ITEMS = [
     group: "Catalog & Sales",
     links: [
       { to: "/admin/products", label: "Products", permission: "products" },
+      { to: "/admin/sales", label: "Sales & Discounts", permission: "products" },
       { to: "/admin/services", label: "Services", permission: "services" },
       { to: "/admin/orders", label: "Orders", permission: "orders" },
       { to: "/admin/users", label: "Users", headOnly: true },

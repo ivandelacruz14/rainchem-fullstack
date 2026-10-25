@@ -95,10 +95,11 @@ export function CartProvider({ children }) {
   }
 
   const lines = items.map((line) => {
-    const priced = priceLine(line.product.price, line.qty);
+    const priced = priceLine(line.product.price, line.qty, line.product.salePercent);
     return {
       ...line,
       discountRate: priced.rate,
+      saleApplied: (line.product.salePercent || 0) / 100 >= bulkDiscountRate(line.qty) && (line.product.salePercent || 0) > 0,
       unitPrice: priced.unitPrice,
       lineTotal: priced.lineTotal,
       lineCents: priced.lineCents,

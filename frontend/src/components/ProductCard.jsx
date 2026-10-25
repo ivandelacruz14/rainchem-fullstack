@@ -1,5 +1,5 @@
 import ProductVisual from "./ProductVisual";
-import { peso } from "../utils/format";
+import PriceTag from "./PriceTag";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
@@ -23,6 +23,7 @@ export default function ProductCard({ product, onOpen }) {
   return (
     <div className="product-card">
       <div className="product-thumb" onClick={() => onOpen(product)}>
+        {product.onSale && <span className="sale-ribbon">{product.saleLabel || "SALE"} {product.salePercent}% OFF</span>}
         {product.stock === 0 ? (
           <span className="stock-tag out">Out of Stock</span>
         ) : product.stock < 20 ? (
@@ -40,7 +41,7 @@ export default function ProductCard({ product, onOpen }) {
           {product.stock > 0 ? `${product.stock} units available` : "Out of stock"}
         </span>
         <div className="product-bottom">
-          <span className="product-price">{peso(product.price)}</span>
+          <PriceTag product={product} />
           {user ? (
             <button className="icon-add" title="Add to cart" onClick={handleAddToCart}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

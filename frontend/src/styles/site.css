@@ -721,3 +721,13 @@ body.no-scroll { overflow: hidden; }
   .toast-stack { left: 12px; right: 12px; bottom: 12px; }
   .toast { min-width: 0; }
 }
+
+/* ---- Sale prices ---- */
+.price-stack { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.price-now { color: var(--red-700); }
+.price-was { color: var(--soft); font-weight: 500; text-decoration: line-through; }
+.sale-badge { font-size: 11px; font-weight: 700; background: var(--red-700); color: #fff; border-radius: 4px; padding: 2px 6px; align-self: center; }
+.sale-ribbon { position: absolute; bottom: 10px; left: 10px; z-index: 2; background: var(--red-700); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; max-width: calc(100% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-sale { border-color: var(--red-700); color: var(--red-700); }
+.chip-sale.active { background: var(--red-700); color: #fff; }
+.product-bottom { flex-wrap: wrap; gap: 6px; }

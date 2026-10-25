@@ -13,6 +13,7 @@ from app.routes.admin_settings import admin_settings_bp
 from app.routes.cart import cart_bp
 from app.routes.services import services_bp
 from app.routes.admin_services import admin_services_bp
+from app.routes.admin_sales import admin_sales_bp
 
 
 def register_routes(app):
@@ -31,3 +32,4 @@ def register_routes(app):
     app.register_blueprint(cart_bp)
     app.register_blueprint(services_bp)
     app.register_blueprint(admin_services_bp)
+    app.register_blueprint(admin_sales_bp)

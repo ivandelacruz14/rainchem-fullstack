@@ -42,6 +42,7 @@ import AdminAccounts from "./admin/pages/AdminAccounts";
 import Analytics from "./admin/pages/Analytics";
 import PaymentSettings from "./admin/pages/PaymentSettings";
 import AdminServices from "./admin/pages/AdminServices";
+import AdminSales from "./admin/pages/AdminSales";
 import ScopedOrders from "./admin/pages/ScopedOrders";
 
 function OrdersRoute() {
@@ -99,6 +100,7 @@ export default function App() {
                     <Route path="accounts" element={<PermissionRoute headOnly><AdminAccounts /></PermissionRoute>} />
                     <Route path="analytics" element={<PermissionRoute permission="analytics"><Analytics /></PermissionRoute>} />
                     <Route path="services" element={<PermissionRoute permission="services"><AdminServices /></PermissionRoute>} />
+                    <Route path="sales" element={<PermissionRoute permission="products"><AdminSales /></PermissionRoute>} />
                     <Route path="payments" element={<PermissionRoute headOnly><PaymentSettings /></PermissionRoute>} />
                   </Route>
                 </Routes>

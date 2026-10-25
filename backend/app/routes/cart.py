@@ -3,7 +3,8 @@ from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models import CartItem, Product
 from app.services.catalog import serialize_products
-from app.services.pricing import bulk_discount_rate, compute_shipping, money, unit_price_after_discount
+from app.services.pricing import compute_shipping, effective_discount_rate, money, unit_price_after_discount
+from app.services.promotions import active_sales
 from app.utils.auth_decorators import current_user_id, require_user
 
 cart_bp = Blueprint("cart", __name__, url_prefix="/api/cart")
@@ -21,12 +22,14 @@ def cart_payload(user_id):
     products = [row.product for row in rows if row.product]
     serialized = {p["id"]: p for p in serialize_products(products)}
 
+    sales = active_sales([p.id for p in products])
     items, subtotal, original, total_qty = [], 0, 0, 0
     for row in rows:
         product = row.product
         if not product:
             continue
-        rate = bulk_discount_rate(row.quantity)
+        sale = sales.get(product.id)
+        rate = effective_discount_rate(row.quantity, sale.discount_percent if sale else 0)
         unit = unit_price_after_discount(product.price, rate)
         line_total = unit * row.quantity
         subtotal += line_total

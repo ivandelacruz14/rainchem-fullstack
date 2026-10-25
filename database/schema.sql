@@ -214,6 +214,21 @@ CREATE TABLE service_bookings (
     FOREIGN KEY (service_area_id) REFERENCES service_areas(id) ON DELETE SET NULL
 );
 
+CREATE TABLE product_sales (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    discount_percent SMALLINT NOT NULL,
+    starts_at DATETIME NOT NULL,
+    ends_at DATETIME NOT NULL,
+    label VARCHAR(60) NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_by INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_product_sales_product (product_id),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES admins(id) ON DELETE SET NULL
+);
+
 CREATE TABLE knowledge_base (
     id INT AUTO_INCREMENT PRIMARY KEY,
     question VARCHAR(500) NOT NULL,

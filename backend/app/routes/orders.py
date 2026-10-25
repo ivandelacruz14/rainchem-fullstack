@@ -8,10 +8,11 @@ from app.models import CartItem, Order, OrderItem, OrderStatusHistory, Product, 
 from app.models.order import COD
 from app.services import payment_flow
 from app.services.auth_utils import is_valid_email, is_valid_phone
-from app.services.pricing import bulk_discount_rate, compute_shipping, unit_price_after_discount, money
+from app.services.pricing import compute_shipping, effective_discount_rate, unit_price_after_discount, money
 from app.services.receipt_service import generate_order_number, generate_tracking_number, create_receipt_for_order
 from app.services.email_service import send_email
 from app.services.catalog import serialize_products
+from app.services.promotions import active_sales
 from app.services.recommendations import get_recommendations
 from app.services.reviews import ReviewError, submit_reviews
 from app.utils.auth_decorators import require_user, current_user_id
@@ -46,6 +47,7 @@ def create_order():
     line_items = []
     subtotal = Decimal(0)
     total_qty = 0
+    sales = active_sales()
 
     for line in cart_items:
         product = Product.query.get(line.get("productId"))
@@ -60,7 +62,8 @@ def create_order():
         if qty > product.stock:
             return jsonify({"error": f"Only {product.stock} units of {product.name} are available"}), 400
 
-        rate = bulk_discount_rate(qty)
+        sale = sales.get(product.id)
+        rate = effective_discount_rate(qty, sale.discount_percent if sale else 0)
         unit_price = unit_price_after_discount(product.price, rate)
         line_items.append({"product": product, "qty": qty, "unit_price": unit_price, "rate": rate})
         subtotal += unit_price * qty
@@ -308,4 +311,3 @@ def get_receipt(order_id):
         "order": order.to_dict(),
         "receipt": order.receipt.to_dict(),
     })
-    

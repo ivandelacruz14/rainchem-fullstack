@@ -20,6 +20,12 @@ def bulk_discount_rate(quantity):
     return Decimal("0")
 
 
+def effective_discount_rate(quantity, sale_percent=0):
+    """A sale and the bulk discount do not stack: the customer gets whichever is bigger."""
+    sale_rate = Decimal(int(sale_percent or 0)) / 100
+    return max(bulk_discount_rate(quantity), sale_rate)
+
+
 def unit_price_after_discount(price, rate):
     """Price of one unit after the bulk discount, to the centavo."""
     keep_percent = int(((1 - Decimal(str(rate))) * 100).to_integral_value(rounding=ROUND_HALF_UP))

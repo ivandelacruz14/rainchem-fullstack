@@ -22,7 +22,7 @@ class Product(db.Model):
     owner_admin_id = db.Column(db.Integer, db.ForeignKey("admins.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def to_dict(self, average_rating=0.0, review_count=0):
+    def to_dict(self, average_rating=0.0, review_count=0, sale=None):
         """Public view. Rating and review count come from real review records
         (see services/catalog.py); the old rating/reviews columns are not shown."""
         return {
@@ -33,6 +33,7 @@ class Product(db.Model):
             "stock": self.stock,
             "rating": round(float(average_rating or 0), 1),
             "reviews": int(review_count or 0),
+            **self._sale_fields(sale),
             "imageGlyph": self.image_glyph,
             "imagePhoto": self.image_photo,
             "shortDesc": self.short_desc,
@@ -42,7 +43,23 @@ class Product(db.Model):
             "usage": self.usage_steps or [],
         }
 
-    def to_admin_dict(self, average_rating=0.0, review_count=0):
-        data = self.to_dict(average_rating, review_count)
+    def to_admin_dict(self, average_rating=0.0, review_count=0, sale=None):
+        data = self.to_dict(average_rating, review_count, sale)
         data["ownerId"] = self.owner_admin_id
         return data
+
+    def _sale_fields(self, sale):
+        """`price` always stays the regular price; the sale price is shown next to it."""
+        if sale is None:
+            return {"onSale": False, "salePercent": 0, "salePrice": None, "saleEndsAt": None, "saleEndDate": None, "saleLabel": None}
+        from app.services.pricing import unit_price_after_discount
+        from app.services.promotions import local_days
+        rate = sale.discount_percent / 100
+        return {
+            "onSale": True,
+            "salePercent": sale.discount_percent,
+            "salePrice": float(unit_price_after_discount(self.price, rate)),
+            "saleEndsAt": sale.ends_at.isoformat(),
+            "saleEndDate": local_days(sale)[1].isoformat(),  # last day of the sale, shop time
+            "saleLabel": sale.label,
+        }

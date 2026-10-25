@@ -12,6 +12,7 @@ export default function Shop() {
   const [search, setSearch] = useState("");
   const [params, setParams] = useSearchParams();
 
+  const onSaleOnly = params.get("sale") === "1";
   const category = CATEGORIES.some((c) => c.name === params.get("category")) ? params.get("category") : "All";
 
   useEffect(() => {
@@ -39,9 +40,19 @@ export default function Shop() {
     setParams(name === "All" ? {} : { category: name });
   }
 
+  function toggleSale() {
+    const next = new URLSearchParams(params);
+    if (onSaleOnly) next.delete("sale");
+    else next.set("sale", "1");
+    setParams(next);
+  }
+
+  const saleCount = products.filter((p) => p.onSale).length;
+
   const term = search.trim().toLowerCase();
   const visible = products.filter((p) => {
     if (category !== "All" && p.category !== category) return false;
+    if (onSaleOnly && !p.onSale) return false;
     if (!term) return true;
     return `${p.name} ${p.shortDesc || ""} ${p.category}`.toLowerCase().includes(term);
   });
@@ -65,6 +76,11 @@ export default function Shop() {
               {name}
             </button>
           ))}
+          {saleCount > 0 && (
+            <button className={`chip chip-sale ${onSaleOnly ? "active" : ""}`} onClick={toggleSale}>
+              On Sale ({saleCount})
+            </button>
+          )}
         </div>
         <input placeholder="Search products..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>

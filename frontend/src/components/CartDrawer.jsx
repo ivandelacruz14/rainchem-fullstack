@@ -11,7 +11,7 @@ export default function CartDrawer() {
   const { cartOpen, closeCart, requireLogin } = useUI();
   const navigate = useNavigate();
 
-  if (!cartOpen || !user) return null;
+  if (!cartOpen) return null;
 
   function handleCheckout() {
     if (!user) {
@@ -40,8 +40,8 @@ export default function CartDrawer() {
                 <div style={{ flex: 1 }}>
                   <h5 style={{ margin: "0 0 4px", fontFamily: "var(--ff-display)", fontSize: 14 }}>{l.product.name}</h5>
                   <span className="mono" style={{ fontSize: 12, color: "var(--soft)" }}>
-                    {peso(l.product.price)} each
-                    {l.discountRate > 0 && <span style={{ color: "var(--ok-text)" }}> &middot; {Math.round(l.discountRate * 100)}% bulk off</span>}
+                    {peso(l.product.onSale ? l.product.salePrice : l.product.price)} each
+                    {l.discountRate > 0 && <span style={{ color: "var(--ok-text)" }}> &middot; {Math.round(l.discountRate * 100)}% {l.saleApplied ? "sale" : "bulk"} off</span>}
                   </span>
                   <div className="qty-control">
                     <button onClick={() => changeQty(l.product.id, -1)}>-</button>
@@ -67,7 +67,7 @@ export default function CartDrawer() {
             <>
               {savings > 0 && (
                 <div className="cart-summary-row" style={{ color: "var(--ok-text)", fontWeight: 600 }}>
-                  <span>Bulk savings</span><span>-{peso(savings)}</span>
+                  <span>Savings</span><span>-{peso(savings)}</span>
                 </div>
               )}
               <div className="cart-summary-row"><span>Subtotal</span><span>{peso(subtotal)}</span></div>

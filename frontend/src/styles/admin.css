@@ -166,3 +166,16 @@ table.admin-table td { padding: 11px 10px; border-bottom: 1px solid var(--line);
   .filter-fields { grid-template-columns: minmax(0, 1fr); }
   .admin-login-card { padding: 26px 18px; }
 }
+
+/* Sales admin */
+.sale-active { background: var(--ok-bg); color: var(--ok-fg); }
+.sale-scheduled { background: var(--info-bg); color: var(--info-fg); }
+.sale-ended { background: var(--fog); color: var(--soft); }
+.pick-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.pick-tools input { flex: 1 1 160px; min-width: 0; padding: 9px 12px; border-radius: 8px; border: 1.5px solid var(--line-strong); font-family: inherit; font-size: 14px; }
+.pick-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; }
+.pick-item { padding: 7px 0; border-bottom: 1px solid var(--line); }
+.pick-item:last-child { border-bottom: none; }
+.pick-item span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sale-preview { background: var(--fog); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-size: 13.5px; display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 700px) { .pick-tools input { font-size: 16px; } }

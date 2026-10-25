@@ -2,6 +2,7 @@ from sqlalchemy import func
 
 from app.extensions import db
 from app.models import Order, Product, ProductReview
+from app.services.promotions import active_sales
 
 
 def review_stats(product_ids=None):
@@ -25,11 +26,13 @@ def serialize_products(products, admin_view=False):
     """Product dicts with the average rating and review count filled in from the reviews table."""
     products = list(products)
     stats = review_stats([p.id for p in products]) if products else {}
+    sales = active_sales([p.id for p in products]) if products else {}
     result = []
     for product in products:
         average, count = stats.get(product.id, (0.0, 0))
+        sale = sales.get(product.id)
         result.append(
-            product.to_admin_dict(average, count) if admin_view else product.to_dict(average, count)
+            product.to_admin_dict(average, count, sale) if admin_view else product.to_dict(average, count, sale)
         )
     return result
 
