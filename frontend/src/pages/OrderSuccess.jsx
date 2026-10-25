@@ -1,5 +1,6 @@
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import PriceTag from "../components/PriceTag";
+import { peso } from "../utils/format";
 import ProductVisual from "../components/ProductVisual";
 import { useCart } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
