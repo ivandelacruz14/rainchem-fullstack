@@ -63,6 +63,7 @@ def ensure_schema(db, logger):
             db.session.rollback()
             logger.warning("Could not add %s.%s (maybe another worker did): %s", table, column, error)
 
+    add_missing_model_columns(db, logger)
     backfill_single_product_reviews(db, logger)
 
     if db.engine.dialect.name != "mysql":
@@ -115,3 +116,34 @@ def backfill_single_product_reviews(db, logger):
     except Exception as error:
         db.session.rollback()
         logger.warning("Could not copy earlier reviews: %s", error)
+
+
+def add_missing_model_columns(db, logger):
+    """create_all() never changes a table that already exists. If an older copy of a table is in
+    the database (for example `services` created before a column was added to the code), the
+    insert fails with "Unknown column". This adds every column the models expect but the table
+    lacks. Columns are added as nullable (booleans get their default), nothing is dropped or changed."""
+    dialect = db.engine.dialect
+    quote = dialect.identifier_preparer.quote
+    inspector = inspect(db.engine)
+
+    for table in db.metadata.sorted_tables:
+        if not inspector.has_table(table.name):
+            continue
+        existing = {c["name"] for c in inspector.get_columns(table.name)}
+        for column in table.columns:
+            if column.name in existing or column.primary_key:
+                continue
+            ddl = f"{quote(column.name)} {column.type.compile(dialect=dialect)}"
+            default = getattr(getattr(column, "default", None), "arg", None)
+            if isinstance(default, bool):
+                ddl += f" NOT NULL DEFAULT {int(default)}"
+            else:
+                ddl += " NULL"
+            try:
+                db.session.execute(text(f"ALTER TABLE {quote(table.name)} ADD COLUMN {ddl}"))
+                db.session.commit()
+                logger.info("Added missing column %s.%s", table.name, column.name)
+            except Exception as error:
+                db.session.rollback()
+                logger.warning("Could not add %s.%s: %s", table.name, column.name, error)
