@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   {
     group: "AI / RAG Chatbot",
     links: [
+      { to: "/admin/live-chat", label: "Live Chat", permission: "livechat", liveBadge: true },
       { to: "/admin/knowledge", label: "Knowledge Base", permission: "chatbot" },
       { to: "/admin/monitor", label: "Chat Monitor", permission: "chatbot" },
     ],
@@ -42,6 +43,19 @@ export default function AdminLayout() {
   const { pathname } = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pending, setPending] = useState(0);
+  const [liveUnread, setLiveUnread] = useState(0);
+
+  useEffect(() => {
+    if (!admin || !can("livechat")) return undefined;
+    const load = () => {
+      if (document.visibilityState === "hidden") return;
+      client.get("/api/admin/live-chat/unread-count").then((res) => setLiveUnread(res.data.unread)).catch(() => {});
+    };
+    load();
+    const timer = setInterval(load, 10000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [admin?.id, pathname]);
 
   useEffect(() => {
     if (!admin || !can("products")) return undefined;
@@ -92,6 +106,7 @@ export default function AdminLayout() {
                 >
                   {link.label}
                   {link.badge && pending > 0 && <span className="nav-badge">{pending}</span>}
+                  {link.liveBadge && liveUnread > 0 && <span className="nav-badge">{liveUnread}</span>}
                 </NavLink>
               ))}
             </div>

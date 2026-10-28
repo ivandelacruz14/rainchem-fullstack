@@ -5,6 +5,7 @@ from sqlalchemy.orm import defer
 
 from app.extensions import db
 from app.models import KnowledgeEntry, ChatLog, Product
+from app.services import handoff
 from app.services.rag import answer_question
 from app.utils.auth_decorators import require_user, current_user_id
 
@@ -60,6 +61,7 @@ def ask():
         db.session.rollback()
         current_app.logger.exception("Could not save chat log")
 
+    suggestion = handoff.suggest(question, result, current_user_id(), log_id)
     return jsonify({
         "logId": log_id,
         "answer": result["answer"],
@@ -68,6 +70,7 @@ def ask():
         "source": result["source"],
         "canRate": result["can_rate"] and log_id is not None,
         "related": result["related"],
+        **suggestion,
     })
 
 
@@ -99,7 +102,10 @@ def feedback():
     log.rated_at = datetime.utcnow()
     db.session.commit()
 
-    return jsonify({"message": "Thanks for your feedback!", "logId": log.id, "rating": log.rating})
+    response = {"message": "Thanks for your feedback!", "logId": log.id, "rating": log.rating}
+    if rating <= 2:
+        response.update({"needsHuman": True, "humanReason": "low_rating", "humanMessage": handoff.LOW_RATING_MESSAGE})
+    return jsonify(response)
 
 
 @chat_bp.get("/suggestions")

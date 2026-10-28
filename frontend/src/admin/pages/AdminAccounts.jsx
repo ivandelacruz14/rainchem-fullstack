@@ -25,7 +25,7 @@ const ROLE_NOTES = {
 
 const PERMISSION_NAMES = {
   products: "Products", services: "Services", orders: "View orders", manage_orders: "Manage orders",
-  customers: "Customers", chatbot: "Chatbot", analytics: "Reports",
+  customers: "Customers", chatbot: "Chatbot", livechat: "Live chat", analytics: "Reports",
 };
 
 function PermissionChecks({ options, value, onChange }) {

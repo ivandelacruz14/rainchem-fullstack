@@ -1,6 +1,7 @@
 from decimal import Decimal
 from datetime import datetime, timedelta
 from app.extensions import db
+from app.services.order_journey import build_journey
 from app.services.pricing import money
 
 COD = "Cash on Delivery"
@@ -209,6 +210,7 @@ class Order(db.Model):
             "hasReceipt": self.receipt is not None,
             "items": [item.to_dict() for item in self.items],
             "history": [h.to_dict() for h in self.history],
+            "journey": build_journey(self),
         }
 
 

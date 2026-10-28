@@ -41,6 +41,8 @@ class ChatLog(db.Model):
     rating = db.Column(db.SmallInteger, nullable=True)
     feedback = db.Column(db.String(500), nullable=True)
     rated_at = db.Column(db.DateTime, nullable=True)
+    handed_off_at = db.Column(db.DateTime, nullable=True)       # the customer sent this to the admin
+    admin_resolved_at = db.Column(db.DateTime, nullable=True)   # an admin marked it as dealt with
 
     def to_dict(self):
         return {
@@ -49,6 +51,8 @@ class ChatLog(db.Model):
             "answer": self.answer,
             "confidence": self.confidence,
             "resolved": self.resolved,
+            "handedOff": self.handed_off_at is not None,
+            "adminResolved": self.admin_resolved_at is not None,
             "source": self.source,
             "rating": self.rating,
             "feedback": self.feedback,

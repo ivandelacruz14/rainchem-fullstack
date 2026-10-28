@@ -19,6 +19,7 @@ PERMISSIONS = {
     "manage_orders": "Confirm, ship and manage orders, payments, returns and refunds",
     "customers": "View and manage customer accounts",
     "chatbot": "Manage the chatbot knowledge base and chat monitor",
+    "livechat": "Answer customers in live chat",
     "analytics": "View sales reports and estimates",
 }
 
@@ -28,7 +29,7 @@ DISTRIBUTOR_ALLOWED = ["products", "services", "orders", "analytics"]
 # Starting permissions for a role. A Head Admin can change them per account.
 ROLE_PRESETS = {
     ADMIN: list(PERMISSIONS),
-    SUPPORT_STAFF: ["orders", "manage_orders", "customers", "chatbot"],
+    SUPPORT_STAFF: ["orders", "manage_orders", "customers", "chatbot", "livechat"],
     CONTENT_MANAGER: ["products", "services", "analytics", "chatbot"],
     DISTRIBUTOR: [],
 }

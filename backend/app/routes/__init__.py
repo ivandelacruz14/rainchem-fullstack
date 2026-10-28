@@ -15,6 +15,9 @@ from app.routes.services import services_bp
 from app.routes.admin_services import admin_services_bp
 from app.routes.admin_sales import admin_sales_bp
 from app.routes.admin_approvals import admin_approvals_bp
+from app.routes.live_chat import live_chat_bp
+from app.routes.admin_chat_monitor import admin_chat_monitor_bp
+from app.routes.admin_live_chat import admin_live_chat_bp
 
 
 def register_routes(app):
@@ -35,3 +38,6 @@ def register_routes(app):
     app.register_blueprint(admin_services_bp)
     app.register_blueprint(admin_sales_bp)
     app.register_blueprint(admin_approvals_bp)
+    app.register_blueprint(live_chat_bp)
+    app.register_blueprint(admin_chat_monitor_bp)
+    app.register_blueprint(admin_live_chat_bp)

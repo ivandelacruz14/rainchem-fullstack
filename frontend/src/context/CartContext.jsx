@@ -36,14 +36,14 @@ export function CartProvider({ children }) {
         let res = await client.get("/api/cart");
         // Carts saved in the browser before accounts had a server cart: move them over once.
         const legacy = readLegacyCart();
-        if (legacy.length && res.data.items.length === 0) {
+        if (legacy.length && (res.data.items || []).length === 0) {
           for (const line of legacy) {
             try {
               res = await client.post("/api/cart/items", { productId: line.product.id, qty: line.qty });
             } catch { /* skip lines that are no longer available */ }
           }
         }
-        if (!cancelled) setItems(res.data.items);
+        if (!cancelled) setItems(res.data.items || []);
       } catch { /* the cart stays empty; the next action will surface any real problem */ }
       finally {
         localStorage.removeItem(LEGACY_CART_KEY);
@@ -53,7 +53,7 @@ export function CartProvider({ children }) {
     return () => { cancelled = true; };
   }, [userId]);
 
-  const apply = useCallback((res) => setItems(res.data.items), []);
+  const apply = useCallback((res) => setItems(res.data.items || []), []);
 
   const addItem = useCallback(async (product, qty = 1) => {
     try {

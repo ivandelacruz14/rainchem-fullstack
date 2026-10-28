@@ -188,3 +188,38 @@ table.admin-table td { padding: 11px 10px; border-bottom: 1px solid var(--line);
 .req-cancelled { background: var(--fog); color: var(--soft); }
 .request-photo { display: block; max-width: min(260px, 100%); border-radius: 10px; border: 1px solid var(--line); margin-top: 12px; }
 .otp-input { font-family: var(--ff-mono, monospace); font-size: 24px; letter-spacing: 0.4em; text-align: center; max-width: 260px; }
+
+/* Live chat inbox, chat monitor */
+.lc-shell { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.lc-list, .lc-pane { margin-bottom: 0; min-height: 420px; }
+.lc-list { max-height: 72vh; overflow-y: auto; }
+.lc-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lc-row { width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; color: var(--ink); font-family: inherit; }
+.lc-row:hover, .lc-row.active { border-color: var(--red-700); }
+.lc-row.active { background: var(--fog); }
+.lc-row-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lc-row-top .nav-badge { margin-left: 0; }
+.lc-row-preview { font-size: 13px; color: var(--muted); margin: 3px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-row-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--soft); flex-wrap: wrap; }
+.lc-thread { display: flex; flex-direction: column; min-height: 420px; max-height: 72vh; }
+.lc-thread-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.lc-thread-title { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 12.5px; color: var(--soft); }
+.lc-thread-title strong { color: var(--ink); font-size: 15px; overflow-wrap: anywhere; }
+.lc-back { display: none; }
+.lc-messages { flex: 1; overflow-y: auto; padding: 12px 4px; background: var(--fog); border-radius: 10px; margin: 10px 0; }
+.lc-compose-row { display: flex; gap: 10px; align-items: flex-end; }
+.lc-compose-row textarea { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--line-strong); font-family: inherit; font-size: 14px; resize: vertical; }
+.review-block { background: var(--fog); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+.review-block p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.context-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.context-list li { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; font-size: 13px; overflow-wrap: anywhere; }
+.context-list span { color: var(--muted); }
+.context-list time { font-size: 11px; color: var(--soft); }
+@media (max-width: 900px) {
+  .lc-shell { grid-template-columns: minmax(0, 1fr); }
+  .lc-shell.has-open .lc-list { display: none; }
+  .lc-shell:not(.has-open) .lc-pane { display: none; }
+  .lc-back { display: inline-flex; }
+  .lc-list { max-height: none; }
+  .lc-thread { max-height: 78vh; }
+}

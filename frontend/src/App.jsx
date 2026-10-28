@@ -45,6 +45,7 @@ import AdminServices from "./admin/pages/AdminServices";
 import AdminSales from "./admin/pages/AdminSales";
 import Approvals from "./admin/pages/Approvals";
 import MyAccount from "./admin/pages/MyAccount";
+import LiveChat from "./admin/pages/LiveChat";
 import ScopedOrders from "./admin/pages/ScopedOrders";
 
 function OrdersRoute() {
@@ -103,6 +104,7 @@ export default function App() {
                     <Route path="analytics" element={<PermissionRoute permission="analytics"><Analytics /></PermissionRoute>} />
                     <Route path="services" element={<PermissionRoute permission="services"><AdminServices /></PermissionRoute>} />
                     <Route path="account" element={<MyAccount />} />
+                    <Route path="live-chat" element={<PermissionRoute permission="livechat"><LiveChat /></PermissionRoute>} />
                     <Route path="approvals" element={<PermissionRoute permission="products"><Approvals /></PermissionRoute>} />
                     <Route path="sales" element={<PermissionRoute permission="products"><AdminSales /></PermissionRoute>} />
                     <Route path="payments" element={<PermissionRoute headOnly><PaymentSettings /></PermissionRoute>} />

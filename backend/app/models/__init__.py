@@ -10,6 +10,7 @@ from app.models.service import Service, ServiceArea, ServiceBooking
 from app.models.promotion import ProductSale
 from app.models.approval import ChangeRequest, ApprovalOtp
 from app.models.admin_email_change import AdminEmailChange
+from app.models.live_chat import LiveConversation, LiveMessage
 
 __all__ = [
     "User",
@@ -34,4 +35,6 @@ __all__ = [
     "ChangeRequest",
     "ApprovalOtp",
     "AdminEmailChange",
+    "LiveConversation",
+    "LiveMessage",
 ]

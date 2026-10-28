@@ -279,6 +279,39 @@ CREATE TABLE admin_email_changes (
     FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
 );
 
+CREATE TABLE live_conversations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    topic VARCHAR(20) NOT NULL DEFAULT 'other',
+    order_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_message_at DATETIME NULL,
+    INDEX ix_live_conversations_last (last_message_at),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
+);
+
+CREATE TABLE live_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_id INT NOT NULL,
+    sender_type VARCHAR(10) NOT NULL,
+    sender_admin_id INT NULL,
+    sender_name VARCHAR(120) NOT NULL DEFAULT '',
+    kind VARCHAR(10) NOT NULL DEFAULT 'text',
+    body TEXT NOT NULL,
+    meta JSON NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    delivered_at DATETIME NULL,
+    read_at DATETIME NULL,
+    deleted_at DATETIME NULL,
+    deleted_by VARCHAR(10) NULL,
+    updated_at DATETIME NULL,
+    INDEX ix_live_messages_conversation (conversation_id),
+    INDEX ix_live_messages_updated (updated_at),
+    FOREIGN KEY (conversation_id) REFERENCES live_conversations(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+);
+
 CREATE TABLE knowledge_base (
     id INT AUTO_INCREMENT PRIMARY KEY,
     question VARCHAR(500) NOT NULL,
@@ -302,6 +335,8 @@ CREATE TABLE chat_logs (
     rating TINYINT NULL,
     feedback VARCHAR(500) NULL,
     rated_at DATETIME NULL,
+    handed_off_at DATETIME NULL,
+    admin_resolved_at DATETIME NULL,
     FOREIGN KEY (matched_knowledge_id) REFERENCES knowledge_base(id) ON DELETE SET NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );

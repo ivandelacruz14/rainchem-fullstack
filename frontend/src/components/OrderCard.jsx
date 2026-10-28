@@ -100,6 +100,7 @@ export default function OrderCard({ order, onCancel, onPay, onReceive, onReview,
             Cancel Order
           </button>
         )}
+        <Link to={`/account/track?order=${encodeURIComponent(order.orderNumber)}`} className="btn btn-outline btn-sm">Track Order</Link>
         {order.hasReceipt && (
           <Link to={`/receipt/${order.id}`} className="btn btn-outline btn-sm">Print Receipt</Link>
         )}
