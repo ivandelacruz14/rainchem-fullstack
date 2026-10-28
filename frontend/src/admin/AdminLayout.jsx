@@ -29,6 +29,7 @@ const NAV_ITEMS = [
   {
     group: "System",
     links: [
+      { to: "/admin/account", label: "My Account" },
       { to: "/admin/payments", label: "Payment Settings", headOnly: true },
       { to: "/admin/accounts", label: "Admin Accounts", headOnly: true },
     ],

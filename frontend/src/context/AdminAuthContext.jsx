@@ -47,7 +47,7 @@ export function AdminAuthProvider({ children }) {
   }
 
   return (
-    <AdminAuthContext.Provider value={{ admin, loading, loginWithToken, logout, can }}>
+    <AdminAuthContext.Provider value={{ admin, setAdmin, loading, loginWithToken, logout, can }}>
       {children}
     </AdminAuthContext.Provider>
   );

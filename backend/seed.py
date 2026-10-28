@@ -13,14 +13,17 @@ from app.models import Admin, User
 app = create_app()
 
 with app.app_context():
-    if not Admin.query.filter_by(email="admin@raincheminternational.com").first():
+    has_head = any(a.is_head for a in Admin.query.all())
+    if has_head:
+        print("An admin account already exists, so no default admin was created.")
+    else:
         db.session.add(Admin(
             name="System Admin",
             email="admin@raincheminternational.com",
             password_hash=generate_password_hash("Admin123!"),
             role="Head Admin",
         ))
-        print("Created admin account: admin@raincheminternational.com / Admin123!")
+        print("Created admin account: admin@raincheminternational.com / Admin123!  (change the email and password right away in Admin > My Account)")
 
     if not User.query.filter_by(email="rider@example.com").first():
         db.session.add(User(

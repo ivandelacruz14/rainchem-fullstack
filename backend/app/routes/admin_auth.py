@@ -2,7 +2,8 @@ from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
-from app.models import Admin, ApprovalOtp, ChangeRequest, Product, ProductSale, Service
+from app.models import Admin, AdminEmailChange, ApprovalOtp, ChangeRequest, Product, ProductSale, Service
+from app.services import admin_email_change
 from app.services.auth_utils import is_valid_email, validate_password
 from app.services.permissions import (
     ASSIGNABLE_ROLES, DISTRIBUTOR, PERMISSIONS, clean_permissions, default_permissions, is_head_role, role_info,
@@ -69,6 +70,29 @@ def change_own_password():
     admin.password_hash = generate_password_hash(data["newPassword"])
     db.session.commit()
     return jsonify({"message": "Password updated"})
+
+
+@admin_auth_bp.post("/me/email/start")
+@require_admin
+def start_email_change():
+    """Step 1: password and the new address. A code is emailed to the new address."""
+    data = request.get_json() or {}
+    try:
+        admin_email_change.start(current_admin(), data.get("password"), data.get("newEmail"))
+    except admin_email_change.EmailChangeError as error:
+        return jsonify({"error": str(error)}), error.status
+    return jsonify({"message": "Code sent", "expiresInMinutes": admin_email_change.CODE_MINUTES})
+
+
+@admin_auth_bp.post("/me/email/confirm")
+@require_admin
+def confirm_email_change():
+    """Step 2: the code from the new address. Only now does the login email change."""
+    try:
+        admin = admin_email_change.confirm(current_admin(), (request.get_json() or {}).get("code"))
+    except admin_email_change.EmailChangeError as error:
+        return jsonify({"error": str(error)}), error.status
+    return jsonify({"admin": admin.to_dict()})
 
 
 @admin_auth_bp.get("/accounts")
@@ -190,6 +214,7 @@ def delete_admin(admin_id):
     ChangeRequest.query.filter_by(requested_by=admin.id).update({"requested_by": None})
     ChangeRequest.query.filter_by(decided_by=admin.id).update({"decided_by": None})
     ApprovalOtp.query.filter_by(admin_id=admin.id).delete()
+    AdminEmailChange.query.filter_by(admin_id=admin.id).delete()
     db.session.delete(admin)
     db.session.commit()
     return jsonify({"message": "Admin account removed"})

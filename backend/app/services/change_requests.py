@@ -1,6 +1,3 @@
-import hashlib
-import hmac
-import secrets
 from datetime import datetime, timedelta
 
 from flask import current_app
@@ -8,6 +5,7 @@ from werkzeug.security import check_password_hash
 
 from app.extensions import db
 from app.models import Admin, ApprovalOtp, ChangeRequest, Product
+from app.services import otp as otp_codes
 from app.services import product_changes as changes
 from app.services.email_service import send_email
 
@@ -132,10 +130,6 @@ def to_dict(request_row, detail=False):
     return data
 
 
-def _hash(salt, code):
-    return hashlib.sha256(f"{salt}:{code}".encode("utf-8")).hexdigest()
-
-
 def _mask(email):
     name, _, domain = email.partition("@")
     return f"{name[:2]}{'*' * max(1, len(name) - 2)}@{domain}"
@@ -160,10 +154,9 @@ def start_approval(request_row, head, password):
         raise ApprovalError(f"Please wait {OTP_COOLDOWN_SECONDS} seconds before asking for another code", 429)
 
     ApprovalOtp.query.filter_by(change_request_id=request_row.id, admin_id=head.id, used=False).update({"used": True})
-    code = f"{secrets.randbelow(1_000_000):06d}"
-    salt = secrets.token_hex(8)
+    code, salt, code_hash = otp_codes.generate()
     otp = ApprovalOtp(
-        change_request_id=request_row.id, admin_id=head.id, salt=salt, code_hash=_hash(salt, code),
+        change_request_id=request_row.id, admin_id=head.id, salt=salt, code_hash=code_hash,
         expires_at=datetime.utcnow() + timedelta(minutes=OTP_MINUTES),
     )
     db.session.add(otp)
@@ -200,7 +193,7 @@ def confirm_approval(request_row, head, code):
     if otp.attempts >= OTP_MAX_ATTEMPTS:
         raise ApprovalError("Too many wrong codes. Ask for a new one.", 429)
 
-    if not hmac.compare_digest(otp.code_hash, _hash(otp.salt, str(code or "").strip())):
+    if not otp_codes.matches(otp.salt, otp.code_hash, code):
         otp.attempts += 1
         db.session.commit()
         left = OTP_MAX_ATTEMPTS - otp.attempts

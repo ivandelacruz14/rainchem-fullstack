@@ -141,3 +141,17 @@ CREATE TABLE IF NOT EXISTS approval_otps (
     FOREIGN KEY (change_request_id) REFERENCES change_requests(id) ON DELETE CASCADE,
     FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS admin_email_changes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL,
+    new_email VARCHAR(180) NOT NULL,
+    salt VARCHAR(32) NOT NULL,
+    code_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts SMALLINT NOT NULL DEFAULT 0,
+    used TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_admin_email_changes_admin (admin_id),
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);

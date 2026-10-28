@@ -9,6 +9,7 @@ from app.models.cart import CartItem
 from app.models.service import Service, ServiceArea, ServiceBooking
 from app.models.promotion import ProductSale
 from app.models.approval import ChangeRequest, ApprovalOtp
+from app.models.admin_email_change import AdminEmailChange
 
 __all__ = [
     "User",
@@ -32,4 +33,5 @@ __all__ = [
     "ProductSale",
     "ChangeRequest",
     "ApprovalOtp",
+    "AdminEmailChange",
 ]
