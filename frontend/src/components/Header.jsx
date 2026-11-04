@@ -33,7 +33,6 @@ export default function Header() {
           <NavLink to="/services">Services</NavLink>
           <NavLink to="/faqs">FAQs</NavLink>
           {user && <NavLink to="/account/orders">My Orders</NavLink>}
-          {user && <NavLink to="/track">Track My Order</NavLink>}
           {!user && !loading && (
             <div className="nav-auth-mobile">
               <button type="button" className="btn btn-outline btn-sm" onClick={() => openAuth("login")}>Log In</button>

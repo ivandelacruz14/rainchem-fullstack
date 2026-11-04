@@ -64,6 +64,10 @@ export default function UserMenu() {
           </div>
           <Link role="menuitem" to="/account" className="user-menu-item">My Account</Link>
           <Link role="menuitem" to="/account/services" className="user-menu-item">Service Requests</Link>
+          <Link role="menuitem" to="/account/address" className="user-menu-item">Addresses</Link>
+          <Link role="menuitem" to="/account/profile" className="user-menu-item">Profile</Link>
+          <Link role="menuitem" to="/account/settings" className="user-menu-item">Settings &amp; Privacy</Link>
+          <Link role="menuitem" to="/account/help" className="user-menu-item">Help Center</Link>
           <button role="menuitem" type="button" className="user-menu-item" onClick={() => { setOpen(false); openCart(); }}>
             <span>Cart</span>
             {totalQty > 0 && <span className="menu-count">{totalQty}</span>}
