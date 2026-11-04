@@ -41,8 +41,8 @@ def _read_basics(data, creating):
 @admin_services_bp.get("")
 @require_permission("services")
 def list_services():
-    query = Service.query.order_by(Service.name)
-    return jsonify({"services": [s.to_dict(admin_view=True) for s in query.all()]})
+    services = Service.query.order_by(Service.name).all()
+    return jsonify({"services": [s.to_dict(admin_view=True) for s in services]})
 
 
 @admin_services_bp.post("")

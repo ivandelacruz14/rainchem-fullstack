@@ -67,7 +67,7 @@ export default function ChatWidget() {
             </div>
           </div>
           <div className="chat-pane" hidden={tab !== "ai"}>
-            <AiChat onOpenLive={() => setTab("live")} />
+            <AiChat onOpenLive={() => setTab("live")} onCloseChat={() => chatOpen && toggleChat()} />
           </div>
           {chatOpen && tab === "live" && (
             <div className="chat-pane">

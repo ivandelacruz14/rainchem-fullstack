@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import client from "../../api/client";
+import RecommendationCards, { quickReplies } from "./RecommendationCards";
 
 const WELCOME = "Hi! I'm the Rainchem assistant. Ask me about engine oil, RadCool coolant, payments, or your orders. You can ask in English or Tagalog.";
 const SUGGEST_AGAIN_AFTER = 4; // AI replies before the admin suggestion may appear again
@@ -50,7 +51,7 @@ function HandoffCard({ message, onAccept, onDismiss }) {
 }
 
 /** The AI assistant tab. It stays mounted while the chat is open so the conversation is kept. */
-export default function AiChat({ onOpenLive }) {
+export default function AiChat({ onOpenLive, onCloseChat }) {
   const [messages, setMessages] = useState([{ uid: 0, from: "bot", text: WELCOME }]);
   const nextUid = useRef(1);
   const newUid = () => {
@@ -61,6 +62,7 @@ export default function AiChat({ onOpenLive }) {
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const lastQuestion = useRef(null);
+  const recommendContext = useRef(null);   // where we are in a guided product recommendation
   const botReplies = useRef(0);
   const suggestedAt = useRef(null);
   const bodyRef = useRef(null);
@@ -90,8 +92,9 @@ export default function AiChat({ onOpenLive }) {
     setSuggestions([]);
     setTyping(true);
     try {
-      const res = await client.post("/api/chat/ask", { question, previousQuestion: lastQuestion.current });
+      const res = await client.post("/api/chat/ask", { question, previousQuestion: lastQuestion.current, recommendContext: recommendContext.current || undefined });
       lastQuestion.current = question;
+      recommendContext.current = res.data.recommendContext || null;
       const { answer, confidence, resolved, related, logId, canRate } = res.data;
       botReplies.current += 1;
       setMessages((prev) => [
@@ -99,6 +102,7 @@ export default function AiChat({ onOpenLive }) {
         {
           uid: newUid(), from: "bot", text: answer, confidence: resolved ? confidence : null,
           related: related || [], logId, canRate: Boolean(canRate && logId), rating: 0,
+          recommendation: res.data.recommendation || null,
           human: withHuman(res.data),
         },
       ]);
@@ -172,6 +176,18 @@ export default function AiChat({ onOpenLive }) {
                 <div style={{ fontSize: 10, marginTop: 4, opacity: 0.7 }}>Match confidence: {m.confidence}%</div>
               )}
             </div>
+            {m.recommendation && (
+              <>
+                <RecommendationCards recommendation={m.recommendation} onNavigate={onCloseChat} />
+                {m.recommendation.status === "needs_info" && m.uid === messages[messages.length - 1].uid && (
+                  <div className="chat-chips">
+                    {quickReplies(m.recommendation.question).map((reply) => (
+                      <button key={reply} type="button" className="chat-chip" disabled={typing} onClick={() => ask(reply)}>{reply}</button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
             {m.related?.length > 0 && (
               <div className="chat-chips">
                 {m.related.map((r, j) => (

@@ -5,11 +5,11 @@ delivered, cancelled). Nothing is estimated or invented: a milestone shows a tim
 the database has an event for it, and a stage is never shown as reached before its status is."""
 
 MILESTONES = [
-    ("received", "Order Received"),
-    ("verification", "Order Verification"),
-    ("approved", "Order Approved"),
-    ("preparing", "Preparing Your Products"),
-    ("in_transit", "In Transit"),
+    ("received", "Order Placed"),
+    ("verification", "Awaiting Confirmation"),
+    ("approved", "Confirmed"),
+    ("preparing", "Preparing Order"),
+    ("in_transit", "Shipped"),
     ("delivered", "Delivered"),
 ]
 
@@ -45,7 +45,7 @@ def _description(key, state, order):
     destination = ", ".join(p for p in (order.address_city, order.address_province) if p)
     online = order.is_online_payment
     if key == "received":
-        return f"Order {order.order_number} was placed."
+        return f"Order {order.order_number} was placed and received."
     if key == "verification":
         if state == "done":
             return "The order details and payment were checked."
@@ -54,19 +54,19 @@ def _description(key, state, order):
         if online and order.payment_status == "verifying":
             return "We are verifying your payment."
         if online and order.payment_status == "paid":
-            return "Payment received. Waiting for approval."
-        return "Our team is checking your order details."
+            return "Payment received. Waiting for our team to confirm the order."
+        return "Our team is checking your order details and will confirm the order."
     if key == "approved":
-        return {"done": "The order was approved for processing.",
-                "current": "Your order is approved and waiting to be prepared."}.get(state, "Waiting for approval.")
+        return {"done": "The order was confirmed.",
+                "current": "Your order is confirmed and waiting to be prepared."}.get(state, "Waiting for confirmation.")
     if key == "preparing":
         return {"done": "Your products were prepared.",
-                "current": "Your products are being prepared."}.get(state, "Your products will be prepared after approval.")
+                "current": "Your products are being prepared."}.get(state, "Preparation starts after the order is confirmed.")
     if key == "in_transit":
         where = f" to {destination}" if destination else ""
         return {"done": f"Your order was sent out for delivery{where}.",
-                "current": f"Your order is on its way{where}."}.get(state, "Waiting to be sent out for delivery.")
-    return {"done": "Your order was delivered."}.get(state, "Waiting for delivery.")
+                "current": f"Your order is on its way{where}."}.get(state, "Not shipped yet.")
+    return {"done": "Your order was delivered."}.get(state, "Not delivered yet.")
 
 
 def build_journey(order):

@@ -23,14 +23,13 @@ COLUMNS = [
     ("orders", "reviewed_at", "DATETIME NULL"),
     ("admins", "permissions", "JSON NULL"),
     ("admins", "is_active", "TINYINT(1) NOT NULL DEFAULT 1"),
-    ("live_messages", "image", "LONGTEXT NULL"),
+    ("products", "owner_admin_id", "INT NULL"),
 ]
 
 # Photos are stored as base64 text, which does not fit in a plain TEXT column.
 LONGTEXT_COLUMNS = [
     ("products", "image_photo"),
     ("users", "avatar_photo"),
-    ("live_messages", "image"),
 ]
 
 
@@ -65,8 +64,13 @@ def ensure_schema(db, logger):
             logger.warning("Could not add %s.%s (maybe another worker did): %s", table, column, error)
 
     add_missing_model_columns(db, logger)
+    try:
+        db.session.execute(text("UPDATE live_conversations SET status = 'open' WHERE status IS NULL"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
     backfill_single_product_reviews(db, logger)
-    retire_distributors(db, logger)
+    start_ledgers(db, logger)
 
     if db.engine.dialect.name != "mysql":
         return
@@ -86,29 +90,6 @@ def ensure_schema(db, logger):
         except Exception as error:
             db.session.rollback()
             logger.warning("Could not widen %s.%s: %s", table, column, error)
-
-
-def retire_distributors(db, logger):
-    """The Distributor role was removed. Accounts that still hold it are switched off (not deleted,
-    so a Head Admin can delete them or give them another role), and the products and services they
-    owned become ordinary catalog items. The old owner_admin_id columns stay in the table, unused.
-    Safe to run repeatedly."""
-    try:
-        tables = set(inspect(db.engine).get_table_names())
-        if "admins" in tables:
-            result = db.session.execute(text("UPDATE admins SET is_active = 0 WHERE role = 'Distributor' AND is_active <> 0"))
-            if result.rowcount:
-                logger.info("Switched off %s Distributor account(s); the role no longer exists", result.rowcount)
-        for table in ("products", "services"):
-            if table not in tables:
-                continue
-            if "owner_admin_id" not in {c["name"] for c in inspect(db.engine).get_columns(table)}:
-                continue
-            db.session.execute(text(f"UPDATE {table} SET owner_admin_id = NULL WHERE owner_admin_id IS NOT NULL"))
-        db.session.commit()
-    except Exception as error:
-        db.session.rollback()
-        logger.warning("Could not retire the Distributor role: %s", error)
 
 
 def backfill_single_product_reviews(db, logger):
@@ -172,3 +153,17 @@ def add_missing_model_columns(db, logger):
             except Exception as error:
                 db.session.rollback()
                 logger.warning("Could not add %s.%s: %s", table.name, column.name, error)
+
+
+def start_ledgers(db, logger):
+    """Fills the sales records from existing orders and gives every product an opening stock entry.
+    Both only add rows that are missing, so running them at every start is harmless."""
+    try:
+        from app.services import inventory, sales_ledger
+        rows = sales_ledger.sync_all()
+        baseline = inventory.ensure_baseline()
+        if rows or baseline:
+            logger.info("Sales records checked for %s orders; %s opening stock entries added", rows, baseline)
+    except Exception as error:
+        db.session.rollback()
+        logger.warning("Could not start the sales and stock records: %s", error)

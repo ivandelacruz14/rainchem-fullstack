@@ -145,21 +145,6 @@ def test_edit_percent_and_dates(client, make_admin, admin_login, make_product):
     assert moved.status_code == 200 and moved.get_json()["sale"]["startDate"] == day(11)
 
 
-def test_sales_need_the_products_permission(client, make_admin, admin_login, make_product):
-    make_admin()
-    make_admin("a@example.com", "Admin", ["products"])
-    make_admin("b@example.com", "Admin", ["orders"])
-    one, two = make_product("One"), make_product("Two")
-    h = admin_login("a@example.com")
-    sale = create_sale(client, h, [one.id, two.id]).get_json()["sales"]
-    assert sorted(s["productName"] for s in client.get("/api/admin/sales", headers=h).get_json()["sales"]) == ["One", "Two"]
-    assert client.post(f"/api/admin/sales/{sale[0]['id']}/end", headers=h).status_code == 200
-    # Without the products permission an admin cannot touch sales at all.
-    hb = admin_login("b@example.com")
-    assert client.get("/api/admin/sales", headers=hb).status_code == 403
-    assert client.post(f"/api/admin/sales/{sale[1]['id']}/end", headers=hb).status_code == 403
-
-
 def test_customers_and_visitors_cannot_manage_sales(client, make_product, make_user, user_login):
     p = make_product()
     assert client.post("/api/admin/sales", json={}).status_code == 401

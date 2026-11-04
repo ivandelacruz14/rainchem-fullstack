@@ -2,11 +2,11 @@ from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
-from app.models import Admin, AdminEmailChange, ApprovalOtp, ChangeRequest, ProductSale
+from app.models import Admin, AdminEmailChange, ApprovalOtp, ChangeRequest, Product, ProductSale, Service
 from app.services import admin_email_change
 from app.services.auth_utils import is_valid_email, validate_password
 from app.services.permissions import (
-    ASSIGNABLE_ROLES, PERMISSIONS, SUPPORT_STAFF, clean_permissions, default_permissions, is_head_role, role_info,
+    ASSIGNABLE_ROLES, PERMISSIONS, clean_permissions, default_permissions, is_head_role, role_info,
 )
 from app.utils.auth_decorators import create_admin_token, current_admin, require_admin, require_head_admin
 
@@ -116,7 +116,7 @@ def create_admin():
 
     name = (data.get("name") or "").strip()
     email = (data.get("email") or "").strip().lower()
-    role = data.get("role") or SUPPORT_STAFF
+    role = data.get("role") or "Support Staff"
     password = data.get("password") or ""
 
     if not name:
@@ -207,6 +207,9 @@ def delete_admin(admin_id):
     if admin.is_head and len(_active_heads()) <= 1 and admin.is_active:
         return _error("At least one active Head Admin must remain")
 
+    # What they owned goes back to the Head Admins.
+    Product.query.filter_by(owner_admin_id=admin.id).update({"owner_admin_id": None})
+    Service.query.filter_by(owner_admin_id=admin.id).update({"owner_admin_id": None})
     ProductSale.query.filter_by(created_by=admin.id).update({"created_by": None})
     ChangeRequest.query.filter_by(requested_by=admin.id).update({"requested_by": None})
     ChangeRequest.query.filter_by(decided_by=admin.id).update({"decided_by": None})

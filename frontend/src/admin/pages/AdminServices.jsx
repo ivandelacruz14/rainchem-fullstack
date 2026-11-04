@@ -39,7 +39,9 @@ export default function AdminServices() {
   const [busy, setBusy] = useState(false);
 
   function loadServices() {
-    client.get("/api/admin/services").then((res) => setServices(res.data.services));
+    client.get("/api/admin/services").then((res) => {
+      setServices(res.data.services);
+    });
   }
   function loadBookings() {
     client.get("/api/admin/services/bookings").then((res) => setBookings(res.data.bookings));
@@ -103,6 +105,7 @@ export default function AdminServices() {
       showToast(err.response?.data?.error || "Could not update this booking", "error");
     }
   }
+
 
   return (
     <div>

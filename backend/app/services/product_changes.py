@@ -2,10 +2,12 @@
 
 A Head Admin's change is applied straight away. For everyone else the same validated change
 is stored as a request (see change_requests.py) and applied only after the Head Admin approves it."""
+import re
 from decimal import Decimal, InvalidOperation
 
 from app.extensions import db
-from app.models import CartItem, OrderItem, Product, ProductReview
+from app.models import CartItem, InventoryMovement, OrderItem, Product, ProductReview
+from app.services.inventory import stock_context
 
 CATEGORIES = ["Oils & Fluids", "Coolant", "Filters", "Brakes", "Accessories"]
 MAX_PRICE = Decimal("1000000")
@@ -18,7 +20,10 @@ class ProductChangeError(ValueError):
         self.status = status
 
 
-def read_fields(data, creating):
+SKU_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,39}$")
+
+
+def read_fields(data, creating, product_id=None):
     """Returns (values, errors). Only fields present in the request are returned when updating.
     Values are JSON friendly (the price is kept as text) so they can be stored in a request."""
     values, errors = {}, []
@@ -52,6 +57,17 @@ def read_fields(data, creating):
             values["stock"] = stock
         except (ValueError, TypeError):
             errors.append("Stock must be a whole number, 0 or more")
+    if "sku" in data or creating:
+        sku = str(data.get("sku") or "").strip()
+        if sku and not SKU_PATTERN.match(sku):
+            errors.append("The SKU can use letters, numbers, dots, dashes and underscores (2 to 40 characters)")
+        elif sku:
+            clash = Product.query.filter(db.func.lower(Product.sku) == sku.lower())
+            if product_id:
+                clash = clash.filter(Product.id != product_id)
+            if clash.first():
+                errors.append("Another product already uses this SKU")
+        values["sku"] = sku or None
     if present("shortDesc"):
         short = str(data.get("shortDesc") or "").strip()
         if not short:
@@ -75,6 +91,7 @@ def read_fields(data, creating):
 def build_payload(values, data):
     return {
         "values": values,
+        "stockReason": (str(data.get("stockReason") or "").strip()[:255]) or None,
         "imageGlyph": data.get("imageGlyph") or None,
         "imagePhoto": data.get("imagePhoto") or None,
     }
@@ -104,9 +121,11 @@ def apply_create(payload):
     return product
 
 
-def apply_update(product, payload):
-    for column, value in _db_values(payload["values"]).items():
-        setattr(product, column, value)
+def apply_update(product, payload, admin=None, reference=None):
+    # A stock change made here is recorded as a manual adjustment with the reason that was given.
+    with stock_context("adjustment", reason=payload.get("stockReason"), admin=admin, reference=reference):
+        for column, value in _db_values(payload["values"]).items():
+            setattr(product, column, value)
     if payload.get("imagePhoto"):  # only replace the photo if a new one was uploaded
         product.image_photo = payload["imagePhoto"]
     return product
@@ -116,5 +135,6 @@ def apply_delete(product):
     check_deletable(product)
     # Past order lines keep the product name they were sold under; they just lose the link.
     OrderItem.query.filter_by(product_id=product.id).update({"product_id": None})
+    InventoryMovement.query.filter_by(product_id=product.id).update({"product_id": None})  # the history stays, by name
     CartItem.query.filter_by(product_id=product.id).delete()
     db.session.delete(product)

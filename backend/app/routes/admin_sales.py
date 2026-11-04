@@ -33,9 +33,8 @@ def _sale_dict(sale, now=None):
 @admin_sales_bp.get("")
 @require_permission("products")
 def list_sales():
-    query = ProductSale.query
     now = datetime.utcnow()
-    rows = query.order_by(ProductSale.starts_at.desc(), ProductSale.id.desc()).limit(300).all()
+    rows = ProductSale.query.order_by(ProductSale.starts_at.desc(), ProductSale.id.desc()).limit(300).all()
     return jsonify({"sales": [_sale_dict(s, now) for s in rows]})
 
 

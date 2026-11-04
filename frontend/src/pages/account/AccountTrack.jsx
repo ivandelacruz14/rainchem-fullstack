@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import client from "../../api/client";
 import OrderJourney from "../../components/journey/OrderJourney";
 import { useUI } from "../../context/UIContext";
@@ -104,6 +104,11 @@ export default function AccountTrack() {
                 {[order.address.city, order.address.province].filter(Boolean).join(", ")} {order.address.zip}<br />
                 {order.address.region}
               </p>
+              <h3 style={{ marginTop: 14 }}>Fulfillment</h3>
+              <p className="journey-address">
+                {order.statusLabel}
+                {order.status === "shipped" && <><br />Tracking no. <span className="mono">{order.trackingNumber}</span></>}
+              </p>
               <h3 style={{ marginTop: 14 }}>Payment</h3>
               <p className="journey-address">{order.paymentMethod} &middot; {order.paymentStatusLabel}</p>
             </div>
@@ -111,9 +116,12 @@ export default function AccountTrack() {
 
           <div className="journey-help">
             <span>Questions about this order?</span>
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => openLiveChat({ topic: "order", orderId: order.id })}>
-              Message the admin about this order
-            </button>
+            <span className="journey-help-actions">
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => openLiveChat({ topic: "order", orderId: order.id })}>
+                Message the admin about this order
+              </button>
+              <Link to="/account/orders" className="btn btn-outline btn-sm">View in My Orders</Link>
+            </span>
           </div>
         </>
       )}

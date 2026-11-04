@@ -108,7 +108,7 @@ def test_only_your_own_email_and_only_when_signed_in(client, make_admin, admin_l
     assert client.post("/api/admin/auth/me/email/start", json={}).status_code == 401
     make_user()
     assert client.post("/api/admin/auth/me/email/start", headers=user_login("customer@example.com"), json={}).status_code == 403
-    d = make_admin("d@example.com", "Admin", ["products"])
+    d = make_admin("d@example.com", "Support Staff", ["products"])
     dh = admin_login("d@example.com")
     start(client, dh, "dnew@example.com")
     confirm(client, dh, code_of(outbox))
@@ -119,7 +119,7 @@ def test_only_your_own_email_and_only_when_signed_in(client, make_admin, admin_l
 def test_changed_email_receives_approval_codes(client, make_admin, admin_login, outbox, mailbox, make_product):
     from conftest import emailed_code
     make_admin("wrong@example.com", "Head Admin")
-    make_admin("d@example.com", "Admin", ["products"])
+    make_admin("d@example.com", "Support Staff", ["products"])
     head, dist = admin_login("wrong@example.com"), admin_login("d@example.com")
     start(client, head, "right@example.com")
     confirm(client, head, code_of(outbox))

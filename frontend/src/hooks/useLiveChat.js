@@ -14,7 +14,7 @@ function merge(current, incoming) {
  * messages that are new or changed (status ticks, deletions), so no WebSocket server is needed.
  */
 export default function useLiveChat(active) {
-  const [state, setState] = useState({ loading: true, error: "", conversation: null, messages: [], topics: [] });
+  const [state, setState] = useState({ loading: true, error: "", conversation: null, messages: [], topics: [], maxUploadMb: 3 });
   const cursor = useRef(null);
   const busy = useRef(false);
 
@@ -25,6 +25,7 @@ export default function useLiveChat(active) {
       loading: false, error: "",
       conversation: data.conversation || prev.conversation,
       topics: data.topics?.length ? data.topics : prev.topics,
+      maxUploadMb: data.maxUploadMb || prev.maxUploadMb,
       messages: replace ? data.messages : merge(prev.messages, data.messages),
     }));
   }, []);
@@ -51,8 +52,15 @@ export default function useLiveChat(active) {
     return () => clearInterval(timer);
   }, [active, poll]);
 
-  const send = useCallback(async (body, extra = {}) => {
-    const res = await client.post("/api/live-chat/messages", { body, ...extra });
+  const send = useCallback(async (body, extra = {}, file = null) => {
+    let payload = { body, ...extra };
+    if (file) {
+      payload = new FormData();
+      payload.append("image", file);
+      if (body) payload.append("body", body);
+      Object.entries(extra).forEach(([key, value]) => { if (value !== undefined && value !== null && value !== "") payload.append(key, value); });
+    }
+    const res = await client.post("/api/live-chat/messages", payload);
     setState((prev) => ({ ...prev, conversation: res.data.conversation, messages: merge(prev.messages, [res.data.message]) }));
     return res.data;
   }, []);

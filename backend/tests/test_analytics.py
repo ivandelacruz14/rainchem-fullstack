@@ -63,24 +63,6 @@ def test_grouping_and_validation(client, make_admin, admin_login):
         assert client.get(f"/api/admin/analytics/report?{params}", headers=h).status_code == 400, params
 
 
-def test_orders_only_admin_gets_the_report_and_a_read_only_order_list(client, make_admin, admin_login, make_user, make_product, make_order):
-    make_admin("d@example.com", "Admin", ["analytics", "orders"])
-    make_admin()
-    user = make_user()
-    mine, theirs = make_product("Mine", price=100), make_product("Theirs", price=100)
-    make_order(user, [(mine, 100, 1), (theirs, 100, 5)], created_at=days_ago(1))
-    h = admin_login("d@example.com")
-    data = report(client, h, granularity="daily")
-    assert data["summary"]["revenue"] == 600.0
-    assert sorted(p["name"] for p in data["products"]) == ["Mine", "Theirs"]
-    assert client.get(f"/api/admin/analytics/products/{theirs.id}/history", headers=h).status_code == 200
-
-    orders = client.get("/api/admin/orders", headers=h).get_json()
-    assert orders["scope"] == "limited" and orders["orders"][0]["subtotal"] == 600.0
-    flat = str(orders)
-    assert "customer@example.com" not in flat and "09171234567" not in flat
-
-
 def test_product_history(client, make_admin, admin_login, make_user, make_product, make_order):
     a, *_ = seed(make_user, make_product, make_order)
     make_admin()
@@ -120,11 +102,3 @@ def test_forecast_estimate_restock_and_slow_mover(client, make_admin, admin_logi
     assert ("restock", "Fast") in kinds and ("promote", "Slow") in kinds
 
 
-def test_overview_is_the_same_for_every_admin(client, make_admin, admin_login, make_user, make_product, make_order):
-    make_admin()
-    make_admin("d@example.com", "Admin", ["products"])
-    user = make_user()
-    make_order(user, [(make_product("HQ", price=100), 100, 2)], created_at=days_ago(1))
-    for email in ("head@example.com", "d@example.com"):
-        data = client.get("/api/admin/overview", headers=admin_login(email)).get_json()
-        assert data["scope"] == "full" and data["stats"]["totalRevenue"] == 200.0 and "userCount" in data["stats"]

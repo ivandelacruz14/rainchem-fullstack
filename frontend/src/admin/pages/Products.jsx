@@ -5,7 +5,7 @@ import { useToast } from "../../context/ToastContext";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 
 const CATEGORIES = ["Oils & Fluids", "Coolant", "Filters", "Brakes", "Accessories"];
-const emptyForm = { name: "", category: CATEGORIES[0], price: "", stock: "", shortDesc: "", description: "", specs: "", benefits: "", usage: "" };
+const emptyForm = { name: "", category: CATEGORIES[0], price: "", stock: "", sku: "", stockReason: "", shortDesc: "", description: "", specs: "", benefits: "", usage: "" };
 
 function resizeImage(file) {
   return new Promise((resolve, reject) => {
@@ -41,9 +41,12 @@ export default function Products() {
   const { admin } = useAdminAuth();
 
   function loadProducts() {
-    client.get("/api/products/manage").then((res) => setProducts(res.data.products));
+    client.get("/api/products/manage").then((res) => {
+      setProducts(res.data.products);
+    });
   }
   useEffect(loadProducts, []);
+
 
   function openAdd() {
     setEditing(null);
@@ -57,7 +60,7 @@ export default function Products() {
     setEditing(product);
     setForm({
       name: product.name, category: product.category, price: product.price, stock: product.stock,
-      shortDesc: product.shortDesc, description: product.description,
+      sku: product.sku || "", stockReason: "", shortDesc: product.shortDesc, description: product.description,
       specs: product.specs.join("\n"), benefits: product.benefits.join("\n"), usage: product.usage.join("\n"),
     });
     setImagePreview(product.imagePhoto);
@@ -83,6 +86,8 @@ export default function Products() {
       usage: form.usage.split("\n").map((s) => s.trim()).filter(Boolean),
     };
     if (pendingImage) payload.imagePhoto = pendingImage;
+    payload.sku = form.sku.trim();
+    if (editing && Number(form.stock) !== Number(editing.stock)) payload.stockReason = form.stockReason.trim();
 
     if (!form.price || isNaN(parseFloat(form.price))) {
   showToast("Please enter a valid price", "error");
@@ -140,7 +145,7 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
         </div>
         <div className="table-wrap">
           <table className="admin-table stack">
-            <thead><tr><th></th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Reviews</th><th></th></tr></thead>
+            <thead><tr><th></th><th>Product</th><th>Category</th><th>SKU</th><th>Price</th><th>Stock</th><th>Reviews</th><th></th></tr></thead>
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.id}>
@@ -152,6 +157,7 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
                   <td data-label="Product" className="cell-name">{p.name}{p.pendingRequests > 0 && <div><span className="pill pill-pending">Pending approval</span></div>}</td>
                   <td data-label="Category">{p.category}</td>
                   <td data-label="Price">{peso(p.price)}</td>
+                  <td data-label="SKU" className="mono">{p.sku || "-"}</td>
                   <td data-label="Stock">{p.stock < 20 ? <span className="pill pill-low">{p.stock} left</span> : p.stock}</td>
                   <td data-label="Reviews">{p.reviews > 0 ? `\u2605 ${p.rating.toFixed(1)} (${p.reviews})` : "None yet"}</td>
                   <td data-label="" className="row-cell">
@@ -200,7 +206,17 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
                 </div>
                 <div className="field-row">
                   <div className="field"><label>Stock (units available)</label><input required type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
+                  <div className="field">
+                    <label htmlFor="product-sku">SKU / product code (optional)</label>
+                    <input id="product-sku" value={form.sku} maxLength={40} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="e.g. RC-ENG-1040" />
+                  </div>
                 </div>
+                {editing && Number(form.stock) !== Number(editing.stock) && (
+                  <div className="field">
+                    <label htmlFor="stock-reason">Why is the stock changing? (recorded in the stock history)</label>
+                    <input id="stock-reason" value={form.stockReason} maxLength={255} onChange={(e) => setForm({ ...form, stockReason: e.target.value })} placeholder="e.g. Counted after delivery" />
+                  </div>
+                )}
                 <div className="field"><label>Short Description</label><input required value={form.shortDesc} onChange={(e) => setForm({ ...form, shortDesc: e.target.value })} /></div>
                 <div className="field"><label>Full Description</label><textarea required rows="3" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
                 <div className="field"><label>Specs (one per line)</label><textarea rows="3" value={form.specs} onChange={(e) => setForm({ ...form, specs: e.target.value })} /></div>

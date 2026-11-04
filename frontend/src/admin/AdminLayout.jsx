@@ -16,7 +16,9 @@ const NAV_ITEMS = [
       { to: "/admin/services", label: "Services", permission: "services" },
       { to: "/admin/orders", label: "Orders", permission: "orders" },
       { to: "/admin/users", label: "Users", permission: "customers" },
+      { to: "/admin/sales-records", label: "Sales Records", permission: "analytics" },
       { to: "/admin/analytics", label: "Sales Analytics", permission: "analytics" },
+      { to: "/admin/inventory", label: "Inventory Alerts", permission: "products", inventoryBadge: true },
     ],
   },
   {
@@ -24,6 +26,7 @@ const NAV_ITEMS = [
     links: [
       { to: "/admin/live-chat", label: "Live Chat", permission: "livechat", liveBadge: true },
       { to: "/admin/knowledge", label: "Knowledge Base", permission: "chatbot" },
+      { to: "/admin/product-knowledge", label: "Product Knowledge", permission: "chatbot" },
       { to: "/admin/monitor", label: "Chat Monitor", permission: "chatbot" },
     ],
   },
@@ -44,6 +47,13 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pending, setPending] = useState(0);
   const [liveUnread, setLiveUnread] = useState(0);
+  const [alerts, setAlerts] = useState(0);
+
+  useEffect(() => {
+    if (!admin || !can("products")) return undefined;
+    client.get("/api/admin/inventory/alerts/count").then((res) => setAlerts(res.data.open)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [admin?.id, pathname]);
 
   useEffect(() => {
     if (!admin || !can("livechat")) return undefined;
@@ -107,6 +117,7 @@ export default function AdminLayout() {
                   {link.label}
                   {link.badge && pending > 0 && <span className="nav-badge">{pending}</span>}
                   {link.liveBadge && liveUnread > 0 && <span className="nav-badge">{liveUnread}</span>}
+                  {link.inventoryBadge && alerts > 0 && <span className="nav-badge">{alerts}</span>}
                 </NavLink>
               ))}
             </div>

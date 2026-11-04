@@ -1,8 +1,6 @@
 from datetime import datetime
 from app.extensions import db
-from app.services.permissions import (
-    PERMISSIONS, clean_permissions, default_permissions, is_head_role,
-)
+from app.services.permissions import PERMISSIONS, clean_permissions, default_permissions, is_head_role
 
 
 class Admin(db.Model):

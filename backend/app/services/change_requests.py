@@ -15,6 +15,7 @@ KIND_LABELS = {
     "product_delete": "Delete product",
 }
 FIELD_LABELS = {
+    "sku": "SKU",
     "name": "Name", "category": "Category", "price": "Price", "stock": "Stock",
     "short_desc": "Short description", "description": "Description",
     "specs": "Specifications", "benefits": "Benefits", "usage_steps": "Usage steps",
@@ -88,8 +89,6 @@ def changes_for(request_row):
     if request_row.image_photo:
         rows.append({"field": "Photo", "from": "-", "to": "New photo uploaded"})
     return rows
-
-
 
 
 def _same(old, new):
@@ -224,11 +223,8 @@ def _apply(request_row):
     product = db.session.get(Product, request_row.product_id) if request_row.product_id else None
     if product is None:
         raise changes.ProductChangeError("This product no longer exists, so the request cannot be applied. Reject it.", 409)
-    if requester is not None and not changes.can_manage(product, requester):
-        raise changes.ProductChangeError("The product no longer belongs to the person who asked. Reject this request.", 409)
-
     if request_row.kind == "product_update":
-        changes.apply_update(product, payload)
+        changes.apply_update(product, payload, reference=f"change_request:{request_row.id}")
     elif request_row.kind == "product_delete":
         changes.apply_delete(product)
 

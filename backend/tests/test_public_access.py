@@ -19,7 +19,7 @@ def test_visitors_cannot_use_protected_actions(client, make_product):
 def test_public_products_do_not_leak_internal_fields(client, make_product):
     make_product()
     product = client.get("/api/products").get_json()["products"][0]
-    assert "ownerId" not in product
+    assert "ownerId" not in product and "owner_admin_id" not in product
 
 
 def test_tracking_only_for_the_owner(client, make_user, make_product, make_order, user_login):

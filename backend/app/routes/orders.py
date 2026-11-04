@@ -12,6 +12,7 @@ from app.services.pricing import compute_shipping, effective_discount_rate, unit
 from app.services.receipt_service import generate_order_number, generate_tracking_number, create_receipt_for_order
 from app.services.email_service import send_email
 from app.services.catalog import serialize_products
+from app.services.inventory import stock_context
 from app.services.promotions import active_sales
 from app.services.recommendations import get_recommendations
 from app.services.reviews import ReviewError, submit_reviews
@@ -106,7 +107,8 @@ def create_order():
             discount_rate=line["rate"],
             quantity=line["qty"],
         ))
-        line["product"].stock -= line["qty"]
+        with stock_context("sale", order=order, reference=f"order:{order.order_number}"):
+            line["product"].stock -= line["qty"]
 
     db.session.add(OrderStatusHistory(order_id=order.id, status="pending_confirmation"))
 
@@ -189,7 +191,8 @@ def cancel_order(order_id):
         if item.product_id:
             product = Product.query.get(item.product_id)
             if product:
-                product.stock += item.quantity
+                with stock_context("cancel_restore", order=order, reference=f"order:{order.order_number}", reason="Cancelled by the customer"):
+                    product.stock += item.quantity
 
     db.session.commit()
 

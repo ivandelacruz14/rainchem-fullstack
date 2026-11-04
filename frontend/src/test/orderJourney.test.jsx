@@ -11,11 +11,11 @@ vi.mock("../api/client", () => {
 });
 import client from "../api/client";
 
-const TITLES = ["Order Received", "Order Verification", "Order Approved", "Preparing Your Products", "In Transit", "Delivered"];
+const TITLES = ["Order Placed", "Awaiting Confirmation", "Confirmed", "Preparing Order", "Shipped", "Delivered"];
 
 function journey(states, extra = {}) {
   return {
-    state: "in_progress", headline: "Order Approved", stageNumber: 3, stageCount: 6, updatedAt: "2026-10-25T08:30:00", alerts: [],
+    state: "in_progress", headline: "Confirmed", stageNumber: 3, stageCount: 6, updatedAt: "2026-10-25T08:30:00", alerts: [],
     milestones: TITLES.map((title, i) => ({
       key: ["received", "verification", "approved", "preparing", "in_transit", "delivered"][i], title, state: states[i],
       description: `${title} text`, at: states[i] === "upcoming" ? null : "2026-10-25T08:00:00",
@@ -39,7 +39,7 @@ describe("order journey", () => {
     const { container } = render(<OrderJourney order={order(journey(["done", "done", "current", "upcoming", "upcoming", "upcoming"]))} />);
     expect(screen.getByRole("heading", { level: 2, name: "ORD-2026-0009" })).toBeTruthy();
     expect(screen.getByText("RC-TRK-90009")).toBeTruthy();
-    expect(screen.getByText("Order Approved", { selector: ".journey-chip" })).toBeTruthy();
+    expect(screen.getByText("Confirmed", { selector: ".journey-chip" })).toBeTruthy();
     expect(screen.getByText(/Latest update:/)).toBeTruthy();
     expect(container.querySelectorAll(".stop.done").length).toBe(2);
     expect(container.querySelectorAll(".stop.current").length).toBe(1);
@@ -49,7 +49,7 @@ describe("order journey", () => {
     expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe("3");
   });
 
-  it("never shows In Transit or Delivered as reached before the status says so", () => {
+  it("never shows Shipped or Delivered as reached before the status says so", () => {
     const { container } = render(<OrderJourney order={order(journey(["done", "current", "upcoming", "upcoming", "upcoming", "upcoming"]))} />);
     const stops = [...container.querySelectorAll(".stop")];
     expect(stops[4].className).toContain("upcoming");
@@ -78,7 +78,7 @@ describe("order journey", () => {
 
   it("shows a payment problem instead of advancing", () => {
     const j = journey(["done", "current", "upcoming", "upcoming", "upcoming", "upcoming"], {
-      headline: "Order Verification", stageNumber: 2,
+      headline: "Awaiting Confirmation", stageNumber: 2,
       alerts: [{ kind: "payment", title: "Payment needed", message: "Your order cannot be verified until the payment is completed.", at: null }],
     });
     render(<OrderJourney order={order(j)} />);
@@ -98,7 +98,7 @@ describe("Track My Order page", () => {
     client.get.mockImplementation((url) => {
       if (url === "/api/auth/me") return Promise.resolve({ data: { user: { id: 1, name: "Maria", email: "m@x.com" } } });
       if (url === "/api/cart") return Promise.resolve({ data: { items: [] } });
-      if (url === "/api/orders") return Promise.resolve({ data: { orders: [{ id: 9, orderNumber: "ORD-2026-0009", statusLabel: "Confirmed", journey: { headline: "Order Approved" } }] } });
+      if (url === "/api/orders") return Promise.resolve({ data: { orders: [{ id: 9, orderNumber: "ORD-2026-0009", statusLabel: "Confirmed", journey: { headline: "Confirmed" } }] } });
       if (url.startsWith("/api/orders/track/ORD-2026-0009")) return Promise.resolve({ data: { order: order(journey(["done", "done", "current", "upcoming", "upcoming", "upcoming"])) } });
       if (url.startsWith("/api/orders/track/")) return Promise.reject({ response: { status: 404, data: { error: "No order found" } } });
       return Promise.resolve({ data: {} });
@@ -126,7 +126,7 @@ describe("Track My Order page", () => {
 
   it("lists the customer's own orders as shortcuts", async () => {
     page();
-    expect(await screen.findByRole("button", { name: /ORD-2026-0009 · Order Approved/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /ORD-2026-0009 · Confirmed/ })).toBeTruthy();
   });
 
   it("lets the customer message the admin about this order", async () => {

@@ -5,7 +5,7 @@ from sqlalchemy.orm import defer
 
 from app.extensions import db
 from app.models import KnowledgeEntry, ChatLog, Product
-from app.services import handoff
+from app.services import handoff, recommender
 from app.services.rag import answer_question
 from app.utils.auth_decorators import require_user, current_user_id
 
@@ -13,6 +13,52 @@ chat_bp = Blueprint("chat", __name__, url_prefix="/api/chat")
 
 MAX_QUESTION_LENGTH = 500   # matches the chat_logs.question column
 MAX_FEEDBACK_LENGTH = 500
+
+
+def save_log(question, answer, confidence, resolved, source, matched_entry=None):
+    try:
+        log = ChatLog(
+            question=question, answer=answer[:65000], matched_knowledge_id=matched_entry.id if matched_entry else None,
+            confidence=confidence, resolved=resolved, source=source, user_id=current_user_id(),
+        )
+        db.session.add(log)
+        db.session.commit()
+        return log.id
+    except Exception:
+        # Failing to save the log must never stop the customer from getting an answer.
+        db.session.rollback()
+        current_app.logger.exception("Could not save chat log")
+        return None
+
+
+def recommendation_turn(question, context):
+    """The guided product recommendation. Returns a response, or None to let the normal assistant answer."""
+    if context and not recommender.looks_like_recommendation_request(question):
+        parsed = recommender.parse_requirements(question)
+        answering_a_question = bool(parsed) or len(question.split()) <= 6
+        if not answering_a_question:
+            return None    # a different question: leave the recommendation behind
+    try:
+        reply = recommender.recommend(question, context)
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("The recommender failed")
+        return None
+    status = reply["status"]
+    resolved = status != "insufficient"
+    log_id = save_log(question, reply["answer"], reply.get("confidence", 0), resolved, "recommendation")
+    human = {"needsHuman": False, "humanReason": None, "humanMessage": None}
+    if status == "insufficient":
+        human = {"needsHuman": True, "humanReason": "technical_confirmation", "humanMessage": handoff.TECHNICAL_MESSAGE}
+    elif handoff.wants_human(question):
+        human = {"needsHuman": True, "humanReason": "requested", "humanMessage": handoff.REQUESTED_MESSAGE}
+    return jsonify({
+        "logId": log_id, "answer": reply["answer"], "confidence": reply.get("confidence", 0), "resolved": resolved,
+        "source": "recommendation", "canRate": status == "matches" and log_id is not None, "related": [],
+        "recommendation": {k: reply.get(k) for k in ("status", "question", "recommendations", "missing", "notConfirmed", "requirements")},
+        "recommendContext": reply["context"],
+        **human,
+    })
 
 
 @chat_bp.post("/ask")
@@ -25,6 +71,12 @@ def ask():
     question = question[:MAX_QUESTION_LENGTH]
 
     previous_question = (data.get("previousQuestion") or "").strip()[:MAX_QUESTION_LENGTH] or None
+
+    context = data.get("recommendContext") if isinstance(data.get("recommendContext"), dict) else None
+    if context or recommender.looks_like_recommendation_request(question):
+        outcome = recommendation_turn(question, context)
+        if outcome is not None:
+            return outcome
 
     entries = KnowledgeEntry.query.filter_by(status="approved").all()
     # The chatbot never needs product photos (base64, can be megabytes each).

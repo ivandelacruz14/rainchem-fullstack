@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { AdminAuthProvider, useAdminAuth } from "./context/AdminAuthContext";
 import { CartProvider } from "./context/CartContext";
@@ -45,8 +45,16 @@ import AdminServices from "./admin/pages/AdminServices";
 import AdminSales from "./admin/pages/AdminSales";
 import Approvals from "./admin/pages/Approvals";
 import MyAccount from "./admin/pages/MyAccount";
+import SalesRecords from "./admin/pages/SalesRecords";
+import InventoryAlerts from "./admin/pages/InventoryAlerts";
+import ProductKnowledge from "./admin/pages/ProductKnowledge";
 import LiveChat from "./admin/pages/LiveChat";
 import ScopedOrders from "./admin/pages/ScopedOrders";
+
+function TrackRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/track${search}`} replace />;
+}
 
 function OrdersRoute() {
   const { can } = useAdminAuth();
@@ -80,6 +88,8 @@ export default function App() {
                     <Route path="/order-success" element={<ProtectedRoute><OrderSuccess /></ProtectedRoute>} />
                     <Route path="/receipt/:orderId" element={<ProtectedRoute><Receipt /></ProtectedRoute>} />
 
+                    <Route path="/track" element={<ProtectedRoute><div className="container track-shell"><AccountTrack /></div></ProtectedRoute>} />
+                    <Route path="/account/track" element={<TrackRedirect />} />
                     <Route path="/account" element={<ProtectedRoute><AccountLayout /></ProtectedRoute>}>
                       <Route index element={<AccountOverview />} />
                       <Route path="orders" element={<AccountOrders />} />
@@ -104,6 +114,9 @@ export default function App() {
                     <Route path="analytics" element={<PermissionRoute permission="analytics"><Analytics /></PermissionRoute>} />
                     <Route path="services" element={<PermissionRoute permission="services"><AdminServices /></PermissionRoute>} />
                     <Route path="account" element={<MyAccount />} />
+                    <Route path="sales-records" element={<PermissionRoute permission="analytics"><SalesRecords /></PermissionRoute>} />
+                    <Route path="inventory" element={<PermissionRoute permission="products"><InventoryAlerts /></PermissionRoute>} />
+                    <Route path="product-knowledge" element={<PermissionRoute permission="chatbot"><ProductKnowledge /></PermissionRoute>} />
                     <Route path="live-chat" element={<PermissionRoute permission="livechat"><LiveChat /></PermissionRoute>} />
                     <Route path="approvals" element={<PermissionRoute permission="products"><Approvals /></PermissionRoute>} />
                     <Route path="sales" element={<PermissionRoute permission="products"><AdminSales /></PermissionRoute>} />

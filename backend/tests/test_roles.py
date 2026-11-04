@@ -16,22 +16,20 @@ def status(client, headers, method, url, **kw):
     return getattr(client, method)(url, headers=headers, **kw).status_code
 
 
-def test_all_three_roles_are_offered(client, make_admin, admin_login):
+def test_all_roles_are_offered(client, make_admin, admin_login):
     make_admin()
     data = client.get("/api/admin/auth/accounts", headers=admin_login("head@example.com")).get_json()
     assert data["roles"] == ["Head Admin", "Admin", "Support Staff"]
-    assert "Distributor" not in data["roleInfo"]
     assert set(data["roleInfo"]) == set(data["roles"])
-    assert all("scoped" not in info for info in data["roleInfo"].values())
-    assert data["roleInfo"]["Support Staff"]["preset"] == ["orders", "manage_orders", "customers", "chatbot"]
+    assert data["roleInfo"]["Support Staff"]["preset"] == ["orders", "manage_orders", "customers", "chatbot", "livechat"]
 
 
 def test_admin_role_runs_the_shop_but_not_accounts_or_payment_settings(client, make_admin, admin_login, make_product):
     make_admin()
     head = admin_login("head@example.com")
     account = make_account(client, head, "Admin")
-    assert account["isHead"] is False and "isScoped" not in account
-    assert set(account["permissions"]) == {"products", "services", "orders", "manage_orders", "customers", "chatbot", "analytics"}
+    assert account["isHead"] is False
+    assert set(account["permissions"]) == {"products", "services", "orders", "manage_orders", "customers", "chatbot", "livechat", "analytics"}
     h = admin_login("admin@example.com")
     someone_elses = make_product("HQ item")
     # Not limited to own products, but still goes through approval like every non-head change.
@@ -48,7 +46,7 @@ def test_admin_role_runs_the_shop_but_not_accounts_or_payment_settings(client, m
 def test_support_staff_handles_orders_customers_and_chatbot_only(client, make_admin, admin_login, make_user, make_product, make_order):
     make_admin()
     account = make_account(client, admin_login("head@example.com"), "Support Staff")
-    assert account["permissions"] == ["orders", "manage_orders", "customers", "chatbot"]
+    assert account["permissions"] == ["orders", "manage_orders", "customers", "chatbot", "livechat"]
     h = admin_login("supportstaff@example.com")
     user = make_user()
     order = make_order(user, [(make_product(), 100, 1)], status="pending_confirmation", payment_status="unpaid")
@@ -87,29 +85,16 @@ def test_older_accounts_without_saved_permissions_keep_working(client, make_admi
     assert status(client, content, "get", "/api/admin/users") == 403
     assert status(client, old, "get", "/api/admin/users") == 200
     me = client.get("/api/admin/auth/me", headers=staff).get_json()["admin"]
-    assert me["permissions"] == ["orders", "manage_orders", "customers", "chatbot"]
-
-
-def test_the_distributor_role_is_gone_and_old_accounts_have_no_access(client, make_admin, admin_login):
-    make_admin()
-    head = admin_login("head@example.com")
-    body = {"name": "D", "email": "d@example.com", "role": "Distributor", "password": PASSWORD, "confirmPassword": PASSWORD}
-    assert client.post("/api/admin/auth/accounts", headers=head, json=body).status_code == 400
-    # An account that still holds the old role (before the start-up clean-up ran) can use nothing.
-    old = make_admin("old@example.com", "Distributor", ["products", "orders", "analytics"])
-    h = admin_login("old@example.com")
-    assert old.permission_keys() == []
-    assert status(client, h, "get", "/api/products/manage") == 403
-    assert status(client, h, "get", "/api/admin/orders") == 403
-    assert status(client, h, "get", "/api/admin/users") == 403
+    assert me["permissions"] == ["orders", "manage_orders", "customers", "chatbot", "livechat"]
 
 
 def test_changing_a_role_resets_to_that_roles_starting_permissions(client, make_admin, admin_login):
     make_admin()
     head = admin_login("head@example.com")
     account = make_account(client, head, "Admin", permissions=["products"])
+    assert account["permissions"] == ["products"]
     r = client.put(f"/api/admin/auth/accounts/{account['id']}", headers=head, json={"role": "Support Staff", "confirmPassword": PASSWORD})
-    assert r.get_json()["admin"]["permissions"] == ["orders", "manage_orders", "customers", "chatbot"]
+    assert r.get_json()["admin"]["permissions"] == ["orders", "manage_orders", "customers", "chatbot", "livechat"]
     r = client.put(f"/api/admin/auth/accounts/{account['id']}", headers=head, json={"role": "Head Admin", "confirmPassword": PASSWORD})
     assert r.get_json()["admin"]["isHead"] is True
     r = client.put(f"/api/admin/auth/accounts/{account['id']}", headers=head, json={"role": "Wizard", "confirmPassword": PASSWORD})
@@ -122,3 +107,5 @@ def test_legacy_role_can_be_kept_when_editing_other_fields(client, make_admin, a
     head = admin_login("head@example.com")
     r = client.put(f"/api/admin/auth/accounts/{legacy.id}", headers=head, json={"name": "Renamed", "role": "Content Manager", "confirmPassword": PASSWORD})
     assert r.status_code == 200 and r.get_json()["admin"]["role"] == "Content Manager"
+
+

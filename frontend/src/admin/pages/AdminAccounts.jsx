@@ -19,6 +19,7 @@ const ROLE_NOTES = {
   "Head Admin": "Full control, including admin accounts and payment settings.",
   Admin: "Runs the shop day to day: all products, services, orders, customers, chatbot and reports. Cannot manage admin accounts or payment settings.",
   "Support Staff": "Handles orders, customers and the chatbot. Does not manage products, prices or reports unless you tick them.",
+  Distributor: "Retired role. This account has no access. Change the role to give it access again.",
   "Content Manager": "Older role: products, services, reports and the chatbot.",
 };
 
@@ -132,7 +133,7 @@ export default function AdminAccounts() {
       <div className="admin-topbar">
         <div>
           <h1>Admin Accounts</h1>
-          <p>Head Admins manage everything. Admins and Support Staff only get the features you tick. There is no public sign-up.</p>
+          <p>Head Admins manage everything. Distributors only get the features you tick. There is no public sign-up.</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => open("create")}>+ Add Account</button>
       </div>
@@ -194,6 +195,7 @@ export default function AdminAccounts() {
                       {roleOptions.map((r) => <option key={r}>{r}</option>)}
                     </select>
                     <p className="field-hint">{ROLE_NOTES[form.role] || ""}</p>
+                    {form.role === "Distributor" && <div className="alert alert-error">The Distributor role was removed. Pick Admin or Support Staff to give this person access.</div>}
                   </div>
                   {isHeadRole ? (
                     <div className="alert alert-info">Head Admins can do everything, including managing accounts and payment settings.</div>

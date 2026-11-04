@@ -7,22 +7,26 @@ Message status:
   sent       stored on the server
   delivered  the other side's app fetched it
   read       the other side opened the conversation
-Deleting a message erases its text and photo and leaves a marker both sides can see.
-A message may carry one photo (a data URL, like the other photos in this app), with or without text."""
+Deleting a message erases its text and leaves a marker both sides can see."""
+import hashlib
+import secrets
 from datetime import datetime, timedelta
 
+from flask import current_app
 from sqlalchemy import func
 
 from app.extensions import db
-from app.models import ChatLog, LiveConversation, LiveMessage, Order, User
-from app.models.live_chat import TOPICS
+from app.models import ChatLog, LiveAttachment, LiveConversation, LiveMessage, Order, User
+from app.models.live_chat import STATUS_LABELS, STATUSES, TOPICS
+from app.services import audit
 
 MAX_BODY = 2000
-MAX_IMAGE_CHARS = 1_500_000       # about 1 MB of base64; the browser shrinks photos well below this
-IMAGE_PREFIXES = ("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,", "data:image/gif;base64,")
 RATE_LIMIT_MESSAGES = 20          # per customer, per minute
 HISTORY_LIMIT = 100
 MAX_CONTEXT_LOGS = 3
+ONLINE_SECONDS = 45
+PRESENCE_WRITE_SECONDS = 10
+IMAGE_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 
 
 class LiveChatError(Exception):
@@ -44,22 +48,10 @@ def conversation_for(user_id):
     return LiveConversation.query.filter_by(user_id=user_id).first()
 
 
-def clean_image(raw):
-    """None when there is no photo. Only real raster images are accepted (no SVG)."""
-    if raw in (None, ""):
-        return None
-    if not isinstance(raw, str) or not raw.startswith(IMAGE_PREFIXES):
-        raise LiveChatError("Please attach a JPG, PNG, WEBP or GIF photo")
-    if len(raw) > MAX_IMAGE_CHARS:
-        raise LiveChatError("That photo is too large. Please choose one under 1 MB.")
-    return raw
-
-
-def clean_body(raw, has_image=False):
-    """The text of a message. A message with a photo may have no text at all."""
+def clean_body(raw, allow_empty=False):
     body = str(raw or "").strip()
-    if not body and not has_image:
-        raise LiveChatError("Type a message or attach a photo first")
+    if not body and not allow_empty:
+        raise LiveChatError("Type a message first")
     if len(body) > MAX_BODY:
         raise LiveChatError(f"Messages can be at most {MAX_BODY} characters")
     return body
@@ -110,35 +102,112 @@ def _check_rate(user):
         raise LiveChatError("You are sending messages too fast. Please wait a moment.", 429)
 
 
-def send_user_message(user, body, topic=None, order_id=None, image=None):
-    check_eligible(user)
-    image = clean_image(image)
-    body = clean_body(body, has_image=bool(image))
-    _check_rate(user)
-    conversation = ensure_conversation(user, topic, order_id)
+def detect_image(data):
+    """The real type of an image, judged from its bytes and not from its name or declared type.
+    Returns a mime type, or raises. Only JPEG, PNG and WEBP with a complete structure are accepted."""
+    if data[:3] == b"\xff\xd8\xff" and data.rstrip(b"\x00").endswith(b"\xff\xd9"):
+        return "image/jpeg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n" and data[-12:] == b"\x00\x00\x00\x00IEND\xaeB`\x82":
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP" and int.from_bytes(data[4:8], "little") + 8 == len(data):
+        return "image/webp"
+    raise LiveChatError("That file is not a valid JPG, PNG or WEBP image")
+
+
+def max_upload_bytes():
+    return int(float(current_app.config.get("CHAT_UPLOAD_MAX_MB", 3)) * 1024 * 1024)
+
+
+def read_upload(file_storage):
+    """Reads an uploaded file within the size limit and checks that it really is a supported image."""
+    limit = max_upload_bytes()
+    data = file_storage.stream.read(limit + 1)
+    if not data:
+        raise LiveChatError("That file is empty")
+    if len(data) > limit:
+        raise LiveChatError(f"The image is too large. The limit is {limit / (1024 * 1024):g} MB.", 413)
+    return data, detect_image(data)
+
+
+def _attach(message, data, mime):
+    db.session.add(LiveAttachment(
+        message=message, conversation_id=message.conversation_id, stored_name=f"{secrets.token_hex(16)}.{IMAGE_TYPES[mime]}",
+        mime=mime, size=len(data), sha256=hashlib.sha256(data).hexdigest(), data=data,
+    ))
+
+
+def _new_message(conversation, sender_type, name, body, image, admin_id=None):
+    data = mime = None
+    if image is not None:
+        data, mime = image
+    elif not body:
+        raise LiveChatError("Type a message first")
     now = datetime.utcnow()
     message = LiveMessage(
-        conversation_id=conversation.id, sender_type="user", sender_name=user.name, body=body, image=image,
-        created_at=now, updated_at=now,
+        conversation_id=conversation.id, sender_type=sender_type, sender_admin_id=admin_id, sender_name=name,
+        kind="image" if data else "text", body=body, created_at=now, updated_at=now,
     )
     db.session.add(message)
+    db.session.flush()
+    if data:
+        _attach(message, data, mime)
     _touch(conversation, now)
+    return message
+
+
+def send_user_message(user, body, topic=None, order_id=None, image=None):
+    check_eligible(user)
+    body = clean_body(body, allow_empty=image is not None)
+    _check_rate(user)
+    conversation = ensure_conversation(user, topic, order_id)
+    conversation.status, conversation.resolved_at = "open", None      # a new customer message needs attention
+    message = _new_message(conversation, "user", user.name, body, image)
     db.session.commit()
     return conversation, message
 
 
 def send_admin_message(admin, conversation, body, image=None):
-    image = clean_image(image)
-    body = clean_body(body, has_image=bool(image))
-    now = datetime.utcnow()
-    message = LiveMessage(
-        conversation_id=conversation.id, sender_type="admin", sender_admin_id=admin.id,
-        sender_name=admin.name, body=body, image=image, created_at=now, updated_at=now,
-    )
-    db.session.add(message)
-    _touch(conversation, now)
+    body = clean_body(body, allow_empty=image is not None)
+    conversation.status, conversation.resolved_at = "pending", None   # now waiting for the customer
+    message = _new_message(conversation, "admin", admin.name, body, image, admin_id=admin.id)
     db.session.commit()
     return message
+
+
+def set_status(conversation, status):
+    if status not in STATUSES:
+        raise LiveChatError("Choose open, pending or resolved")
+    conversation.status = status
+    conversation.resolved_at = datetime.utcnow() if status == "resolved" else None
+    db.session.commit()
+
+
+def touch_presence(conversation):
+    """Records that the customer's app just asked for messages. Online means "asked within the last minute"."""
+    now = datetime.utcnow()
+    last = conversation.user_last_seen_at
+    if last is None or (now - last).total_seconds() >= PRESENCE_WRITE_SECONDS:
+        conversation.user_last_seen_at = now
+        db.session.commit()
+
+
+def is_online(conversation):
+    seen = conversation.user_last_seen_at
+    return bool(seen and (datetime.utcnow() - seen).total_seconds() <= ONLINE_SECONDS)
+
+
+def start_for_customer(admin, user, order=None):
+    """An admin opens (or reuses) the conversation with a customer, optionally about one order."""
+    conversation = conversation_for(user.id)
+    created = conversation is None
+    if created:
+        conversation = LiveConversation(user_id=user.id, topic="order" if order else "other", status="pending")
+        db.session.add(conversation)
+    if order is not None:
+        conversation.order_id = order.id
+        conversation.topic = "order"
+    db.session.commit()
+    return conversation, created
 
 
 def mark_delivered(conversation_ids, sender_type):
@@ -170,7 +239,7 @@ def mark_read(conversation, sender_type):
     return count
 
 
-def delete_message(message, actor_type):
+def delete_message(message, actor_type, admin=None):
     """A sender may remove their own message; an admin may remove any. The text is erased
     for good and both sides see "This message was deleted"."""
     if message.deleted_at:
@@ -178,8 +247,20 @@ def delete_message(message, actor_type):
     if actor_type == "user" and message.sender_type != "user":
         raise LiveChatError("You can only delete your own messages", 403)
     now = datetime.utcnow()
+    # The text is erased, but the fact of the deletion is kept: who, when, what kind of message, and a
+    # fingerprint of the content, so nothing disappears without a trace.
+    attachment = message.attachment
+    audit.record(
+        "chat_message_deleted", "live_message", message.id,
+        {"conversationId": message.conversation_id, "sender": message.sender_type, "kind": message.kind,
+         "sentAt": message.created_at.isoformat() if message.created_at else None,
+         "textSha256": hashlib.sha256((message.body or "").encode("utf-8")).hexdigest() if message.body else None,
+         "imageSha256": attachment.sha256 if attachment else None},
+        {"deletedBy": actor_type}, None, admin=admin, actor_name=None if admin else f"Customer: {message.sender_name}",
+    )
+    if attachment is not None:
+        db.session.delete(attachment)
     message.body = ""
-    message.image = None
     message.meta = None
     message.deleted_at = now
     message.deleted_by = actor_type
@@ -225,10 +306,8 @@ def preview(message):
         return None
     if message.deleted_at:
         text = "This message was deleted"
-    elif message.image and not message.body:
-        text = "Sent a photo"
-    elif message.image:
-        text = f"Photo: {message.body}"
+    elif message.kind == "image":
+        text = "Photo" + (f": {message.body}" if message.body else "")
     else:
         text = message.body or ""
     return {
@@ -294,5 +373,7 @@ def conversation_dict(conversation):
         "topicLabel": TOPICS.get(conversation.topic, "Something else"),
         "orderId": conversation.order_id,
         "orderNumber": order.order_number if order else None,
+        "status": conversation.status or "open",
+        "statusLabel": STATUS_LABELS.get(conversation.status or "open"),
         "createdAt": conversation.created_at.isoformat() if conversation.created_at else None,
     }

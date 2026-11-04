@@ -80,7 +80,7 @@ def test_deleting_one_record_leaves_everything_else_alone(client, make_admin, ad
 
 def test_only_authorised_admins_can_use_the_monitor(client, make_admin, admin_login, make_user, user_login):
     user, entry, rows = logs(make_user)
-    make_admin("dist@example.com", "Admin", ["products"])
+    make_admin("dist@example.com", "Support Staff", ["products"])
     make_admin("staff@example.com", "Support Staff")
     make_admin("content@example.com", "Content Manager")
     d = admin_login("dist@example.com")

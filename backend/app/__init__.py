@@ -22,6 +22,10 @@ def create_app(config_class=Config):
     cors.init_app(app, resources={r"/api/*": {"origins": origins}})
 
     from app.routes import register_routes
+    from app.services import inventory, sales_ledger
+
+    inventory.register_events()
+    sales_ledger.register_events()
     register_routes(app)
 
     if not app.config.get("TESTING"):

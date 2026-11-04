@@ -35,7 +35,7 @@ def list_products():
 @products_bp.get("/manage")
 @require_permission("products")
 def list_manageable_products():
-    """The whole catalog, for any admin with the products permission."""
+    """The catalog for the admin screen, with how many changes are waiting for approval."""
     admin = current_admin()
     query = Product.query.filter(Product.category != "Services")
     products = serialize_products(query.order_by(Product.id).all(), admin_view=True)
@@ -70,7 +70,6 @@ def create_product():
     values, errors = changes.read_fields(data, creating=True)
     if errors:
         return jsonify({"error": ". ".join(errors)}), 400
-
     payload = changes.build_payload(values, data)
     if not admin.is_head:
         return _pending_response(admin, "product_create", None, payload)
@@ -87,7 +86,7 @@ def update_product(product_id):
     product = Product.query.get_or_404(product_id)
 
     data = request.get_json() or {}
-    values, errors = changes.read_fields(data, creating=False)
+    values, errors = changes.read_fields(data, creating=False, product_id=product_id)
     if errors:
         return jsonify({"error": ". ".join(errors)}), 400
 

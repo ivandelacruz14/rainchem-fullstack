@@ -1,11 +1,10 @@
 HEAD_ADMIN = "Head Admin"
 ADMIN = "Admin"
 SUPPORT_STAFF = "Support Staff"
+# Retired: the Distributor role no longer exists. Old accounts keep their record but have no access
+# until a Head Admin gives them another role.
+RETIRED_DISTRIBUTOR = "Distributor"
 CONTENT_MANAGER = "Content Manager"  # an older role: kept working, not offered for new accounts
-
-# Roles that no longer exist. An account still holding one has no access (see ensure_schema,
-# which also switches such accounts off).
-REMOVED_ROLES = {"Distributor"}
 
 # "Super Admin" accounts (from the original seed) keep full access.
 LEGACY_HEAD_ROLES = {"Super Admin"}
@@ -31,6 +30,7 @@ ROLE_PRESETS = {
     ADMIN: list(PERMISSIONS),
     SUPPORT_STAFF: ["orders", "manage_orders", "customers", "chatbot", "livechat"],
     CONTENT_MANAGER: ["products", "services", "analytics", "chatbot"],
+    RETIRED_DISTRIBUTOR: [],
 }
 
 
@@ -41,8 +41,6 @@ def is_head_role(role):
 def allowed_permissions(role):
     if is_head_role(role):
         return list(PERMISSIONS)
-    if role in REMOVED_ROLES:
-        return []
     return list(PERMISSIONS)
 
 

@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import client from "../../api/client";
 import { peso, formatDate } from "../../utils/format";
 import { useToast } from "../../context/ToastContext";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import ReceiptModal from "../ReceiptModal";
 
 const STATUSES = ["All", "verifying", "pending_confirmation", "confirmed", "processing", "shipped", "delivered", "cancelled", "returns"];
@@ -18,12 +20,40 @@ export default function Orders() {
   const [receiptFor, setReceiptFor] = useState(null);
   const [proofImage, setProofImage] = useState(null);
   const showToast = useToast();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const { can } = useAdminAuth();
+  const [opening, setOpening] = useState(false);
 
   function loadOrders() {
-    const params = tab === "All" ? {} : { status: tab };
-    client.get("/api/admin/orders", { params }).then((res) => setOrders(res.data.orders));
+    const query = tab === "All" ? {} : { status: tab };
+    client.get("/api/admin/orders", { params: query }).then((res) => setOrders(res.data.orders));
   }
   useEffect(loadOrders, [tab]);
+
+  // /admin/orders?order=12 opens that order (used by the live chat's "open order" button).
+  const linkedOrder = Number(params.get("order")) || null;
+  useEffect(() => {
+    if (!linkedOrder) return;
+    client.get(`/api/admin/orders/${linkedOrder}`)
+      .then((res) => { setReturnNote(""); setSelected(res.data.order); })
+      .catch(() => showToast("That order could not be found", "error"))
+      .finally(() => setParams({}, { replace: true }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedOrder]);
+
+  // Opens the existing conversation with this customer, or starts one, so the order can be discussed.
+  async function messageCustomer(order) {
+    setOpening(true);
+    try {
+      const res = await client.post("/api/admin/live-chat/conversations/start", { orderId: order.id });
+      navigate(`/admin/live-chat?conversation=${res.data.conversation.id}`);
+    } catch (err) {
+      showToast(err.response?.data?.error || "Could not open the conversation", "error");
+    } finally {
+      setOpening(false);
+    }
+  }
 
   async function handleConfirm(orderId) {
     try {
@@ -154,6 +184,11 @@ export default function Orders() {
             <div className="modal-head"><h3 style={{ margin: 0 }}>Order Detail</h3><button className="modal-close" onClick={() => setSelected(null)}>&times;</button></div>
             <div className="modal-body">
               <div className="mono" style={{ fontWeight: 700, fontSize: 16 }}>{selected.orderNumber}</div>
+              {can("livechat") && (
+                <button type="button" className="btn btn-outline btn-sm" style={{ margin: "8px 0" }} disabled={opening} onClick={() => messageCustomer(selected)}>
+                  {opening ? "Opening..." : "Message Customer"}
+                </button>
+              )}
               <div style={{ fontSize: 12, color: "var(--soft)", marginBottom: 14 }}>Placed {formatDate(selected.createdAt)}</div>
               <div className="panel" style={{ background: "var(--fog)", border: "none" }}>
                 <strong>Customer</strong>

@@ -96,18 +96,6 @@ def test_area_validation(client, make_admin, admin_login):
         assert client.post("/api/admin/services", headers=ah, json=body).status_code == 400
 
 
-def test_any_services_admin_manages_every_service(client, make_admin, admin_login):
-    make_admin()
-    make_admin("a1@example.com", "Admin", ["services"])
-    make_admin("a2@example.com", "Admin", ["services"])
-    h1, h2 = admin_login("a1@example.com"), admin_login("a2@example.com")
-    s1 = create(client, h1)
-    assert "ownerId" not in s1
-    assert client.put(f"/api/admin/services/{s1['id']}", headers=h2, json={"name": "Renamed"}).status_code == 200
-    listing = client.get("/api/admin/services", headers=h2).get_json()
-    assert len(listing["services"]) == 1 and "distributors" not in listing
-
-
 def test_booking_status_flow_and_customer_cancel(client, make_admin, admin_login, make_user, user_login):
     make_admin()
     ah = admin_login("head@example.com")

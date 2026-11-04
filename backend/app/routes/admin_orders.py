@@ -7,6 +7,8 @@ from app.models.order import ORDER_STATUSES
 from app.services.receipt_service import create_receipt_for_order
 from app.services.email_service import send_email
 from app.services.payment_flow import mark_paid, reset_payment
+from app.models import OrderItem
+from app.services.inventory import stock_context
 from app.utils.auth_decorators import current_admin, require_head_admin, require_permission
 
 admin_orders_bp = Blueprint("admin_orders", __name__, url_prefix="/api/admin/orders")
@@ -28,7 +30,7 @@ def list_orders():
         query = query.filter_by(status=status)
     orders = query.order_by(Order.created_at.desc()).all()
     if limited:
-        return jsonify({"scope": "limited", "orders": [o.to_scoped_dict() for o in orders]})
+        return jsonify({"scope": "limited", "orders": [o.to_scoped_dict(None) for o in orders]})
     return jsonify({"scope": "full", "orders": [o.to_dict() for o in orders]})
 
 
@@ -94,7 +96,8 @@ def update_status(order_id):
             if item.product_id:
                 product = db.session.get(Product, item.product_id)
                 if product:
-                    product.stock += item.quantity
+                    with stock_context("cancel_restore", order=order, reference=f"order:{order.order_number}", reason="Cancelled by an administrator"):
+                        product.stock += item.quantity
     if new_status == "delivered" and not order.is_online_payment and order.payment_status == "unpaid":
         order.payment_status = "paid"
         order.paid_at = datetime.utcnow()
@@ -185,7 +188,8 @@ def decide_return(order_id, decision):
             if item.product_id:
                 product = db.session.get(Product, item.product_id)
                 if product:
-                    product.stock += item.quantity
+                    with stock_context("return", order=order, reference=f"order:{order.order_number}", reason="Return approved"):
+                        product.stock += item.quantity
     else:
         order.return_status = "rejected"
 

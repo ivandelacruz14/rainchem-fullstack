@@ -16,6 +16,10 @@ REPEATED_MESSAGE = (
     "Would you like to chat with our admin so a person can help?"
 )
 REQUESTED_MESSAGE = "Sure, I can connect you with our admin. Would you like to open the live chat?"
+TECHNICAL_MESSAGE = (
+    "I could not confirm a suitable product from our verified documentation. "
+    "Would you like to chat with our admin so our technical team can confirm this for you?"
+)
 LOW_RATING_MESSAGE = "Sorry that answer did not help. Would you like to chat with our admin for further assistance?"
 
 _VERBS = r"(talk|speak|chat|connect|contact|message|call|makausap|kausap|kumausap|makipag)"

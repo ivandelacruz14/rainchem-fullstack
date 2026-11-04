@@ -40,6 +40,9 @@ class Config:
         "http://localhost:5173"
     )
 
+    # Largest image that can be sent in the live chat, in megabytes.
+    CHAT_UPLOAD_MAX_MB = float(os.getenv("CHAT_UPLOAD_MAX_MB", "3"))
+
     # Hours between UTC and the shop's local time, used to group sales by day.
     STORE_UTC_OFFSET_HOURS = int(os.getenv("STORE_UTC_OFFSET_HOURS", "8"))
 

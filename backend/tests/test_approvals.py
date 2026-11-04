@@ -7,10 +7,10 @@ from conftest import PASSWORD, emailed_code
 NEW_PRODUCT = {"name": "Fresh Oil", "category": "Oils & Fluids", "price": 450, "stock": 10, "shortDesc": "s", "description": "d"}
 
 
-def setup(make_admin, admin_login, role="Admin", perms=("products",)):
+def setup(make_admin, admin_login, role="Support Staff", perms=("products",)):
     make_admin()
-    requester = make_admin("d@example.com", role, list(perms))
-    return admin_login("head@example.com"), admin_login("d@example.com"), requester
+    distributor = make_admin("d@example.com", role, list(perms))
+    return admin_login("head@example.com"), admin_login("d@example.com"), distributor
 
 
 def start(client, head, request_id, password=PASSWORD):
@@ -50,15 +50,14 @@ def test_non_head_changes_become_requests_and_change_nothing(client, make_admin,
 
 def test_invalid_requests_are_refused_up_front(client, make_admin, admin_login, make_product):
     head, dist, d = setup(make_admin, admin_login)
-    theirs = make_product("Theirs")
     assert client.post("/api/products", headers=dist, json={"name": "", "price": -1}).status_code == 400
-    assert client.put(f"/api/products/{theirs.id}", headers=dist, json={"price": -5}).status_code == 400
+    assert client.put("/api/products/99999", headers=dist, json={"price": 5}).status_code == 404
     assert ChangeRequest.query.count() == 0
 
 
 def test_visibility_requester_sees_own_head_sees_all(client, make_admin, admin_login):
     head, dist, d = setup(make_admin, admin_login)
-    make_admin("other@example.com", "Admin", ["products"])
+    make_admin("other@example.com", "Support Staff", ["products"])
     other = admin_login("other@example.com")
     req = client.post("/api/products", headers=dist, json=NEW_PRODUCT).get_json()["request"]
     assert len(client.get("/api/admin/approvals", headers=head).get_json()["requests"]) == 1

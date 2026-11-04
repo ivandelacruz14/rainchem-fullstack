@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 from app.extensions import db
-from app.models import LiveMessage, Order, User
+from app.models import LiveAttachment, LiveMessage, Order, User
 from app.models.live_chat import TOPICS
 from app.services import live_chat as chat
 from app.utils.auth_decorators import current_user_id, require_user
@@ -29,7 +29,25 @@ def _snapshot(conversation, messages):
         "unread": chat.unread_count(conversation.id, "user") if conversation else 0,
         "serverTime": datetime.utcnow().isoformat(),
         "topics": [{"key": k, "label": v} for k, v in TOPICS.items()],
+        "maxUploadMb": chat.max_upload_bytes() / (1024 * 1024),
     }
+
+
+def attachment_response(attachment):
+    """Image bytes for someone who is allowed to see them. Never cached publicly, never sniffed as another type."""
+    return Response(attachment.data, mimetype=attachment.mime, headers={
+        "Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff",
+        "Content-Disposition": f'inline; filename="{attachment.stored_name}"',
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+    })
+
+
+def read_message_request():
+    """A message is JSON (text) or a multipart form (an image, with an optional caption)."""
+    upload = request.files.get("image") if request.files else None
+    data = request.form if request.files or request.form else (request.get_json(silent=True) or {})
+    image = chat.read_upload(upload) if upload is not None and upload.filename != "" else None
+    return data, image
 
 
 @live_chat_bp.get("")
@@ -45,6 +63,7 @@ def get_chat():
     conversation = chat.conversation_for(user.id)
     if conversation is None:
         return jsonify(_snapshot(None, []))
+    chat.touch_presence(conversation)
     chat.mark_delivered([conversation.id], "admin")   # their app now has the admin's messages
     return jsonify(_snapshot(conversation, chat.messages_for(conversation, since)))
 
@@ -56,6 +75,7 @@ def unread():
     conversation = chat.conversation_for(current_user_id())
     if conversation is None:
         return jsonify({"unread": 0, "latest": None})
+    chat.touch_presence(conversation)
     chat.mark_delivered([conversation.id], "admin")
     return jsonify({
         "unread": chat.unread_count(conversation.id, "user"),
@@ -66,11 +86,9 @@ def unread():
 @live_chat_bp.post("/messages")
 @require_user
 def send_message():
-    data = request.get_json() or {}
     try:
-        conversation, message = chat.send_user_message(
-            _user(), data.get("body"), data.get("topic"), data.get("orderId"), data.get("image"),
-        )
+        data, image = read_message_request()
+        conversation, message = chat.send_user_message(_user(), data.get("body"), data.get("topic"), data.get("orderId"), image)
     except chat.LiveChatError as error:
         return _fail(error)
     return jsonify({"message": message.to_dict("user"), "conversation": chat.conversation_dict(conversation)}), 201
@@ -111,6 +129,16 @@ def delete_message(message_id):
     except chat.LiveChatError as error:
         return _fail(error)
     return jsonify({"message": message.to_dict("user")})
+
+
+@live_chat_bp.get("/attachments/<int:attachment_id>")
+@require_user
+def get_attachment(attachment_id):
+    attachment = db.session.get(LiveAttachment, attachment_id)
+    conversation = chat.conversation_for(current_user_id())
+    if attachment is None or conversation is None or attachment.conversation_id != conversation.id:
+        return jsonify({"error": "Image not found"}), 404
+    return attachment_response(attachment)
 
 
 @live_chat_bp.get("/orders")

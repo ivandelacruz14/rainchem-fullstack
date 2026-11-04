@@ -29,7 +29,7 @@ def test_new_cod_order_is_waiting_for_verification(client, make_user, make_produ
     j = journey_of(client, user_login(user.email), order)
     assert states(j) == {"received": "done", "verification": "current", "approved": "upcoming",
                          "preparing": "upcoming", "in_transit": "upcoming", "delivered": "upcoming"}
-    assert j["headline"] == "Order Verification" and j["state"] == "in_progress" and j["stageNumber"] == 2 and j["stageCount"] == 6
+    assert j["headline"] == "Awaiting Confirmation" and j["state"] == "in_progress" and j["stageNumber"] == 2 and j["stageCount"] == 6
     assert j["alerts"] == [] and j["updatedAt"]
 
 
@@ -147,7 +147,7 @@ def test_the_same_status_everywhere(client, make_user, make_product, make_order,
     make_admin()
     admin_side = client.get("/api/admin/orders", headers=admin_login("head@example.com")).get_json()["orders"][0]
     assert mine["status"] == tracked["status"] == admin_side["status"] == "shipped"
-    assert mine["journey"]["headline"] == tracked["journey"]["headline"] == admin_side["journey"]["headline"] == "In Transit"
+    assert mine["journey"]["headline"] == tracked["journey"]["headline"] == admin_side["journey"]["headline"] == "Shipped"
 
 
 def test_customers_can_only_track_their_own_orders_and_the_response_stays_private(client, make_user, make_product, make_order, user_login):

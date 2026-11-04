@@ -63,7 +63,6 @@ export default function UserMenu() {
             <span>{user.email}</span>
           </div>
           <Link role="menuitem" to="/account" className="user-menu-item">My Account</Link>
-          <Link role="menuitem" to="/account/orders" className="user-menu-item">My Orders</Link>
           <Link role="menuitem" to="/account/services" className="user-menu-item">Service Requests</Link>
           <button role="menuitem" type="button" className="user-menu-item" onClick={() => { setOpen(false); openCart(); }}>
             <span>Cart</span>

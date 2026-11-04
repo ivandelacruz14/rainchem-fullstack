@@ -1,6 +1,16 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
+const LINKS = [
+  { to: "/account", label: "Overview", end: true },
+  { to: "/account/orders", label: "My Orders" },
+  { to: "/account/services", label: "Service Requests" },
+  { to: "/account/address", label: "Addresses" },
+  { to: "/account/profile", label: "Profile" },
+  { to: "/account/settings", label: "Settings & Privacy" },
+  { to: "/account/help", label: "Help Center" },
+];
+
 export default function AccountLayout() {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -12,19 +22,18 @@ export default function AccountLayout() {
 
   return (
     <div className="container account-shell">
-      <div className="account-nav">
-        <NavLink to="/account" end className={({ isActive }) => (isActive ? "active" : "")}>Overview</NavLink>
-        <NavLink to="/account/orders" className={({ isActive }) => (isActive ? "active" : "")}>My Orders</NavLink>
-        <NavLink to="/account/services" className={({ isActive }) => (isActive ? "active" : "")}>Service Requests</NavLink>
-        <NavLink to="/account/track" className={({ isActive }) => (isActive ? "active" : "")}>Track Order</NavLink>
-        <NavLink to="/account/address" className={({ isActive }) => (isActive ? "active" : "")}>Addresses</NavLink>
-        <NavLink to="/account/profile" className={({ isActive }) => (isActive ? "active" : "")}>Profile</NavLink>
-        <NavLink to="/account/settings" className={({ isActive }) => (isActive ? "active" : "")}>Settings &amp; Privacy</NavLink>
-        <NavLink to="/account/help" className={({ isActive }) => (isActive ? "active" : "")}>Help Center</NavLink>
-        <button onClick={handleLogout} style={{ color: "var(--red-700)", marginTop: 10 }}>Log Out</button>
-      </div>
-      <div>
+      <nav className="account-nav" aria-label="Account">
+        {LINKS.map((link) => (
+          <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => (isActive ? "active" : "")}>
+            {link.label}
+          </NavLink>
+        ))}
+      </nav>
+      <main className="account-main">
         <Outlet />
+      </main>
+      <div className="account-logout">
+        <button type="button" className="btn btn-outline" onClick={handleLogout}>Log Out</button>
       </div>
     </div>
   );
