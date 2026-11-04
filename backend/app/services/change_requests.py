@@ -85,19 +85,11 @@ def changes_for(request_row):
         if request_row.kind == "product_update" and _same(old, new):
             continue
         rows.append({"field": FIELD_LABELS.get(column, column), "from": _show(old) if product else "-", "to": _show(new)})
-    if payload.get("ownerSet"):
-        new_owner = payload.get("ownerId")
-        old_owner = product.owner_admin_id if product else None
-        if new_owner != old_owner or (not product and new_owner):
-            rows.append({"field": "Assigned to", "from": _owner_name(old_owner) if product else "-", "to": _owner_name(new_owner)})
     if request_row.image_photo:
         rows.append({"field": "Photo", "from": "-", "to": "New photo uploaded"})
     return rows
 
 
-def _owner_name(admin_id):
-    owner = db.session.get(Admin, admin_id) if admin_id else None
-    return owner.name if owner else "Head office"
 
 
 def _same(old, new):

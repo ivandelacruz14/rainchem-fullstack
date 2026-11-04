@@ -158,3 +158,24 @@ describe("customer live chat", () => {
     vi.useRealTimers();
   });
 });
+
+describe("photos in the chat", () => {
+  const PHOTO = "data:image/png;base64,AAAA";
+
+  it("shows a photo with its caption and opens it full size", async () => {
+    const user = userEvent.setup();
+    render(<MessageThread messages={[msg(1, { body: "Damaged box", image: PHOTO })]} viewer="user" empty="none" />);
+    expect(screen.getByText("Damaged box")).toBeTruthy();
+    await user.click(screen.getByLabelText("Open photo"));
+    expect(screen.getByRole("dialog", { name: "Photo" })).toBeTruthy();
+    await user.click(screen.getByLabelText("Close photo"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("shows a photo sent without text, and nothing for a deleted one", () => {
+    const messages = [msg(1, { body: "", image: PHOTO }), msg(2, { deleted: true, body: null, image: null })];
+    const { container } = render(<MessageThread messages={messages} viewer="user" empty="none" />);
+    expect(container.querySelectorAll(".bubble-photo").length).toBe(1);
+    expect(screen.getByText("This message was deleted")).toBeTruthy();
+  });
+});

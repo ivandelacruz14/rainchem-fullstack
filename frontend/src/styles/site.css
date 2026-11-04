@@ -773,6 +773,18 @@ body.no-scroll { overflow: hidden; }
 .bubble-from { font-size: 11px; font-weight: 700; color: var(--red-700); margin-bottom: 2px; }
 .bubble.mine .bubble-from { color: #fff; }
 .bubble-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; background: var(--hazard); color: var(--ink); border-radius: 4px; padding: 1px 6px; margin-bottom: 4px; }
+.bubble-photo { display: block; padding: 0; margin: 0 0 4px; border: none; background: none; cursor: zoom-in; max-width: 100%; }
+.bubble-photo img { display: block; width: 240px; max-width: 100%; max-height: 260px; object-fit: cover; border-radius: 8px; }
+.chat-attach { flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--line-strong); background: var(--surface); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.chat-input .chat-attach { background: var(--surface); color: var(--ink); border: 1.5px solid var(--line-strong); }
+.chat-attach:hover:not(:disabled) { border-color: var(--red-700); color: var(--red-700); }
+.chat-attach:disabled { opacity: 0.6; cursor: not-allowed; }
+.chat-photo-preview { position: relative; display: inline-block; margin: 8px 12px 0; }
+.chat-photo-preview img { display: block; height: 76px; max-width: 160px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line-strong); }
+.chat-photo-preview button { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%; border: none; background: var(--ink); color: var(--surface); font-size: 15px; line-height: 1; cursor: pointer; }
+.photo-lightbox { position: fixed; inset: 0; z-index: 3000; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
+.photo-lightbox img { max-width: 96vw; max-height: 90vh; border-radius: 8px; cursor: default; }
+.photo-lightbox-close { position: absolute; top: 12px; right: 16px; width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255, 255, 255, 0.18); color: #fff; font-size: 26px; line-height: 1; cursor: pointer; }
 .bubble-meta { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 3px; font-size: 10.5px; opacity: 0.85; }
 .bubble-delete { border: none; background: transparent; color: inherit; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px; opacity: 0.7; }
 .bubble-delete:hover { opacity: 1; }

@@ -5,7 +5,7 @@ is stored as a request (see change_requests.py) and applied only after the Head 
 from decimal import Decimal, InvalidOperation
 
 from app.extensions import db
-from app.models import Admin, CartItem, OrderItem, Product, ProductReview
+from app.models import CartItem, OrderItem, Product, ProductReview
 
 CATEGORIES = ["Oils & Fluids", "Coolant", "Filters", "Brakes", "Accessories"]
 MAX_PRICE = Decimal("1000000")
@@ -16,10 +16,6 @@ class ProductChangeError(ValueError):
     def __init__(self, message, status=400):
         super().__init__(message)
         self.status = status
-
-
-def can_manage(product, admin):
-    return not admin.is_scoped or product.owner_admin_id == admin.id
 
 
 def read_fields(data, creating):
@@ -76,26 +72,9 @@ def read_fields(data, creating):
     return values, errors
 
 
-def resolve_owner(data, admin, current_owner=None):
-    """Distributors always own what they make. Anyone else may assign an owner."""
-    if admin.is_scoped:
-        return admin.id if current_owner is None else current_owner
-    if "ownerId" not in data:
-        return current_owner
-    owner_id = data.get("ownerId")
-    if owner_id in (None, "", 0):
-        return None
-    owner = db.session.get(Admin, int(owner_id))
-    if owner is None:
-        raise ProductChangeError("The selected distributor does not exist")
-    return owner.id
-
-
-def build_payload(values, data, owner_id, owner_given):
+def build_payload(values, data):
     return {
         "values": values,
-        "ownerId": owner_id,
-        "ownerSet": owner_given,
         "imageGlyph": data.get("imageGlyph") or None,
         "imagePhoto": data.get("imagePhoto") or None,
     }
@@ -119,7 +98,6 @@ def apply_create(payload):
     product = Product(
         image_glyph=payload.get("imageGlyph") or "oil-synthetic",
         image_photo=payload.get("imagePhoto"),
-        owner_admin_id=payload.get("ownerId"),
         **_db_values(payload["values"]),
     )
     db.session.add(product)
@@ -129,8 +107,6 @@ def apply_create(payload):
 def apply_update(product, payload):
     for column, value in _db_values(payload["values"]).items():
         setattr(product, column, value)
-    if payload.get("ownerSet"):
-        product.owner_admin_id = payload.get("ownerId")
     if payload.get("imagePhoto"):  # only replace the photo if a new one was uploaded
         product.image_photo = payload["imagePhoto"]
     return product

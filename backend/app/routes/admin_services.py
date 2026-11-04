@@ -1,11 +1,11 @@
 from flask import Blueprint, jsonify, request
 
 from app.extensions import db
-from app.models import Admin, Service, ServiceBooking, User
+from app.models import Service, ServiceBooking, User
 from app.models.service import BOOKING_STATUSES
 from app.services.email_service import send_email
 from app.services.service_catalog import ServiceInputError, apply_areas, clean_areas
-from app.utils.auth_decorators import current_admin, require_permission
+from app.utils.auth_decorators import require_permission
 
 admin_services_bp = Blueprint("admin_services", __name__, url_prefix="/api/admin/services")
 
@@ -15,23 +15,6 @@ TRANSITIONS = {
     "completed": set(),
     "cancelled": set(),
 }
-
-
-def _manageable(service, admin):
-    return not admin.is_scoped or service.owner_admin_id == admin.id
-
-
-def _owner_id(data, admin, current_owner=None):
-    if admin.is_scoped:
-        return admin.id if current_owner is None else current_owner
-    if "ownerId" not in data:
-        return current_owner
-    if data.get("ownerId") in (None, "", 0):
-        return None
-    owner = db.session.get(Admin, int(data["ownerId"]))
-    if owner is None:
-        raise ServiceInputError("The selected distributor does not exist")
-    return owner.id
 
 
 def _read_basics(data, creating):
@@ -58,31 +41,21 @@ def _read_basics(data, creating):
 @admin_services_bp.get("")
 @require_permission("services")
 def list_services():
-    admin = current_admin()
     query = Service.query.order_by(Service.name)
-    if admin.is_scoped:
-        query = query.filter(Service.owner_admin_id == admin.id)
-    payload = {"services": [s.to_dict(admin_view=True) for s in query.all()]}
-    if not admin.is_scoped:
-        payload["distributors"] = [
-            {"id": a.id, "name": a.name} for a in Admin.query.order_by(Admin.name).all() if a.is_scoped
-        ]
-    return jsonify(payload)
+    return jsonify({"services": [s.to_dict(admin_view=True) for s in query.all()]})
 
 
 @admin_services_bp.post("")
 @require_permission("services")
 def create_service():
-    admin = current_admin()
     data = request.get_json() or {}
     try:
         values = _read_basics(data, creating=True)
         areas = clean_areas(data.get("areas") or [])
-        owner_id = _owner_id(data, admin)
     except ServiceInputError as error:
         return jsonify({"error": str(error)}), 400
 
-    service = Service(owner_admin_id=owner_id, is_active=values.pop("is_active", True), **values)
+    service = Service(is_active=values.pop("is_active", True), **values)
     db.session.add(service)
     db.session.flush()
     apply_areas(service, areas)
@@ -93,22 +66,17 @@ def create_service():
 @admin_services_bp.put("/<int:service_id>")
 @require_permission("services")
 def update_service(service_id):
-    admin = current_admin()
     service = Service.query.get_or_404(service_id)
-    if not _manageable(service, admin):
-        return jsonify({"error": "You can only manage your own services"}), 403
 
     data = request.get_json() or {}
     try:
         values = _read_basics(data, creating=False)
         areas = clean_areas(data["areas"]) if "areas" in data else None
-        owner_id = _owner_id(data, admin, current_owner=service.owner_admin_id)
     except ServiceInputError as error:
         return jsonify({"error": str(error)}), 400
 
     for column, value in values.items():
         setattr(service, column, value)
-    service.owner_admin_id = owner_id
     if areas is not None:
         apply_areas(service, areas)
     db.session.commit()
@@ -118,10 +86,7 @@ def update_service(service_id):
 @admin_services_bp.delete("/<int:service_id>")
 @require_permission("services")
 def delete_service(service_id):
-    admin = current_admin()
     service = Service.query.get_or_404(service_id)
-    if not _manageable(service, admin):
-        return jsonify({"error": "You can only manage your own services"}), 403
     if ServiceBooking.query.filter_by(service_id=service.id).first():
         return jsonify({
             "error": "This service has bookings and cannot be deleted. Switch it off instead to keep the history."
@@ -134,10 +99,7 @@ def delete_service(service_id):
 @admin_services_bp.get("/bookings")
 @require_permission("services")
 def list_bookings():
-    admin = current_admin()
     query = ServiceBooking.query.join(Service, Service.id == ServiceBooking.service_id)
-    if admin.is_scoped:
-        query = query.filter(Service.owner_admin_id == admin.id)
     status = request.args.get("status")
     if status in BOOKING_STATUSES:
         query = query.filter(ServiceBooking.status == status)
@@ -148,10 +110,7 @@ def list_bookings():
 @admin_services_bp.post("/bookings/<int:booking_id>/status")
 @require_permission("services")
 def update_booking_status(booking_id):
-    admin = current_admin()
     booking = ServiceBooking.query.get_or_404(booking_id)
-    if not _manageable(booking.service, admin):
-        return jsonify({"error": "You can only manage bookings for your own services"}), 403
 
     new_status = (request.get_json() or {}).get("status")
     if new_status not in BOOKING_STATUSES:

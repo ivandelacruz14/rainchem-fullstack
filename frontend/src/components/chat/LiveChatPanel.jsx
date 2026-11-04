@@ -4,6 +4,8 @@ import { useUI } from "../../context/UIContext";
 import useLiveChat from "../../hooks/useLiveChat";
 import ConfirmDialog from "../ConfirmDialog";
 import MessageThread from "./MessageThread";
+import { AttachButton, PhotoPreview } from "./PhotoAttach";
+import { readChatPhoto } from "../../utils/chatPhoto";
 
 const MAX_LENGTH = 2000;
 
@@ -11,6 +13,7 @@ export default function LiveChatPanel() {
   const { liveIntent, clearLiveIntent } = useUI();
   const chat = useLiveChat(true);
   const [draft, setDraft] = useState("");
+  const [photo, setPhoto] = useState(null); // a data URL, ready to send
   const [topic, setTopic] = useState(liveIntent?.topic || "other");
   const [orderId, setOrderId] = useState(liveIntent?.orderId ? String(liveIntent.orderId) : "");
   const [orders, setOrders] = useState([]);
@@ -39,16 +42,27 @@ export default function LiveChatPanel() {
 
   const hasConversation = Boolean(chat.conversation);
 
+  async function pickPhoto(file) {
+    setError("");
+    try {
+      setPhoto(await readChatPhoto(file));
+    } catch (err) {
+      setError(err.message || "That photo could not be used.");
+    }
+  }
+
   async function submit(e) {
     e.preventDefault();
     const body = draft.trim();
-    if (!body || sending) return;
+    if ((!body && !photo) || sending) return;
     setSending(true);
     setError("");
     try {
       const extra = hasConversation ? {} : { topic, orderId: topic === "order" && orderId ? Number(orderId) : undefined };
+      if (photo) extra.image = photo;
       await chat.send(body, extra);
       setDraft("");
+      setPhoto(null);
     } catch (err) {
       setError(err.response?.data?.error || "Your message could not be sent. Please try again.");
     } finally {
@@ -112,12 +126,14 @@ export default function LiveChatPanel() {
           <div className="live-context">About order {chat.conversation.orderNumber}</div>
         )}
         {error && <div className="live-error" role="alert">{error}</div>}
+        <PhotoPreview photo={photo} onRemove={() => setPhoto(null)} disabled={sending} />
         <div className="chat-input live-input">
+          <AttachButton onPick={pickPhoto} disabled={sending} />
           <input
             value={draft} maxLength={MAX_LENGTH} onChange={(e) => setDraft(e.target.value)}
-            placeholder="Type a message to the admin..." aria-label="Message to the admin"
+            placeholder={photo ? "Add a caption (optional)..." : "Type a message to the admin..."} aria-label="Message to the admin"
           />
-          <button type="submit" disabled={sending || !draft.trim()} aria-label="Send message">
+          <button type="submit" disabled={sending || (!draft.trim() && !photo)} aria-label="Send message">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
           </button>
         </div>

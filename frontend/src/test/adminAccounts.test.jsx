@@ -22,10 +22,9 @@ const LABELS = [
 ];
 const ALL = LABELS.map((l) => l.key);
 const ROLE_INFO = {
-  "Head Admin": { allowed: ALL, preset: [], scoped: false },
-  Admin: { allowed: ALL, preset: ALL, scoped: false },
-  "Support Staff": { allowed: ALL, preset: ["orders", "manage_orders", "customers", "chatbot"], scoped: false },
-  Distributor: { allowed: ["products", "services", "orders", "analytics"], preset: [], scoped: true },
+  "Head Admin": { allowed: ALL, preset: [] },
+  Admin: { allowed: ALL, preset: ALL },
+  "Support Staff": { allowed: ALL, preset: ["orders", "manage_orders", "customers", "chatbot"] },
 };
 const ME = { id: 1, name: "System Admin", email: "a@x.com", role: "Super Admin", isHead: true, isActive: true, permissions: ALL };
 const STAFF = { id: 5, name: "Paul", email: "p@x.com", role: "Support Staff", isHead: false, isActive: true, permissions: ["orders", "manage_orders", "customers", "chatbot"], createdAt: "2026-10-20T00:00:00" };
@@ -47,16 +46,16 @@ function renderPage() {
 }
 
 describe("add account form", () => {
-  it("offers Head Admin, Admin, Support Staff and Distributor", async () => {
+  it("offers Head Admin, Admin and Support Staff", async () => {
     const user = userEvent.setup();
     renderPage();
     await user.click(await screen.findByText("+ Add Account"));
     const select = screen.getByLabelText ? screen.getAllByRole("combobox")[0] : null;
     const names = within(select).getAllByRole("option").map((o) => o.textContent);
-    expect(names).toEqual(["Head Admin", "Admin", "Support Staff", "Distributor"]);
+    expect(names).toEqual(["Head Admin", "Admin", "Support Staff"]);
   });
 
-  it("starts each role with its usual permissions, and a distributor cannot be given the wider ones", async () => {
+  it("starts each role with its usual permissions", async () => {
     const user = userEvent.setup();
     renderPage();
     await user.click(await screen.findByText("+ Add Account"));
@@ -68,12 +67,6 @@ describe("add account form", () => {
 
     await user.selectOptions(select, "Admin");
     expect(screen.getAllByRole("checkbox").every((c) => c.checked)).toBe(true);
-
-    await user.selectOptions(select, "Distributor");
-    expect(screen.queryByLabelText(/Confirm, ship and manage orders/)).toBeNull();
-    expect(screen.queryByLabelText(/customer accounts/)).toBeNull();
-    expect(screen.queryByLabelText(/chatbot/)).toBeNull();
-    expect(screen.getByLabelText(/Manage products and run sales/)).toBeTruthy();
 
     await user.selectOptions(select, "Head Admin");
     expect(screen.getByText(/Head Admins can do everything/)).toBeTruthy();

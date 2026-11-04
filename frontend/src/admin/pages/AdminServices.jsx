@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import client from "../../api/client";
-import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useToast } from "../../context/ToastContext";
 import { formatDate, peso } from "../../utils/format";
 
 const EMPTY_AREA = { name: "", price: "", isAvailable: true, notes: "" };
-const EMPTY_FORM = { name: "", category: "", description: "", requirements: "", isActive: true, ownerId: "", areas: [{ ...EMPTY_AREA }] };
+const EMPTY_FORM = { name: "", category: "", description: "", requirements: "", isActive: true, areas: [{ ...EMPTY_AREA }] };
 const NEXT_STATUS = { requested: ["confirmed", "cancelled"], confirmed: ["completed", "cancelled"], completed: [], cancelled: [] };
 
 function AreaRows({ areas, onChange }) {
@@ -31,21 +30,16 @@ function AreaRows({ areas, onChange }) {
 }
 
 export default function AdminServices() {
-  const { admin } = useAdminAuth();
   const showToast = useToast();
   const [tab, setTab] = useState("services");
   const [services, setServices] = useState([]);
-  const [distributors, setDistributors] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [editing, setEditing] = useState(null); // service or "new"
   const [form, setForm] = useState(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
 
   function loadServices() {
-    client.get("/api/admin/services").then((res) => {
-      setServices(res.data.services);
-      setDistributors(res.data.distributors || []);
-    });
+    client.get("/api/admin/services").then((res) => setServices(res.data.services));
   }
   function loadBookings() {
     client.get("/api/admin/services/bookings").then((res) => setBookings(res.data.bookings));
@@ -56,7 +50,7 @@ export default function AdminServices() {
     setEditing(service || "new");
     setForm(service ? {
       name: service.name, category: service.category || "", description: service.description,
-      requirements: service.requirements || "", isActive: service.isActive, ownerId: service.ownerId || "",
+      requirements: service.requirements || "", isActive: service.isActive,
       areas: service.areas.map((a) => ({ id: a.id, name: a.name, price: a.price, isAvailable: a.available, notes: a.notes || "" })),
     } : { ...EMPTY_FORM, areas: [{ ...EMPTY_AREA }] });
   }
@@ -67,7 +61,6 @@ export default function AdminServices() {
       name: form.name, category: form.category, description: form.description, requirements: form.requirements,
       isActive: form.isActive, areas: form.areas.filter((a) => a.name.trim() || a.price !== ""),
     };
-    if (!admin?.isScoped) payload.ownerId = form.ownerId ? Number(form.ownerId) : null;
     setBusy(true);
     try {
       if (editing === "new") await client.post("/api/admin/services", payload);
@@ -111,8 +104,6 @@ export default function AdminServices() {
     }
   }
 
-  const ownerName = (id) => (id ? distributors.find((d) => d.id === id)?.name || "Distributor" : "Head office");
-
   return (
     <div>
       <div className="admin-topbar">
@@ -140,7 +131,7 @@ export default function AdminServices() {
                 <div>
                   <h3 style={{ margin: 0 }}>{s.name} {!s.isActive && <span className="pill pill-low">Off</span>}</h3>
                   <p className="field-hint" style={{ margin: "2px 0 0" }}>
-                    {s.category || "No category"}{!admin?.isScoped && ` \u00b7 ${ownerName(s.ownerId)}`}
+                    {s.category || "No category"}
                   </p>
                 </div>
                 <div className="row-actions">
@@ -209,15 +200,6 @@ export default function AdminServices() {
               </div>
               <div className="field"><label>Description</label><textarea required rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
               <div className="field"><label>Requirements or conditions (optional)</label><textarea rows={2} value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} /></div>
-              {!admin?.isScoped && (
-                <div className="field">
-                  <label>Assigned to</label>
-                  <select value={form.ownerId} onChange={(e) => setForm({ ...form, ownerId: e.target.value })}>
-                    <option value="">Head office</option>
-                    {distributors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
-              )}
               <div className="field">
                 <label>Areas and prices</label>
                 <p className="field-hint" style={{ marginTop: 0 }}>Set the exact price for each area. Untick Available to stop offering it there without deleting it.</p>

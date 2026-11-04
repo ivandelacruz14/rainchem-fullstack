@@ -23,13 +23,14 @@ COLUMNS = [
     ("orders", "reviewed_at", "DATETIME NULL"),
     ("admins", "permissions", "JSON NULL"),
     ("admins", "is_active", "TINYINT(1) NOT NULL DEFAULT 1"),
-    ("products", "owner_admin_id", "INT NULL"),
+    ("live_messages", "image", "LONGTEXT NULL"),
 ]
 
 # Photos are stored as base64 text, which does not fit in a plain TEXT column.
 LONGTEXT_COLUMNS = [
     ("products", "image_photo"),
     ("users", "avatar_photo"),
+    ("live_messages", "image"),
 ]
 
 
@@ -65,6 +66,7 @@ def ensure_schema(db, logger):
 
     add_missing_model_columns(db, logger)
     backfill_single_product_reviews(db, logger)
+    retire_distributors(db, logger)
 
     if db.engine.dialect.name != "mysql":
         return
@@ -84,6 +86,29 @@ def ensure_schema(db, logger):
         except Exception as error:
             db.session.rollback()
             logger.warning("Could not widen %s.%s: %s", table, column, error)
+
+
+def retire_distributors(db, logger):
+    """The Distributor role was removed. Accounts that still hold it are switched off (not deleted,
+    so a Head Admin can delete them or give them another role), and the products and services they
+    owned become ordinary catalog items. The old owner_admin_id columns stay in the table, unused.
+    Safe to run repeatedly."""
+    try:
+        tables = set(inspect(db.engine).get_table_names())
+        if "admins" in tables:
+            result = db.session.execute(text("UPDATE admins SET is_active = 0 WHERE role = 'Distributor' AND is_active <> 0"))
+            if result.rowcount:
+                logger.info("Switched off %s Distributor account(s); the role no longer exists", result.rowcount)
+        for table in ("products", "services"):
+            if table not in tables:
+                continue
+            if "owner_admin_id" not in {c["name"] for c in inspect(db.engine).get_columns(table)}:
+                continue
+            db.session.execute(text(f"UPDATE {table} SET owner_admin_id = NULL WHERE owner_admin_id IS NOT NULL"))
+        db.session.commit()
+    except Exception as error:
+        db.session.rollback()
+        logger.warning("Could not retire the Distributor role: %s", error)
 
 
 def backfill_single_product_reviews(db, logger):

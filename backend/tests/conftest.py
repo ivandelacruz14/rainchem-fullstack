@@ -81,11 +81,10 @@ def user_login(client):
 
 @pytest.fixture()
 def make_product(app):
-    def _make(name="RAIMOL Oil", price=500, stock=50, category="Oils & Fluids", owner=None):
+    def _make(name="RAIMOL Oil", price=500, stock=50, category="Oils & Fluids"):
         product = Product(
             name=name, category=category, price=price, stock=stock, short_desc="short",
             description="long", specs=[], benefits=[], usage_steps=[],
-            owner_admin_id=owner.id if owner else None,
         )
         db.session.add(product)
         db.session.commit()

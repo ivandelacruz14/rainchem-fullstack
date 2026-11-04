@@ -68,7 +68,9 @@ def unread():
 def send_message():
     data = request.get_json() or {}
     try:
-        conversation, message = chat.send_user_message(_user(), data.get("body"), data.get("topic"), data.get("orderId"))
+        conversation, message = chat.send_user_message(
+            _user(), data.get("body"), data.get("topic"), data.get("orderId"), data.get("image"),
+        )
     except chat.LiveChatError as error:
         return _fail(error)
     return jsonify({"message": message.to_dict("user"), "conversation": chat.conversation_dict(conversation)}), 201

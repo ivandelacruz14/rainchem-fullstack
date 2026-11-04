@@ -7,7 +7,8 @@ Message status:
   sent       stored on the server
   delivered  the other side's app fetched it
   read       the other side opened the conversation
-Deleting a message erases its text and leaves a marker both sides can see."""
+Deleting a message erases its text and photo and leaves a marker both sides can see.
+A message may carry one photo (a data URL, like the other photos in this app), with or without text."""
 from datetime import datetime, timedelta
 
 from sqlalchemy import func
@@ -17,6 +18,8 @@ from app.models import ChatLog, LiveConversation, LiveMessage, Order, User
 from app.models.live_chat import TOPICS
 
 MAX_BODY = 2000
+MAX_IMAGE_CHARS = 1_500_000       # about 1 MB of base64; the browser shrinks photos well below this
+IMAGE_PREFIXES = ("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,", "data:image/gif;base64,")
 RATE_LIMIT_MESSAGES = 20          # per customer, per minute
 HISTORY_LIMIT = 100
 MAX_CONTEXT_LOGS = 3
@@ -41,10 +44,22 @@ def conversation_for(user_id):
     return LiveConversation.query.filter_by(user_id=user_id).first()
 
 
-def clean_body(raw):
+def clean_image(raw):
+    """None when there is no photo. Only real raster images are accepted (no SVG)."""
+    if raw in (None, ""):
+        return None
+    if not isinstance(raw, str) or not raw.startswith(IMAGE_PREFIXES):
+        raise LiveChatError("Please attach a JPG, PNG, WEBP or GIF photo")
+    if len(raw) > MAX_IMAGE_CHARS:
+        raise LiveChatError("That photo is too large. Please choose one under 1 MB.")
+    return raw
+
+
+def clean_body(raw, has_image=False):
+    """The text of a message. A message with a photo may have no text at all."""
     body = str(raw or "").strip()
-    if not body:
-        raise LiveChatError("Type a message first")
+    if not body and not has_image:
+        raise LiveChatError("Type a message or attach a photo first")
     if len(body) > MAX_BODY:
         raise LiveChatError(f"Messages can be at most {MAX_BODY} characters")
     return body
@@ -95,14 +110,15 @@ def _check_rate(user):
         raise LiveChatError("You are sending messages too fast. Please wait a moment.", 429)
 
 
-def send_user_message(user, body, topic=None, order_id=None):
+def send_user_message(user, body, topic=None, order_id=None, image=None):
     check_eligible(user)
-    body = clean_body(body)
+    image = clean_image(image)
+    body = clean_body(body, has_image=bool(image))
     _check_rate(user)
     conversation = ensure_conversation(user, topic, order_id)
     now = datetime.utcnow()
     message = LiveMessage(
-        conversation_id=conversation.id, sender_type="user", sender_name=user.name, body=body,
+        conversation_id=conversation.id, sender_type="user", sender_name=user.name, body=body, image=image,
         created_at=now, updated_at=now,
     )
     db.session.add(message)
@@ -111,12 +127,13 @@ def send_user_message(user, body, topic=None, order_id=None):
     return conversation, message
 
 
-def send_admin_message(admin, conversation, body):
-    body = clean_body(body)
+def send_admin_message(admin, conversation, body, image=None):
+    image = clean_image(image)
+    body = clean_body(body, has_image=bool(image))
     now = datetime.utcnow()
     message = LiveMessage(
         conversation_id=conversation.id, sender_type="admin", sender_admin_id=admin.id,
-        sender_name=admin.name, body=body, created_at=now, updated_at=now,
+        sender_name=admin.name, body=body, image=image, created_at=now, updated_at=now,
     )
     db.session.add(message)
     _touch(conversation, now)
@@ -162,6 +179,7 @@ def delete_message(message, actor_type):
         raise LiveChatError("You can only delete your own messages", 403)
     now = datetime.utcnow()
     message.body = ""
+    message.image = None
     message.meta = None
     message.deleted_at = now
     message.deleted_by = actor_type
@@ -205,7 +223,14 @@ def unread_count(conversation_id, reader):
 def preview(message):
     if message is None:
         return None
-    text = "This message was deleted" if message.deleted_at else (message.body or "")
+    if message.deleted_at:
+        text = "This message was deleted"
+    elif message.image and not message.body:
+        text = "Sent a photo"
+    elif message.image:
+        text = f"Photo: {message.body}"
+    else:
+        text = message.body or ""
     return {
         "text": text if len(text) <= 120 else text[:117] + "...",
         "from": message.sender_type,

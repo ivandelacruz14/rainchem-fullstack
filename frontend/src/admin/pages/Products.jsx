@@ -5,7 +5,7 @@ import { useToast } from "../../context/ToastContext";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 
 const CATEGORIES = ["Oils & Fluids", "Coolant", "Filters", "Brakes", "Accessories"];
-const emptyForm = { name: "", category: CATEGORIES[0], price: "", stock: "", ownerId: "", shortDesc: "", description: "", specs: "", benefits: "", usage: "" };
+const emptyForm = { name: "", category: CATEGORIES[0], price: "", stock: "", shortDesc: "", description: "", specs: "", benefits: "", usage: "" };
 
 function resizeImage(file) {
   return new Promise((resolve, reject) => {
@@ -37,19 +37,13 @@ export default function Products() {
   const [imagePreview, setImagePreview] = useState(null);
   const [pendingImage, setPendingImage] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [distributors, setDistributors] = useState([]);
   const showToast = useToast();
   const { admin } = useAdminAuth();
 
   function loadProducts() {
-    client.get("/api/products/manage").then((res) => {
-      setProducts(res.data.products);
-      setDistributors(res.data.distributors || []);
-    });
+    client.get("/api/products/manage").then((res) => setProducts(res.data.products));
   }
   useEffect(loadProducts, []);
-
-  const ownerName = (id) => (id ? distributors.find((d) => d.id === id)?.name || "Distributor" : "Head office");
 
   function openAdd() {
     setEditing(null);
@@ -63,7 +57,7 @@ export default function Products() {
     setEditing(product);
     setForm({
       name: product.name, category: product.category, price: product.price, stock: product.stock,
-      ownerId: product.ownerId || "", shortDesc: product.shortDesc, description: product.description,
+      shortDesc: product.shortDesc, description: product.description,
       specs: product.specs.join("\n"), benefits: product.benefits.join("\n"), usage: product.usage.join("\n"),
     });
     setImagePreview(product.imagePhoto);
@@ -89,7 +83,6 @@ export default function Products() {
       usage: form.usage.split("\n").map((s) => s.trim()).filter(Boolean),
     };
     if (pendingImage) payload.imagePhoto = pendingImage;
-    if (!admin?.isScoped) payload.ownerId = form.ownerId ? Number(form.ownerId) : null;
 
     if (!form.price || isNaN(parseFloat(form.price))) {
   showToast("Please enter a valid price", "error");
@@ -147,7 +140,7 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
         </div>
         <div className="table-wrap">
           <table className="admin-table stack">
-            <thead><tr><th></th><th>Product</th><th>Category</th>{!admin?.isScoped && <th>Owner</th>}<th>Price</th><th>Stock</th><th>Reviews</th><th></th></tr></thead>
+            <thead><tr><th></th><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Reviews</th><th></th></tr></thead>
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.id}>
@@ -158,7 +151,6 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
                   </td>
                   <td data-label="Product" className="cell-name">{p.name}{p.pendingRequests > 0 && <div><span className="pill pill-pending">Pending approval</span></div>}</td>
                   <td data-label="Category">{p.category}</td>
-                  {!admin?.isScoped && <td data-label="Owner">{ownerName(p.ownerId)}</td>}
                   <td data-label="Price">{peso(p.price)}</td>
                   <td data-label="Stock">{p.stock < 20 ? <span className="pill pill-low">{p.stock} left</span> : p.stock}</td>
                   <td data-label="Reviews">{p.reviews > 0 ? `\u2605 ${p.rating.toFixed(1)} (${p.reviews})` : "None yet"}</td>
@@ -208,15 +200,6 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
                 </div>
                 <div className="field-row">
                   <div className="field"><label>Stock (units available)</label><input required type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></div>
-                  {!admin?.isScoped ? (
-                    <div className="field">
-                      <label>Assigned to</label>
-                      <select value={form.ownerId} onChange={(e) => setForm({ ...form, ownerId: e.target.value })}>
-                        <option value="">Head office</option>
-                        {distributors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-                    </div>
-                  ) : <div />}
                 </div>
                 <div className="field"><label>Short Description</label><input required value={form.shortDesc} onChange={(e) => setForm({ ...form, shortDesc: e.target.value })} /></div>
                 <div className="field"><label>Full Description</label><textarea required rows="3" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>

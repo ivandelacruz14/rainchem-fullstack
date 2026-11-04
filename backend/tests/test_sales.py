@@ -145,20 +145,19 @@ def test_edit_percent_and_dates(client, make_admin, admin_login, make_product):
     assert moved.status_code == 200 and moved.get_json()["sale"]["startDate"] == day(11)
 
 
-def test_distributor_can_only_sell_own_products_on_sale(client, make_admin, admin_login, make_product):
-    d1 = make_admin("d1@example.com", "Distributor", ["products"])
-    d2 = make_admin("d2@example.com", "Distributor", ["products"])
+def test_sales_need_the_products_permission(client, make_admin, admin_login, make_product):
     make_admin()
-    mine, theirs = make_product("Mine", owner=d1), make_product("Theirs", owner=d2)
-    h = admin_login("d1@example.com")
-    assert create_sale(client, h, [theirs.id]).status_code == 403
-    sale = create_sale(client, h, [mine.id]).get_json()["sales"][0]
-    assert [s["productName"] for s in client.get("/api/admin/sales", headers=h).get_json()["sales"]] == ["Mine"]
-    assert client.get("/api/admin/sales", headers=admin_login("d2@example.com")).get_json()["sales"] == []
-    assert client.post(f"/api/admin/sales/{sale['id']}/end", headers=admin_login("d2@example.com")).status_code == 403
-    # Without the products permission a distributor cannot touch sales at all.
-    make_admin("d3@example.com", "Distributor", ["orders"])
-    assert client.get("/api/admin/sales", headers=admin_login("d3@example.com")).status_code == 403
+    make_admin("a@example.com", "Admin", ["products"])
+    make_admin("b@example.com", "Admin", ["orders"])
+    one, two = make_product("One"), make_product("Two")
+    h = admin_login("a@example.com")
+    sale = create_sale(client, h, [one.id, two.id]).get_json()["sales"]
+    assert sorted(s["productName"] for s in client.get("/api/admin/sales", headers=h).get_json()["sales"]) == ["One", "Two"]
+    assert client.post(f"/api/admin/sales/{sale[0]['id']}/end", headers=h).status_code == 200
+    # Without the products permission an admin cannot touch sales at all.
+    hb = admin_login("b@example.com")
+    assert client.get("/api/admin/sales", headers=hb).status_code == 403
+    assert client.post(f"/api/admin/sales/{sale[1]['id']}/end", headers=hb).status_code == 403
 
 
 def test_customers_and_visitors_cannot_manage_sales(client, make_product, make_user, user_login):

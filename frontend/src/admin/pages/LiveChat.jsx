@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import client from "../../api/client";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import MessageThread from "../../components/chat/MessageThread";
+import { AttachButton, PhotoPreview } from "../../components/chat/PhotoAttach";
+import { readChatPhoto } from "../../utils/chatPhoto";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useToast } from "../../context/ToastContext";
 import { formatTime, formatDay } from "../../utils/format";
@@ -21,6 +23,7 @@ function Thread({ conversation, onBack, onDeleted, canDeleteConversation }) {
   const [messages, setMessages] = useState([]);
   const [info, setInfo] = useState(conversation);
   const [draft, setDraft] = useState("");
+  const [photo, setPhoto] = useState(null); // a data URL, ready to send
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [toDelete, setToDelete] = useState(null); // a message or "conversation"
@@ -64,16 +67,27 @@ function Thread({ conversation, onBack, onDeleted, canDeleteConversation }) {
     }
   }, [unread, messages.length, conversation.id]);
 
+  async function pickPhoto(file) {
+    setError("");
+    try {
+      setPhoto(await readChatPhoto(file));
+    } catch (err) {
+      setError(err.message || "That photo could not be used.");
+    }
+  }
+
   async function send(e) {
     e.preventDefault();
     const body = draft.trim();
-    if (!body || sending) return;
+    if ((!body && !photo) || sending) return;
     setSending(true);
     setError("");
     try {
-      const res = await client.post(`/api/admin/live-chat/conversations/${conversation.id}/messages`, { body });
+      const payload = photo ? { body, image: photo } : { body };
+      const res = await client.post(`/api/admin/live-chat/conversations/${conversation.id}/messages`, payload);
       setMessages((prev) => merge(prev, [res.data.message]));
       setDraft("");
+      setPhoto(null);
     } catch (err) {
       setError(err.response?.data?.error || "The reply could not be sent.");
     } finally {
@@ -122,12 +136,14 @@ function Thread({ conversation, onBack, onDeleted, canDeleteConversation }) {
       </div>
       <form className="lc-compose" onSubmit={send}>
         {error && <div className="live-error" role="alert">{error}</div>}
+        <PhotoPreview photo={photo} onRemove={() => setPhoto(null)} disabled={sending} />
         <div className="lc-compose-row">
+          <AttachButton onPick={pickPhoto} disabled={sending} />
           <textarea
             rows={2} maxLength={2000} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Reply to the customer"
-            placeholder="Write a reply..." onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) send(e); }}
+            placeholder={photo ? "Add a caption (optional)..." : "Write a reply..."} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) send(e); }}
           />
-          <button type="submit" className="btn btn-primary" disabled={sending || !draft.trim()}>{sending ? "Sending..." : "Send"}</button>
+          <button type="submit" className="btn btn-primary" disabled={sending || (!draft.trim() && !photo)}>{sending ? "Sending..." : "Send"}</button>
         </div>
       </form>
 

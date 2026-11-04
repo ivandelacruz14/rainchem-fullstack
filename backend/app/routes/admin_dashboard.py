@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify
 
 from app.models import Order, OrderItem, User, Product, KnowledgeEntry, ChatLog
-from app.services.admin_scope import scope_product_ids
 from app.services.sales_analytics import recorded_revenue
 from app.utils.auth_decorators import current_admin, require_admin
 
@@ -12,22 +11,7 @@ admin_dashboard_bp = Blueprint("admin_dashboard", __name__, url_prefix="/api/adm
 @require_admin
 def overview():
     admin = current_admin()
-    ids = scope_product_ids(admin)
-    revenue, sale_orders = recorded_revenue(ids)
-
-    if admin.is_scoped:
-        products = Product.query.filter(Product.owner_admin_id == admin.id)
-        return jsonify({
-            "scope": "limited",
-            "stats": {
-                "totalRevenue": revenue,
-                "orderCount": sale_orders,
-                "productCount": products.count(),
-                "lowStockCount": products.filter(Product.stock < 20).count(),
-            },
-            "recentOrders": [],
-            "topFaqs": [],
-        })
+    revenue, sale_orders = recorded_revenue()
 
     recent_orders = Order.query.order_by(Order.created_at.desc()).limit(5).all() if admin.has_permission("manage_orders") else []
     top_faqs = KnowledgeEntry.query.order_by(KnowledgeEntry.hits.desc()).limit(5).all() if admin.has_permission("chatbot") else []

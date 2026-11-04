@@ -19,7 +19,6 @@ class Product(db.Model):
     specs = db.Column(db.JSON, nullable=True)
     benefits = db.Column(db.JSON, nullable=True)
     usage_steps = db.Column(db.JSON, nullable=True)
-    owner_admin_id = db.Column(db.Integer, db.ForeignKey("admins.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self, average_rating=0.0, review_count=0, sale=None):
@@ -44,9 +43,7 @@ class Product(db.Model):
         }
 
     def to_admin_dict(self, average_rating=0.0, review_count=0, sale=None):
-        data = self.to_dict(average_rating, review_count, sale)
-        data["ownerId"] = self.owner_admin_id
-        return data
+        return self.to_dict(average_rating, review_count, sale)
 
     def _sale_fields(self, sale):
         """`price` always stays the regular price; the sale price is shown next to it."""

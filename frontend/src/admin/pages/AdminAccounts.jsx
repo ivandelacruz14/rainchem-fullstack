@@ -19,7 +19,6 @@ const ROLE_NOTES = {
   "Head Admin": "Full control, including admin accounts and payment settings.",
   Admin: "Runs the shop day to day: all products, services, orders, customers, chatbot and reports. Cannot manage admin accounts or payment settings.",
   "Support Staff": "Handles orders, customers and the chatbot. Does not manage products, prices or reports unless you tick them.",
-  Distributor: "Only sees and manages their own products and services. Cannot see customers or other distributors' sales.",
   "Content Manager": "Older role: products, services, reports and the chatbot.",
 };
 
@@ -133,7 +132,7 @@ export default function AdminAccounts() {
       <div className="admin-topbar">
         <div>
           <h1>Admin Accounts</h1>
-          <p>Head Admins manage everything. Distributors only get the features you tick. There is no public sign-up.</p>
+          <p>Head Admins manage everything. Admins and Support Staff only get the features you tick. There is no public sign-up.</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => open("create")}>+ Add Account</button>
       </div>

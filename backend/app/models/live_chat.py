@@ -33,7 +33,7 @@ class LiveConversation(db.Model):
 
 class LiveMessage(db.Model):
     """sent = stored on the server. delivered = the other side's app received it.
-    read = the other side opened the conversation. A deleted message keeps only a marker."""
+    read = the other side opened the conversation. A deleted message keeps only a marker (its text and photo are erased)."""
 
     __tablename__ = "live_messages"
 
@@ -44,6 +44,8 @@ class LiveMessage(db.Model):
     sender_name = db.Column(db.String(120), nullable=False, default="")
     kind = db.Column(db.String(10), nullable=False, default="text")  # text | context (handed over from the AI chat)
     body = db.Column(db.Text, nullable=False, default="")
+    # A photo sent with (or without) text, stored as a data URL like the other photos in this app.
+    image = db.Column(db.Text(length=4294967295), nullable=True)
     meta = db.Column(db.JSON, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -72,6 +74,7 @@ class LiveMessage(db.Model):
             "mine": self.sender_type == viewer,
             "kind": self.kind,
             "body": None if deleted else self.body,
+            "image": None if deleted else self.image,
             "meta": None if deleted else self.meta,
             "deleted": deleted,
             "deletedBy": self.deleted_by if deleted else None,

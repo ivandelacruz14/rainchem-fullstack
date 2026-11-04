@@ -130,7 +130,7 @@ def test_customers_only_ever_see_their_own_conversation(client, make_user, user_
 def test_admin_access_needs_the_livechat_permission(client, make_admin, admin_login, make_user, user_login):
     make_user()
     cid = send(client, user_login("customer@example.com")).get_json()["conversation"]["id"]
-    make_admin("dist@example.com", "Distributor", ["products", "orders"])
+    make_admin("dist@example.com", "Admin", ["products", "orders"])
     make_admin("nopower@example.com", "Support Staff")
     from app.models import Admin
     db.session.query(Admin).filter_by(email="nopower@example.com").one().permissions = ["orders"]
@@ -235,3 +235,60 @@ def test_ai_context_can_be_handed_to_the_admin_once(client, make_user, user_logi
     assert LiveMessage.query.count() == 1
     assert db.session.get(ChatLog, mine.id).handed_off_at is not None
     assert client.get("/api/admin/live-chat/conversations", headers=ah).get_json()["conversations"][0]["topic"] == "ai"
+
+
+PHOTO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+
+
+def test_customer_can_send_a_photo_with_or_without_text(client, make_user, user_login, make_admin, admin_login):
+    make_user()
+    h, ah = user_login("customer@example.com"), staff(make_admin, admin_login)
+    with_text = send(client, h, "This is the damaged box", image=PHOTO)
+    assert with_text.status_code == 201
+    assert with_text.get_json()["message"]["image"] == PHOTO and with_text.get_json()["message"]["body"] == "This is the damaged box"
+    only_photo = send(client, h, "", image=PHOTO)
+    assert only_photo.status_code == 201 and only_photo.get_json()["message"]["body"] == ""
+    cid = with_text.get_json()["conversation"]["id"]
+
+    as_admin = client.get(f"/api/admin/live-chat/conversations/{cid}", headers=ah).get_json()["messages"]
+    assert [m["image"] for m in as_admin] == [PHOTO, PHOTO]
+    inbox = client.get("/api/admin/live-chat/conversations", headers=ah).get_json()["conversations"]
+    assert inbox[0]["lastMessage"]["text"] == "Sent a photo"
+
+
+def test_admin_can_reply_with_a_photo_and_the_customer_sees_it(client, make_user, user_login, make_admin, admin_login):
+    make_user()
+    h, ah = user_login("customer@example.com"), staff(make_admin, admin_login)
+    cid = send(client, h, "Please send the invoice").get_json()["conversation"]["id"]
+    r = client.post(f"/api/admin/live-chat/conversations/{cid}/messages", headers=ah, json={"body": "Here it is", "image": PHOTO})
+    assert r.status_code == 201 and r.get_json()["message"]["image"] == PHOTO
+    mine = client.get("/api/live-chat", headers=h).get_json()["messages"]
+    assert mine[-1]["sender"] == "admin" and mine[-1]["image"] == PHOTO
+    photo_only = client.post(f"/api/admin/live-chat/conversations/{cid}/messages", headers=ah, json={"image": PHOTO})
+    assert photo_only.status_code == 201
+
+
+def test_only_real_small_photos_are_accepted(client, make_user, user_login, make_admin, admin_login):
+    from app.services.live_chat import MAX_IMAGE_CHARS
+    make_user()
+    h, ah = user_login("customer@example.com"), staff(make_admin, admin_login)
+    assert send(client, h, "", image=None).status_code == 400                                          # nothing to send
+    assert send(client, h, "x", image="data:image/svg+xml;base64,PHN2Zz4=").status_code == 400          # no SVG
+    assert send(client, h, "x", image="https://example.com/a.png").status_code == 400                   # only uploaded photos
+    assert send(client, h, "x", image=12345).status_code == 400
+    assert send(client, h, "x", image="data:image/png;base64," + "A" * MAX_IMAGE_CHARS).status_code == 400
+    assert LiveMessage.query.count() == 0
+    cid = send(client, h, "hello").get_json()["conversation"]["id"]
+    bad = client.post(f"/api/admin/live-chat/conversations/{cid}/messages", headers=ah, json={"body": "x", "image": "data:text/html;base64,AAAA"})
+    assert bad.status_code == 400
+
+
+def test_deleting_a_photo_message_erases_the_photo(client, make_user, user_login, make_admin, admin_login):
+    make_user()
+    h, ah = user_login("customer@example.com"), staff(make_admin, admin_login)
+    sent = send(client, h, "my ID", image=PHOTO).get_json()
+    gone = client.delete(f"/api/live-chat/messages/{sent['message']['id']}", headers=h).get_json()["message"]
+    assert gone["deleted"] is True and gone["image"] is None and gone["body"] is None
+    assert LiveMessage.query.get(sent["message"]["id"]).image is None                                  # really erased
+    as_admin = client.get(f"/api/admin/live-chat/conversations/{sent['conversation']['id']}", headers=ah).get_json()["messages"]
+    assert as_admin[0]["image"] is None and as_admin[0]["deleted"] is True

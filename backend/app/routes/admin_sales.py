@@ -4,7 +4,6 @@ from flask import Blueprint, jsonify, request
 
 from app.extensions import db
 from app.models import Product, ProductSale
-from app.services.admin_scope import scope_product_ids
 from app.services.pricing import unit_price_after_discount
 from app.services.promotions import (
     SaleError, local_days, overlapping, read_label, read_percent, read_window,
@@ -31,24 +30,10 @@ def _sale_dict(sale, now=None):
     }
 
 
-def _allowed_ids(admin):
-    ids = scope_product_ids(admin)
-    return ids  # None means every product
-
-
-def _can_manage(sale, admin):
-    ids = _allowed_ids(admin)
-    return ids is None or sale.product_id in ids
-
-
 @admin_sales_bp.get("")
 @require_permission("products")
 def list_sales():
-    admin = current_admin()
-    ids = _allowed_ids(admin)
     query = ProductSale.query
-    if ids is not None:
-        query = query.filter(ProductSale.product_id.in_(ids or [-1]))
     now = datetime.utcnow()
     rows = query.order_by(ProductSale.starts_at.desc(), ProductSale.id.desc()).limit(300).all()
     return jsonify({"sales": [_sale_dict(s, now) for s in rows]})
@@ -71,14 +56,11 @@ def create_sales():
     if not isinstance(product_ids, list) or not product_ids:
         return jsonify({"error": "Choose at least one product"}), 400
 
-    allowed = _allowed_ids(admin)
     products = []
     for pid in dict.fromkeys(product_ids):  # keep order, drop duplicates
         product = db.session.get(Product, pid) if isinstance(pid, int) else None
         if product is None or product.category == "Services":
             return jsonify({"error": "One of the selected products does not exist"}), 400
-        if allowed is not None and product.id not in allowed:
-            return jsonify({"error": "You can only put your own products on sale"}), 403
         clash = overlapping(product.id, starts_at, ends_at)
         if clash:
             return jsonify({"error": f"{product.name} already has a sale during those dates. End or edit that sale first."}), 400
@@ -99,10 +81,7 @@ def create_sales():
 @admin_sales_bp.put("/<int:sale_id>")
 @require_permission("products")
 def update_sale(sale_id):
-    admin = current_admin()
     sale = ProductSale.query.get_or_404(sale_id)
-    if not _can_manage(sale, admin):
-        return jsonify({"error": "You can only manage sales on your own products"}), 403
     status = sale.status()
     if status == "ended":
         return jsonify({"error": "This sale has ended and can no longer be edited"}), 400
@@ -154,10 +133,7 @@ def _window_for_edit(sale, status, data, current_start):
 @require_permission("products")
 def end_sale(sale_id):
     """Stops a running sale right now, or cancels one that has not started yet. History is kept."""
-    admin = current_admin()
     sale = ProductSale.query.get_or_404(sale_id)
-    if not _can_manage(sale, admin):
-        return jsonify({"error": "You can only manage sales on your own products"}), 403
     status = sale.status()
     if status == "ended":
         return jsonify({"error": "This sale has already ended"}), 400

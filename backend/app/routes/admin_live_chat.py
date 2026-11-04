@@ -96,7 +96,8 @@ def reply(conversation_id):
     if conversation is None:
         return jsonify({"error": "Conversation not found"}), 404
     try:
-        message = chat.send_admin_message(current_admin(), conversation, (request.get_json() or {}).get("body"))
+        data = request.get_json() or {}
+        message = chat.send_admin_message(current_admin(), conversation, data.get("body"), data.get("image"))
     except chat.LiveChatError as error:
         return _fail(error)
     return jsonify({"message": message.to_dict("admin")}), 201

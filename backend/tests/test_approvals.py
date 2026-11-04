@@ -7,10 +7,10 @@ from conftest import PASSWORD, emailed_code
 NEW_PRODUCT = {"name": "Fresh Oil", "category": "Oils & Fluids", "price": 450, "stock": 10, "shortDesc": "s", "description": "d"}
 
 
-def setup(make_admin, admin_login, role="Distributor", perms=("products",)):
+def setup(make_admin, admin_login, role="Admin", perms=("products",)):
     make_admin()
-    distributor = make_admin("d@example.com", role, list(perms))
-    return admin_login("head@example.com"), admin_login("d@example.com"), distributor
+    requester = make_admin("d@example.com", role, list(perms))
+    return admin_login("head@example.com"), admin_login("d@example.com"), requester
 
 
 def start(client, head, request_id, password=PASSWORD):
@@ -33,7 +33,7 @@ def test_head_admin_changes_apply_immediately(client, make_admin, admin_login, m
 
 def test_non_head_changes_become_requests_and_change_nothing(client, make_admin, admin_login, make_product, mailbox):
     head, dist, d = setup(make_admin, admin_login)
-    mine = make_product("Mine", price=100, owner=d)
+    mine = make_product("Mine", price=100)
 
     add = client.post("/api/products", headers=dist, json=NEW_PRODUCT)
     edit = client.put(f"/api/products/{mine.id}", headers=dist, json={"price": 1, "stock": 0})
@@ -52,14 +52,13 @@ def test_invalid_requests_are_refused_up_front(client, make_admin, admin_login, 
     head, dist, d = setup(make_admin, admin_login)
     theirs = make_product("Theirs")
     assert client.post("/api/products", headers=dist, json={"name": "", "price": -1}).status_code == 400
-    assert client.put(f"/api/products/{theirs.id}", headers=dist, json={"price": 5}).status_code == 403
-    assert client.delete(f"/api/products/{theirs.id}", headers=dist).status_code == 403
+    assert client.put(f"/api/products/{theirs.id}", headers=dist, json={"price": -5}).status_code == 400
     assert ChangeRequest.query.count() == 0
 
 
 def test_visibility_requester_sees_own_head_sees_all(client, make_admin, admin_login):
     head, dist, d = setup(make_admin, admin_login)
-    make_admin("other@example.com", "Distributor", ["products"])
+    make_admin("other@example.com", "Admin", ["products"])
     other = admin_login("other@example.com")
     req = client.post("/api/products", headers=dist, json=NEW_PRODUCT).get_json()["request"]
     assert len(client.get("/api/admin/approvals", headers=head).get_json()["requests"]) == 1
@@ -72,7 +71,7 @@ def test_visibility_requester_sees_own_head_sees_all(client, make_admin, admin_l
 
 def test_the_request_shows_what_would_change(client, make_admin, admin_login, make_product):
     head, dist, d = setup(make_admin, admin_login)
-    mine = make_product("Mine", price=100, owner=d)
+    mine = make_product("Mine", price=100)
     client.put(f"/api/products/{mine.id}", headers=dist, json={"price": 80, "name": "Mine"})
     row = client.get("/api/admin/approvals?status=pending", headers=head).get_json()["requests"][0]
     assert row["kindLabel"] == "Edit product"
@@ -111,7 +110,7 @@ def test_full_approval_applies_an_add(client, make_admin, admin_login, mailbox):
     assert Product.query.count() == 0                      # still nothing until the code is confirmed
     assert confirm(client, head, rid, code).status_code == 200
     product = Product.query.one()
-    assert product.name == "Fresh Oil" and product.owner_admin_id == d.id
+    assert product.name == "Fresh Oil"
     row = db.session.get(ChangeRequest, rid)
     assert row.status == "approved" and row.decider_name == "Admin" and row.decided_at
     assert any("approved" in m["subject"] for m in mailbox)  # the requester hears back
@@ -119,7 +118,7 @@ def test_full_approval_applies_an_add(client, make_admin, admin_login, mailbox):
 
 def test_approval_applies_an_edit_and_a_delete(client, make_admin, admin_login, make_product, approve):
     head, dist, d = setup(make_admin, admin_login)
-    a, b = make_product("A", price=100, owner=d), make_product("B", price=100, owner=d)
+    a, b = make_product("A", price=100), make_product("B", price=100)
     edit = client.put(f"/api/products/{a.id}", headers=dist, json={"price": 75, "stock": 7}).get_json()["request"]["id"]
     delete = client.delete(f"/api/products/{b.id}", headers=dist).get_json()["request"]["id"]
     assert approve(head, edit).status_code == 200
@@ -198,7 +197,7 @@ def test_reject_and_cancel(client, make_admin, admin_login, mailbox):
 
 def test_a_stale_request_cannot_be_applied(client, make_admin, admin_login, make_product, approve):
     head, dist, d = setup(make_admin, admin_login)
-    p = make_product("Mine", owner=d)
+    p = make_product("Mine")
     edit = client.put(f"/api/products/{p.id}", headers=dist, json={"price": 5}).get_json()["request"]["id"]
     assert client.delete(f"/api/products/{p.id}", headers=head).status_code == 200    # head deletes it meanwhile
     r = approve(head, edit)
@@ -208,7 +207,7 @@ def test_a_stale_request_cannot_be_applied(client, make_admin, admin_login, make
 
 def test_deleting_a_reviewed_product_is_blocked_at_request_time(client, make_admin, admin_login, make_product, make_user, make_order, user_login):
     head, dist, d = setup(make_admin, admin_login)
-    p = make_product("Mine", owner=d)
+    p = make_product("Mine")
     user = make_user()
     order = make_order(user, [(p, 100, 1)])
     client.post(f"/api/orders/{order.id}/reviews", headers=user_login(user.email), json={"reviews": [{"productId": p.id, "rating": 5}]})

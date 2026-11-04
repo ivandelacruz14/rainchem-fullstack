@@ -7,8 +7,6 @@ from app.models.order import ORDER_STATUSES
 from app.services.receipt_service import create_receipt_for_order
 from app.services.email_service import send_email
 from app.services.payment_flow import mark_paid, reset_payment
-from app.models import OrderItem
-from app.services.admin_scope import scope_product_ids
 from app.utils.auth_decorators import current_admin, require_head_admin, require_permission
 
 admin_orders_bp = Blueprint("admin_orders", __name__, url_prefix="/api/admin/orders")
@@ -20,13 +18,8 @@ def list_orders():
     admin = current_admin()
     status = request.args.get("status")
     query = Order.query
-    ids = scope_product_ids(admin)
-    if ids is not None:
-        query = query.filter(Order.id.in_(
-            db.session.query(OrderItem.order_id).filter(OrderItem.product_id.in_(ids or [-1]))
-        ))
     # Without the manage_orders permission the list is the read-only view: no contact or payment details.
-    limited = ids is not None or not admin.has_permission("manage_orders")
+    limited = not admin.has_permission("manage_orders")
     if status == "returns":
         query = query.filter(Order.return_status != "none")
     elif status == "verifying":
@@ -35,8 +28,7 @@ def list_orders():
         query = query.filter_by(status=status)
     orders = query.order_by(Order.created_at.desc()).all()
     if limited:
-        keep = None if ids is None else set(ids)
-        return jsonify({"scope": "limited", "orders": [o.to_scoped_dict(keep) for o in orders]})
+        return jsonify({"scope": "limited", "orders": [o.to_scoped_dict() for o in orders]})
     return jsonify({"scope": "full", "orders": [o.to_dict() for o in orders]})
 
 

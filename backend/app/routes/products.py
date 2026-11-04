@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import func
 
 from app.extensions import db
-from app.models import Admin, ChangeRequest, Product
+from app.models import ChangeRequest, Product
 from app.services import change_requests
 from app.services import product_changes as changes
 from app.services.catalog import serialize_product, serialize_products
@@ -35,12 +35,9 @@ def list_products():
 @products_bp.get("/manage")
 @require_permission("products")
 def list_manageable_products():
-    """The catalog as the signed-in admin may manage it: everything for a Head Admin,
-    only their own products for a distributor."""
+    """The whole catalog, for any admin with the products permission."""
     admin = current_admin()
     query = Product.query.filter(Product.category != "Services")
-    if admin.is_scoped:
-        query = query.filter(Product.owner_admin_id == admin.id)
     products = serialize_products(query.order_by(Product.id).all(), admin_view=True)
     pending = db.session.query(ChangeRequest.product_id, func.count(ChangeRequest.id)).filter(
         ChangeRequest.status == "pending", ChangeRequest.product_id.isnot(None)
@@ -50,12 +47,7 @@ def list_manageable_products():
     counts = dict(pending.group_by(ChangeRequest.product_id).all())
     for product in products:
         product["pendingRequests"] = counts.get(product["id"], 0)
-    payload = {"products": products}
-    if not admin.is_scoped:
-        payload["distributors"] = [
-            {"id": a.id, "name": a.name} for a in Admin.query.order_by(Admin.name).all() if a.is_scoped
-        ]
-    return jsonify(payload)
+    return jsonify({"products": products})
 
 
 @products_bp.get("/<int:product_id>")
@@ -78,12 +70,8 @@ def create_product():
     values, errors = changes.read_fields(data, creating=True)
     if errors:
         return jsonify({"error": ". ".join(errors)}), 400
-    try:
-        owner_id = changes.resolve_owner(data, admin)
-    except changes.ProductChangeError as error:
-        return jsonify({"error": str(error)}), error.status
 
-    payload = changes.build_payload(values, data, owner_id, owner_given=True)
+    payload = changes.build_payload(values, data)
     if not admin.is_head:
         return _pending_response(admin, "product_create", None, payload)
 
@@ -97,19 +85,13 @@ def create_product():
 def update_product(product_id):
     admin = current_admin()
     product = Product.query.get_or_404(product_id)
-    if not changes.can_manage(product, admin):
-        return jsonify({"error": "You can only manage your own products"}), 403
 
     data = request.get_json() or {}
     values, errors = changes.read_fields(data, creating=False)
     if errors:
         return jsonify({"error": ". ".join(errors)}), 400
-    try:
-        owner_id = changes.resolve_owner(data, admin, current_owner=product.owner_admin_id)
-    except changes.ProductChangeError as error:
-        return jsonify({"error": str(error)}), error.status
 
-    payload = changes.build_payload(values, data, owner_id, owner_given=True)
+    payload = changes.build_payload(values, data)
     if not admin.is_head:
         return _pending_response(admin, "product_update", product, payload)
 
@@ -123,8 +105,6 @@ def update_product(product_id):
 def delete_product(product_id):
     admin = current_admin()
     product = Product.query.get_or_404(product_id)
-    if not changes.can_manage(product, admin):
-        return jsonify({"error": "You can only manage your own products"}), 403
     try:
         changes.check_deletable(product)
     except changes.ProductChangeError as error:

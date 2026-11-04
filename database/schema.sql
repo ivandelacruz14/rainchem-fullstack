@@ -61,9 +61,7 @@ CREATE TABLE products (
     specs JSON NULL,
     benefits JSON NULL,
     usage_steps JSON NULL,
-    owner_admin_id INT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (owner_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE orders (
@@ -174,10 +172,8 @@ CREATE TABLE services (
     description TEXT NOT NULL,
     requirements TEXT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
-    owner_admin_id INT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NULL,
-    FOREIGN KEY (owner_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+    updated_at DATETIME NULL
 );
 
 CREATE TABLE service_areas (
@@ -299,6 +295,7 @@ CREATE TABLE live_messages (
     sender_name VARCHAR(120) NOT NULL DEFAULT '',
     kind VARCHAR(10) NOT NULL DEFAULT 'text',
     body TEXT NOT NULL,
+    image LONGTEXT NULL,
     meta JSON NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     delivered_at DATETIME NULL,

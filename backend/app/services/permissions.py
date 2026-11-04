@@ -1,14 +1,17 @@
 HEAD_ADMIN = "Head Admin"
 ADMIN = "Admin"
 SUPPORT_STAFF = "Support Staff"
-DISTRIBUTOR = "Distributor"
 CONTENT_MANAGER = "Content Manager"  # an older role: kept working, not offered for new accounts
+
+# Roles that no longer exist. An account still holding one has no access (see ensure_schema,
+# which also switches such accounts off).
+REMOVED_ROLES = {"Distributor"}
 
 # "Super Admin" accounts (from the original seed) keep full access.
 LEGACY_HEAD_ROLES = {"Super Admin"}
 HEAD_ROLES = {HEAD_ADMIN} | LEGACY_HEAD_ROLES
 
-ASSIGNABLE_ROLES = [HEAD_ADMIN, ADMIN, SUPPORT_STAFF, DISTRIBUTOR]
+ASSIGNABLE_ROLES = [HEAD_ADMIN, ADMIN, SUPPORT_STAFF]
 
 # What a Head Admin can switch on for other accounts. Admin accounts and payment
 # settings are always Head Admin only.
@@ -23,15 +26,11 @@ PERMISSIONS = {
     "analytics": "View sales reports and estimates",
 }
 
-# A distributor is limited to their own products and cannot be given the wider permissions.
-DISTRIBUTOR_ALLOWED = ["products", "services", "orders", "analytics"]
-
 # Starting permissions for a role. A Head Admin can change them per account.
 ROLE_PRESETS = {
     ADMIN: list(PERMISSIONS),
     SUPPORT_STAFF: ["orders", "manage_orders", "customers", "chatbot", "livechat"],
     CONTENT_MANAGER: ["products", "services", "analytics", "chatbot"],
-    DISTRIBUTOR: [],
 }
 
 
@@ -42,8 +41,8 @@ def is_head_role(role):
 def allowed_permissions(role):
     if is_head_role(role):
         return list(PERMISSIONS)
-    if role == DISTRIBUTOR:
-        return list(DISTRIBUTOR_ALLOWED)
+    if role in REMOVED_ROLES:
+        return []
     return list(PERMISSIONS)
 
 
@@ -64,7 +63,6 @@ def role_info():
         role: {
             "allowed": allowed_permissions(role),
             "preset": default_permissions(role),
-            "scoped": role == DISTRIBUTOR,
         }
         for role in ASSIGNABLE_ROLES
     }
