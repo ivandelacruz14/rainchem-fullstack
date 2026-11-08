@@ -10,6 +10,7 @@ from app.models.service import Service, ServiceArea, ServiceBooking
 from app.models.promotion import ProductSale
 from app.models.approval import ChangeRequest, ApprovalOtp
 from app.models.admin_email_change import AdminEmailChange
+from app.models.admin_security import AdminSession, AdminLoginChallenge
 from app.models.live_chat import LiveAttachment, LiveConversation, LiveMessage
 from app.models.audit import AuditLog
 from app.models.inventory import InventoryMovement, InventoryAlert
@@ -39,6 +40,8 @@ __all__ = [
     "ChangeRequest",
     "ApprovalOtp",
     "AdminEmailChange",
+    "AdminSession",
+    "AdminLoginChallenge",
     "LiveConversation",
     "LiveMessage",
     "LiveAttachment",

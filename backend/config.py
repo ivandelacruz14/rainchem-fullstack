@@ -43,6 +43,11 @@ class Config:
     # Largest image that can be sent in the live chat, in megabytes.
     CHAT_UPLOAD_MAX_MB = float(os.getenv("CHAT_UPLOAD_MAX_MB", "3"))
 
+    # Admin security: a six-digit code by email at sign-in, an idle timeout, and an absolute session limit.
+    ADMIN_OTP_REQUIRED = os.getenv("ADMIN_OTP_REQUIRED", "true").lower() == "true"
+    ADMIN_IDLE_MINUTES = int(os.getenv("ADMIN_IDLE_MINUTES", "10"))
+    ADMIN_SESSION_HOURS = int(os.getenv("ADMIN_SESSION_HOURS", "8"))
+
     # Hours between UTC and the shop's local time, used to group sales by day.
     STORE_UTC_OFFSET_HOURS = int(os.getenv("STORE_UTC_OFFSET_HOURS", "8"))
 
@@ -66,6 +71,7 @@ class Config:
 
 
 class TestConfig(Config):
+    ADMIN_OTP_REQUIRED = False  # tests sign in with the password only; the OTP tests switch it on
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SQLALCHEMY_ENGINE_OPTIONS = {}

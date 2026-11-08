@@ -1,3 +1,4 @@
+from datetime import timedelta
 from functools import wraps
 from flask import jsonify, g
 from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, verify_jwt_in_request
@@ -10,7 +11,14 @@ def create_user_token(user):
 
 
 def create_admin_token(admin):
-    return create_access_token(identity=f"admin:{admin.id}", additional_claims={"role": "admin"})
+    """A token tied to a new server-side session. The session is what enforces the idle timeout."""
+    from app.services import admin_session
+    session = admin_session.open_session(admin)
+    return create_access_token(
+        identity=f"admin:{admin.id}",
+        additional_claims={"role": "admin", "sid": session.id},
+        expires_delta=timedelta(hours=admin_session.session_hours()),
+    )
 
 
 def current_user_id():
@@ -46,7 +54,8 @@ def require_user(fn):
 
 
 def _load_admin_or_error():
-    from app.models import Admin
+    from app.models import Admin, AdminSession
+    from app.services import admin_session
     verify_jwt_in_request()
     if get_jwt().get("role") != "admin":
         return None, (jsonify({"error": "Admin access is required for this action"}), 403)
@@ -54,6 +63,13 @@ def _load_admin_or_error():
     admin = db.session.get(Admin, admin_id) if admin_id else None
     if admin is None or not admin.is_active:
         return None, (jsonify({"error": "This admin account is disabled or no longer exists"}), 401)
+    session_id = get_jwt().get("sid")
+    session = db.session.get(AdminSession, session_id) if session_id else None
+    if session is None or session.admin_id != admin.id:
+        return None, (jsonify({"error": admin_session.message_for("ended"), "reason": "ended"}), 401)
+    reason = admin_session.check_and_touch(session)
+    if reason:
+        return None, (jsonify({"error": admin_session.message_for(reason), "reason": reason}), 401)
     g.admin = admin
     return admin, None
 

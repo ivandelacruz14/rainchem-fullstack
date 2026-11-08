@@ -54,7 +54,7 @@ export default function ChatPane({ conversation, canDeleteConversation, onBack, 
   const unread = messages.some((m) => m.sender === "user" && !m.deleted && m.status !== "read");
   useEffect(() => {
     if (unread && document.visibilityState !== "hidden") {
-      client.post(`/api/admin/live-chat/conversations/${conversation.id}/read`).then(() => onChanged?.()).catch(() => {});
+      Promise.resolve(client.post(`/api/admin/live-chat/conversations/${conversation.id}/read`)).then(() => onChanged?.()).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unread, messages.length, conversation.id]);

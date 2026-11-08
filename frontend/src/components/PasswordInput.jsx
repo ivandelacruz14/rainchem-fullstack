@@ -1,10 +1,11 @@
 import { useState } from "react";
 
-export default function PasswordInput({ value, onChange, placeholder, autoComplete }) {
+export default function PasswordInput({ id, value, onChange, placeholder, autoComplete }) {
   const [visible, setVisible] = useState(false);
   return (
     <div className="password-input-wrap">
       <input
+        id={id}
         required
         type={visible ? "text" : "password"}
         value={value}

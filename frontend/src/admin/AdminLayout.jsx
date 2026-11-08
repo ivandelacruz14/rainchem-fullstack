@@ -41,7 +41,7 @@ const NAV_ITEMS = [
 ];
 
 export default function AdminLayout() {
-  const { admin, logout, can } = useAdminAuth();
+  const { admin, logout, can, warningSeconds, extendSession } = useAdminAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -139,6 +139,23 @@ export default function AdminLayout() {
       <main className="admin-main">
         <Outlet />
       </main>
+
+      {warningSeconds !== null && (
+        <div className="overlay" role="alertdialog" aria-modal="true" aria-label="Mag-e-expire na ang session">
+          <div className="modal confirm-dialog">
+            <div className="modal-head"><h3 style={{ margin: 0, fontSize: 18 }}>Mag-e-expire na ang session</h3></div>
+            <div className="modal-body">
+              <p style={{ marginTop: 0 }}>
+                Mag-lo-logout ka sa loob ng <strong>{warningSeconds}</strong> segundo dahil walang aktibidad.
+              </p>
+              <div className="form-actions">
+                <button type="button" className="btn btn-outline" onClick={() => { navigate("/admin/login", { replace: true }); logout(); }}>Mag-logout</button>
+                <button type="button" className="btn btn-primary" onClick={extendSession}>Manatiling naka-login</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,9 +1,9 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, current_app, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
 from app.models import Admin, AdminEmailChange, ApprovalOtp, ChangeRequest, Product, ProductSale, Service
-from app.services import admin_email_change
+from app.services import admin_email_change, admin_login_otp
 from app.services.auth_utils import is_valid_email, validate_password
 from app.services.permissions import (
     ASSIGNABLE_ROLES, PERMISSIONS, clean_permissions, default_permissions, is_head_role, role_info,
@@ -48,13 +48,67 @@ def admin_login():
     if not admin.is_active:
         return _error("This account has been disabled. Contact the Head Admin.", 403)
 
-    return jsonify({"token": create_admin_token(admin), "admin": admin.to_dict()})
+    if not current_app.config.get("ADMIN_OTP_REQUIRED", True):
+        return jsonify(_signed_in(admin))
+    try:
+        challenge, masked = admin_login_otp.start(admin)
+    except admin_login_otp.AdminLoginError as error:
+        return _error(str(error), error.status)
+    return jsonify({
+        "otpRequired": True, "challenge": challenge, "maskedEmail": masked,
+        "expiresInMinutes": admin_login_otp.CODE_MINUTES,
+    }), 202
+
+
+def _signed_in(admin):
+    from app.services import admin_session
+    return {"token": create_admin_token(admin), "admin": admin.to_dict(), "idleMinutes": admin_session.idle_minutes()}
+
+
+@admin_auth_bp.post("/login/verify")
+def admin_login_verify():
+    """Second step: the six-digit code from the admin's email."""
+    data = request.get_json() or {}
+    try:
+        admin_id = admin_login_otp.verify(data.get("challenge"), data.get("code"))
+    except admin_login_otp.AdminLoginError as error:
+        return _error(str(error), error.status)
+    admin = db.session.get(Admin, admin_id)
+    if admin is None or not admin.is_active:
+        return _error("This account is disabled or no longer exists", 403)
+    return jsonify(_signed_in(admin))
+
+
+@admin_auth_bp.post("/heartbeat")
+@require_admin
+def admin_heartbeat():
+    """Sent by the admin screen while someone is working, so an active person is not signed out."""
+    from app.services import admin_session
+    return jsonify({"ok": True, "idleMinutes": admin_session.idle_minutes()})
+
+
+@admin_auth_bp.post("/logout")
+def admin_logout():
+    """Ends the session on the server. It also works after the token has expired, so the screen can always clean up."""
+    from flask_jwt_extended import get_jwt, verify_jwt_in_request
+    from app.models import AdminSession
+    from app.services import admin_session
+    try:
+        verify_jwt_in_request()
+        claims = get_jwt()
+    except Exception:  # noqa: BLE001 - an invalid or expired token simply has nothing to end
+        return jsonify({"message": "Logged out"})
+    session = db.session.get(AdminSession, claims.get("sid")) if claims.get("sid") else None
+    if session is not None:
+        admin_session.end(session, "logout")
+    return jsonify({"message": "Logged out"})
 
 
 @admin_auth_bp.get("/me")
 @require_admin
 def admin_me():
-    return jsonify({"admin": current_admin().to_dict()})
+    from app.services import admin_session
+    return jsonify({"admin": current_admin().to_dict(), "idleMinutes": admin_session.idle_minutes()})
 
 
 @admin_auth_bp.put("/me/password")
