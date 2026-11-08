@@ -13,10 +13,10 @@ from app.models import AdminSession
 
 TOUCH_SECONDS = 30  # how often last_seen_at is written, to keep the database quiet
 REASON_MESSAGES = {
-    "idle": "Naka-logout ka dahil walang aktibidad sa admin nang {m} minuto. Mag-login ulit.",
-    "expired": "Nag-expire na ang iyong admin session. Mag-login ulit.",
-    "logout": "Naka-logout ka na. Mag-login ulit kung kailangan.",
-    "ended": "Hindi na active ang session na ito. Mag-login ulit.",
+    "idle": "You were signed out because there was no activity on the admin site for {m} minutes. Please sign in again.",
+    "expired": "Your admin session has expired. Please sign in again.",
+    "logout": "You have signed out. Sign in again if you need to.",
+    "ended": "This session is no longer active. Please sign in again.",
 }
 
 

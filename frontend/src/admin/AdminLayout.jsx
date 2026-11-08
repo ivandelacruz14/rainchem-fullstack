@@ -141,16 +141,16 @@ export default function AdminLayout() {
       </main>
 
       {warningSeconds !== null && (
-        <div className="overlay" role="alertdialog" aria-modal="true" aria-label="Mag-e-expire na ang session">
+        <div className="overlay" role="alertdialog" aria-modal="true" aria-label="Your session is about to expire">
           <div className="modal confirm-dialog">
-            <div className="modal-head"><h3 style={{ margin: 0, fontSize: 18 }}>Mag-e-expire na ang session</h3></div>
+            <div className="modal-head"><h3 style={{ margin: 0, fontSize: 18 }}>Your session is about to expire</h3></div>
             <div className="modal-body">
               <p style={{ marginTop: 0 }}>
-                Mag-lo-logout ka sa loob ng <strong>{warningSeconds}</strong> segundo dahil walang aktibidad.
+                You will be signed out in <strong>{warningSeconds}</strong> seconds due to inactivity.
               </p>
               <div className="form-actions">
-                <button type="button" className="btn btn-outline" onClick={() => { navigate("/admin/login", { replace: true }); logout(); }}>Mag-logout</button>
-                <button type="button" className="btn btn-primary" onClick={extendSession}>Manatiling naka-login</button>
+                <button type="button" className="btn btn-outline" onClick={() => { navigate("/admin/login", { replace: true }); logout(); }}>Sign out</button>
+                <button type="button" className="btn btn-primary" onClick={extendSession}>Stay signed in</button>
               </div>
             </div>
           </div>

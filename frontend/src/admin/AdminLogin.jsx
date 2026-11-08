@@ -46,7 +46,7 @@ export default function AdminLogin() {
         loginWithToken(res.data.token, res.data.admin, res.data.idleMinutes);
       }
     } catch (err) {
-      setError(err.response?.data?.error || "Hindi ma-login. Subukan ulit.");
+      setError(err.response?.data?.error || "Could not sign in. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -60,7 +60,7 @@ export default function AdminLogin() {
       const res = await client.post("/api/admin/auth/login/verify", { challenge, code });
       loginWithToken(res.data.token, res.data.admin, res.data.idleMinutes);
     } catch (err) {
-      setError(err.response?.data?.error || "Hindi ma-verify ang code.");
+      setError(err.response?.data?.error || "The code could not be verified.");
       setCode("");
     } finally {
       setBusy(false);
@@ -78,7 +78,7 @@ export default function AdminLogin() {
     <div className="admin-login-screen">
       <div className="admin-login-card">
         <h2 style={{ textAlign: "center", margin: "0 0 4px" }}>Admin Console</h2>
-        <p className="sub-title">{step === "password" ? "Mag-sign in gamit ang iyong account" : "Ilagay ang code mula sa iyong email"}</p>
+        <p className="sub-title">{step === "password" ? "Sign in with your account" : "Enter the code from your email"}</p>
 
         {notice && <div className="alert alert-info" role="status">{notice}</div>}
         {error && <div className="alert alert-error" role="alert">{error}</div>}
@@ -93,12 +93,12 @@ export default function AdminLogin() {
               <label htmlFor="admin-password">Password</label>
               <PasswordInput id="admin-password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
             </div>
-            <button type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? "Sinusuri..." : "Next"}</button>
+            <button type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? "Checking..." : "Next"}</button>
           </form>
         ) : (
           <form onSubmit={verifyCode}>
             <p style={{ fontSize: 14, marginTop: 0 }}>
-              Nagpadala kami ng 6-digit na code sa <strong>{maskedEmail}</strong>. Valid ito nang 10 minuto.
+              We sent a 6-digit code to <strong>{maskedEmail}</strong>. It is valid for 10 minutes.
             </p>
             <div className="field">
               <label htmlFor="admin-code">Code</label>
@@ -107,12 +107,12 @@ export default function AdminLogin() {
                 value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="123456" autoFocus
               />
             </div>
-            <button type="submit" className="btn btn-primary btn-block" disabled={busy || code.length !== 6}>{busy ? "Sinusuri..." : "Sign in"}</button>
-            <button type="button" className="btn btn-outline btn-block" style={{ marginTop: 8 }} onClick={startOver}>Bumalik</button>
+            <button type="submit" className="btn btn-primary btn-block" disabled={busy || code.length !== 6}>{busy ? "Checking..." : "Sign in"}</button>
+            <button type="button" className="btn btn-outline btn-block" style={{ marginTop: 8 }} onClick={startOver}>Back</button>
           </form>
         )}
         <p className="field-hint" style={{ textAlign: "center", marginTop: 16 }}>
-          Awtomatikong mag-lo-logout pagkatapos ng 10 minutong walang aktibidad.
+          You will be signed out automatically after 10 minutes of inactivity.
         </p>
       </div>
     </div>

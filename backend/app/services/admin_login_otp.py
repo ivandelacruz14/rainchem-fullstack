@@ -37,7 +37,7 @@ def start(admin):
     """Emails a new code to the admin. Returns (challenge_token, masked_email)."""
     recent = AdminLoginChallenge.query.filter_by(admin_id=admin.id).order_by(AdminLoginChallenge.created_at.desc()).first()
     if recent and recent.created_at > datetime.utcnow() - timedelta(seconds=COOLDOWN_SECONDS):
-        raise AdminLoginError(f"Maghintay ng {COOLDOWN_SECONDS} segundo bago humingi ng bagong code.", 429)
+        raise AdminLoginError(f"Please wait {COOLDOWN_SECONDS} seconds before requesting a new code.", 429)
 
     AdminLoginChallenge.query.filter_by(admin_id=admin.id, used=False).update({"used": True})
     token = secrets.token_urlsafe(32)
@@ -58,30 +58,30 @@ def start(admin):
     if not sent and not current_app.debug:
         row.used = True
         db.session.commit()
-        raise AdminLoginError("Hindi naipadala ang code sa email. Subukan ulit mamaya.", 503)
+        raise AdminLoginError("The code could not be sent to your email. Please try again later.", 503)
     return token, _mask(admin.email)
 
 
 def verify(token, code):
     """Checks the code. Returns the admin id when it is right."""
     if not token or len(str(token)) > 200:
-        raise AdminLoginError("Ang sign-in ay expired na. Mag-login ulit.", 400)
+        raise AdminLoginError("This sign-in has expired. Please sign in again.", 400)
     row = AdminLoginChallenge.query.filter_by(challenge_hash=_hash(str(token)), used=False).first()
     if row is None:
-        raise AdminLoginError("Ang sign-in na ito ay hindi valid o nagamit na. Mag-login ulit.", 400)
+        raise AdminLoginError("This sign-in is invalid or has already been used. Please sign in again.", 400)
     if row.expires_at < datetime.utcnow():
         row.used = True
         db.session.commit()
-        raise AdminLoginError("Nag-expire na ang code. Mag-login ulit para makakuha ng bago.", 400)
+        raise AdminLoginError("The code has expired. Sign in again to get a new one.", 400)
     if row.attempts >= MAX_ATTEMPTS:
         row.used = True
         db.session.commit()
-        raise AdminLoginError("Masyadong maraming maling code. Mag-login ulit.", 429)
+        raise AdminLoginError("Too many wrong codes. Please sign in again.", 429)
     if not otp_codes.matches(row.salt, row.code_hash, code):
         row.attempts += 1
         db.session.commit()
         left = MAX_ATTEMPTS - row.attempts
-        raise AdminLoginError("Maling code. " + (f"{left} na tries na lang." if left else "Mag-login ulit para makakuha ng bago."), 400)
+        raise AdminLoginError("Wrong code. " + (f"{left} tries left." if left else "Sign in again to get a new one."), 400)
     row.used = True
     db.session.commit()
     return row.admin_id

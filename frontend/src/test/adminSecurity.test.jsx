@@ -75,7 +75,7 @@ describe("idle timeout", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(60 * 1000); });
     expect(screen.getByText(/signed-out/)).toBeTruthy();
     expect(sessionStorage.getItem("rainchem_admin_token")).toBeNull();
-    expect(sessionStorage.getItem("rainchem_admin_notice")).toContain("3 minuto");
+    expect(sessionStorage.getItem("rainchem_admin_notice")).toContain("3 minutes");
   });
 
   it("activity resets the timer, and the warning can be dismissed by staying signed in", async () => {

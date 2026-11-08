@@ -81,7 +81,7 @@ def test_a_code_works_once_and_five_wrong_tries_lock_the_attempt(client, make_ad
     right = code_from(otp_on)
     wrong = "000000" if right != "000000" else "111111"
     first = client.post("/api/admin/auth/login/verify", json={"challenge": challenge, "code": wrong})
-    assert first.status_code == 400 and "4 na tries" in first.get_json()["error"]
+    assert first.status_code == 400 and "4 tries left" in first.get_json()["error"]
     for _ in range(4):
         client.post("/api/admin/auth/login/verify", json={"challenge": challenge, "code": wrong})
     assert client.post("/api/admin/auth/login/verify", json={"challenge": challenge, "code": right}).status_code == 429
@@ -101,7 +101,7 @@ def test_an_expired_code_is_refused(client, make_admin, otp_on):
     AdminLoginChallenge.query.update({"expires_at": datetime.utcnow() - timedelta(seconds=1)})
     db.session.commit()
     r = client.post("/api/admin/auth/login/verify", json={"challenge": challenge, "code": code_from(otp_on)})
-    assert r.status_code == 400 and "Nag-expire" in r.get_json()["error"]
+    assert r.status_code == 400 and "expired" in r.get_json()["error"]
 
 
 def test_a_second_password_step_within_the_cooldown_is_refused(client, make_admin, otp_on):
@@ -157,7 +157,7 @@ def test_idle_for_longer_than_the_limit_signs_the_admin_out(client, make_admin, 
     db.session.commit()
     r = client.get("/api/admin/auth/me", headers=h)
     assert r.status_code == 401 and r.get_json()["reason"] == "idle"
-    assert "10 minuto" in r.get_json()["error"]
+    assert "10 minutes" in r.get_json()["error"]
     assert client.get("/api/admin/auth/me", headers=h).get_json()["reason"] == "idle"     # stays signed out
 
 
@@ -236,5 +236,5 @@ def test_the_limits_come_from_configuration(app, client, make_admin, admin_login
     AdminSession.query.update({"last_seen_at": ago(6)})
     db.session.commit()
     r = client.get("/api/admin/auth/me", headers=h)
-    assert r.status_code == 401 and "5 minuto" in r.get_json()["error"]
+    assert r.status_code == 401 and "5 minutes" in r.get_json()["error"]
     app.config["ADMIN_IDLE_MINUTES"] = 10

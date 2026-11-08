@@ -9,6 +9,7 @@ const WARNING_SECONDS = 60;
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "pointerdown", "touchstart", "scroll"];
 const HEARTBEAT_MS = 60 * 1000;
 
+
 export function AdminAuthProvider({ children }) {
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +81,7 @@ export function AdminAuthProvider({ children }) {
     const tick = setInterval(() => {
       const idle = Date.now() - lastActivity;
       if (idle >= idleMs) {
-        clearSession(`Naka-logout ka dahil walang aktibidad nang ${idleMinutes} minuto. Mag-login ulit.`);
+        clearSession(`You were signed out because there was no activity for ${idleMinutes} minutes. Please sign in again.`);
         return;
       }
       const left = Math.ceil((idleMs - idle) / 1000);
