@@ -948,3 +948,6 @@ body.no-scroll { overflow: hidden; }
 .rec-sources { color: var(--soft); margin-bottom: 8px; }
 .rec-missing { background: var(--fog); border-radius: 10px; padding: 8px 12px; font-size: 12px; }
 .rec-missing strong { display: block; margin-bottom: 4px; }
+
+/* Cart is in the header for every device; the badge sits on the icon */
+.cart-btn { position: relative; }

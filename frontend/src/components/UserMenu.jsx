@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useCart } from "../context/CartContext";
 import { useTheme } from "../context/ThemeContext";
-import { useUI } from "../context/UIContext";
 import UserAvatar from "./UserAvatar";
 
 export default function UserMenu() {
   const { user, logout } = useAuth();
-  const { totalQty } = useCart();
   const { theme, toggleTheme } = useTheme();
-  const { openCart } = useUI();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
@@ -53,7 +49,6 @@ export default function UserMenu() {
       >
         <UserAvatar user={user} size={36} />
         <span className="account-chip-name">{firstName}</span>
-        {totalQty > 0 && <span className="chip-badge">{totalQty}</span>}
       </button>
 
       {open && (
@@ -63,15 +58,12 @@ export default function UserMenu() {
             <span>{user.email}</span>
           </div>
           <Link role="menuitem" to="/account" className="user-menu-item">My Account</Link>
+          <Link role="menuitem" to="/account/orders" className="user-menu-item">My Orders</Link>
           <Link role="menuitem" to="/account/services" className="user-menu-item">Service Requests</Link>
           <Link role="menuitem" to="/account/address" className="user-menu-item">Addresses</Link>
           <Link role="menuitem" to="/account/profile" className="user-menu-item">Profile</Link>
           <Link role="menuitem" to="/account/settings" className="user-menu-item">Settings &amp; Privacy</Link>
           <Link role="menuitem" to="/account/help" className="user-menu-item">Help Center</Link>
-          <button role="menuitem" type="button" className="user-menu-item" onClick={() => { setOpen(false); openCart(); }}>
-            <span>Cart</span>
-            {totalQty > 0 && <span className="menu-count">{totalQty}</span>}
-          </button>
           <button
             role="menuitemcheckbox" aria-checked={dark} type="button" className="user-menu-item"
             onClick={toggleTheme}

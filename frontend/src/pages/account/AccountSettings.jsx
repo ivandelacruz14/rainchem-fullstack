@@ -1,5 +1,6 @@
 import { useState } from "react";
 import client from "../../api/client";
+import PasswordInput from "../../components/PasswordInput";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/ToastContext";
@@ -101,15 +102,15 @@ export default function AccountSettings() {
         <form onSubmit={handleChangePassword}>
           <div className="field">
             <label>Current Password</label>
-            <input required type="password" value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} />
+            <PasswordInput value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} autoComplete="current-password" />
           </div>
           <div className="field">
             <label>New Password</label>
-            <input required type="password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} />
+            <PasswordInput value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} autoComplete="new-password" />
           </div>
           <div className="field">
             <label>Confirm New Password</label>
-            <input required type="password" value={pwForm.confirm} onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} />
+            <PasswordInput value={pwForm.confirm} onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })} autoComplete="new-password" />
           </div>
           <button type="submit" className="btn btn-primary">Update Password</button>
         </form>

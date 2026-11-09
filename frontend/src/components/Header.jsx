@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import { useUI } from "../context/UIContext";
 import Brand from "./Brand";
 import UserMenu from "./UserMenu";
 
 export default function Header() {
   const { user, loading } = useAuth();
-  const { requireLogin } = useUI();
+  const { requireLogin, openCart } = useUI();
+  const { totalQty } = useCart();
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -43,7 +45,17 @@ export default function Header() {
 
         <div className="nav-actions">
           {user ? (
-            <UserMenu />
+            <>
+              <button type="button" className="icon-btn cart-btn" aria-label="Cart" title="Cart" onClick={openCart}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="20" r="1.5" />
+                  <circle cx="18" cy="20" r="1.5" />
+                  <path d="M2 3h3l2.6 12.4a2 2 0 0 0 2 1.6h8.7a2 2 0 0 0 2-1.6L22 7H6" />
+                </svg>
+                {totalQty > 0 && <span className="chip-badge">{totalQty}</span>}
+              </button>
+              <UserMenu />
+            </>
           ) : (
             !loading && (
               <div className="auth-buttons">

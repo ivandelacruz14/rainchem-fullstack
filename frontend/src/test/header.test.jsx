@@ -45,7 +45,8 @@ describe("header after login", () => {
     const chip = await screen.findByLabelText("Account menu");
     expect(screen.queryByText("Dark mode")).toBeNull();
     await user.click(chip);
-    expect(screen.getByRole("menuitem", { name: /Cart/ })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "My Orders" })).toBeTruthy();
+    expect(screen.getByLabelText("Cart")).toBeTruthy();
     expect(screen.getByRole("menuitemcheckbox", { name: /Dark mode/ })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "Log Out" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Log In" })).toBeNull();
@@ -79,7 +80,7 @@ describe("header after login", () => {
     const user = userEvent.setup();
     render(<Providers><Header /></Providers>);
     const chip = await screen.findByLabelText("Account menu");
-    await waitFor(() => expect(chip.textContent).toContain("2"));
+    await waitFor(() => expect(screen.getByLabelText("Cart").textContent).toContain("2"));
     await user.click(chip);
     await user.click(screen.getByRole("menuitem", { name: "Log Out" }));
     expect(localStorage.getItem("rainchem_token")).toBeNull();
