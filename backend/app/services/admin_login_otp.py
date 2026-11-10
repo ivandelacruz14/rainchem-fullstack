@@ -56,7 +56,8 @@ def start(admin):
         sensitive=True,
     )
     if not sent and not current_app.debug:
-        row.used = True
+        # A failed send must not start the 30-second wait: the attempt is removed, not kept as a sent code.
+        db.session.delete(row)
         db.session.commit()
         raise AdminLoginError("The code could not be sent to your email. Please try again later.", 503)
     return token, _mask(admin.email)

@@ -1,10 +1,28 @@
 import os
+import time
 
 import requests
 from flask import current_app
 
 from app.extensions import db
 from app.models import Notification
+
+
+RETRY_DELAYS = (1, 2)
+
+
+def _post_with_retry(url, **kwargs):
+    """The connection to Mailjet is sometimes reset by the network before it answers. A dropped connection is
+    retried twice. A reply from Mailjet, even an error, is final and is not retried."""
+    last = None
+    for attempt in range(len(RETRY_DELAYS) + 1):
+        try:
+            return requests.post(url, **kwargs)
+        except (requests.ConnectionError, requests.Timeout) as error:
+            last = error
+            if attempt < len(RETRY_DELAYS):
+                time.sleep(RETRY_DELAYS[attempt])
+    raise last
 
 
 def send_email(to_email, subject, body, user_id=None, sensitive=False):
@@ -21,7 +39,7 @@ def send_email(to_email, subject, body, user_id=None, sensitive=False):
         error_detail = "MAILJET_API_KEY, MAILJET_API_SECRET, or SMTP_FROM is missing"
     else:
         try:
-            response = requests.post(
+            response = _post_with_retry(
                 "https://api.mailjet.com/v3.1/send",
                 auth=(api_key, api_secret),
                 json={

@@ -238,3 +238,15 @@ def test_the_limits_come_from_configuration(app, client, make_admin, admin_login
     r = client.get("/api/admin/auth/me", headers=h)
     assert r.status_code == 401 and "5 minutes" in r.get_json()["error"]
     app.config["ADMIN_IDLE_MINUTES"] = 10
+
+
+def test_a_failed_email_does_not_start_the_30_second_wait(app, client, make_admin, monkeypatch):
+    app.config["ADMIN_OTP_REQUIRED"] = True
+    make_admin()
+    outcomes = iter([False, True])
+    monkeypatch.setattr("app.services.admin_login_otp.send_email", lambda *a, **k: next(outcomes))
+    try:
+        assert password_step(client).status_code == 503
+        assert password_step(client).status_code == 202          # sent right away, no cooldown after the failure
+    finally:
+        app.config["ADMIN_OTP_REQUIRED"] = False
