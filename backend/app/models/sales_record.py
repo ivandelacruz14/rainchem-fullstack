@@ -9,8 +9,8 @@ class SalesRecord(db.Model):
     __tablename__ = "sales_records"
 
     id = db.Column(db.Integer, primary_key=True)
-    order_item_id = db.Column(db.Integer, db.ForeignKey("order_items.id", ondelete="CASCADE"), nullable=False, unique=True)
-    order_id = db.Column(db.Integer, db.ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    order_item_id = db.Column(db.Integer, db.ForeignKey("order_items.id", ondelete="CASCADE"), nullable=True, unique=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("orders.id", ondelete="CASCADE"), nullable=True, index=True)
     order_number = db.Column(db.String(40), nullable=False, index=True)
     transaction_ref = db.Column(db.String(120), nullable=False, default="")
     sold_at = db.Column(db.DateTime, nullable=False, index=True)
@@ -45,6 +45,11 @@ class SalesRecord(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # "order" for rows made from real orders (also when NULL in older rows), "import" for rows from an Excel file.
+    source = db.Column(db.String(10), nullable=True, default="order")
+    import_batch = db.Column(db.String(40), nullable=True, index=True)
+    variant = db.Column(db.String(80), nullable=True)
+    refund_amount = db.Column(db.Numeric(10, 2), nullable=True)  # actual amount refunded, when known (imports)
 
     def to_dict(self):
         money = lambda v: float(v) if v is not None else 0.0
@@ -78,4 +83,8 @@ class SalesRecord(db.Model):
             "state": self.state,
             "notes": self.notes,
             "corrected": bool(self.overrides),
+            "source": self.source or "order",
+            "importBatch": self.import_batch,
+            "variant": self.variant,
+            "refundAmount": float(self.refund_amount) if self.refund_amount is not None else None,
         }

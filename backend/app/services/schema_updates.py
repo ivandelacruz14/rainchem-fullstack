@@ -155,11 +155,27 @@ def add_missing_model_columns(db, logger):
                 logger.warning("Could not add %s.%s: %s", table.name, column.name, error)
 
 
+def sales_import_columns(db, logger):
+    """Older databases were created with NOT NULL order links; imported rows have no order, so those columns
+    must allow NULL. Existing rows are marked as coming from orders. Safe to repeat."""
+    from sqlalchemy import inspect, text
+    if not inspect(db.engine).has_table("sales_records"):
+        return
+    if db.engine.dialect.name == "mysql":
+        columns = {c["name"]: c for c in inspect(db.engine).get_columns("sales_records")}
+        for name in ("order_id", "order_item_id"):
+            if name in columns and not columns[name]["nullable"]:
+                db.session.execute(text(f"ALTER TABLE sales_records MODIFY {name} INT NULL"))
+    db.session.execute(text("UPDATE sales_records SET source = 'order' WHERE source IS NULL"))
+    db.session.commit()
+
+
 def start_ledgers(db, logger):
     """Fills the sales records from existing orders and gives every product an opening stock entry.
     Both only add rows that are missing, so running them at every start is harmless."""
     try:
         from app.services import inventory, sales_ledger
+        sales_import_columns(db, logger)
         rows = sales_ledger.sync_all()
         baseline = inventory.ensure_baseline()
         if rows or baseline:

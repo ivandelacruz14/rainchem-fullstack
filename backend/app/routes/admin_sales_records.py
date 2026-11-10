@@ -2,7 +2,7 @@ from flask import Blueprint, Response, jsonify, request
 
 from app.extensions import db
 from app.models import Admin, AuditLog, Order, OrderItem, Product, SalesRecord
-from app.services import audit, sales_analytics as dates, sales_ledger as ledger
+from app.services import audit, sales_analytics as dates, sales_import, sales_ledger as ledger
 from app.utils.auth_decorators import current_admin, require_head_admin, require_permission
 
 admin_sales_records_bp = Blueprint("admin_sales_records", __name__, url_prefix="/api/admin/sales-records")
@@ -118,3 +118,56 @@ def reconcile():
     audit.record("sales_reconcile", "sales_records", "all", None, {"orders": count}, None, current_admin())
     db.session.commit()
     return jsonify({"orders": count, "records": SalesRecord.query.count()})
+
+
+def _upload():
+    upload = request.files.get("file")
+    if upload is None or not (upload.filename or "").lower().endswith(".xlsx"):
+        return None
+    return upload
+
+
+@admin_sales_records_bp.post("/import/preview")
+@require_head_admin
+def import_preview():
+    """Checks an Excel file and says what would be imported. Nothing is saved."""
+    upload = _upload()
+    if upload is None:
+        return _bad("Choose an .xlsx file.")
+    try:
+        summary, _ = sales_import.analyse(upload.read(sales_import.MAX_BYTES + 1))
+    except sales_import.ImportFileError as error:
+        return _bad(str(error))
+    return jsonify(summary)
+
+
+@admin_sales_records_bp.post("/import")
+@require_head_admin
+def import_commit():
+    """Saves the valid rows of an Excel file as one batch. The form field confirm=yes is required."""
+    upload = _upload()
+    if upload is None:
+        return _bad("Choose an .xlsx file.")
+    if request.form.get("confirm") != "yes":
+        return _bad("Check the preview first, then confirm the import.")
+    try:
+        batch, summary = sales_import.commit(upload.read(sales_import.MAX_BYTES + 1), current_admin(), upload.filename)
+    except sales_import.ImportFileError as error:
+        return _bad(str(error))
+    return jsonify({"batch": batch, **summary}), 201
+
+
+@admin_sales_records_bp.get("/imports")
+@require_permission("analytics")
+def list_imports():
+    return jsonify({"batches": sales_import.list_batches()})
+
+
+@admin_sales_records_bp.delete("/imports/<batch>")
+@require_head_admin
+def remove_import(batch):
+    """Removes every row of one import batch. Real orders are never touched."""
+    removed = sales_import.delete_batch(batch[:40], current_admin())
+    if not removed:
+        return jsonify({"error": "That import was not found"}), 404
+    return jsonify({"removed": removed})

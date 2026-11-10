@@ -5,10 +5,11 @@ import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useToast } from "../../context/ToastContext";
 import { downloadFile } from "../../utils/download";
 import { formatDate, peso } from "../../utils/format";
+import ImportSales from "../sales-records/ImportSales";
 import RecordDetail from "../sales-records/RecordDetail";
 import SalesReports from "../sales-records/SalesReports";
 
-const EMPTY = { q: "", from: "", to: "", product_id: "", category: "", payment_status: "", order_status: "", state: "", sort: "date", dir: "desc", page: 1, per_page: 25 };
+const EMPTY = { q: "", from: "", to: "", product_id: "", category: "", payment_status: "", order_status: "", state: "", source: "", sort: "date", dir: "desc", page: 1, per_page: 25 };
 const COLUMNS = [
   ["date", "Date and time"], [null, "Order"], [null, "Reference"], ["customer", "Customer"], ["product", "Product"], [null, "SKU"], [null, "Category"],
   ["quantity", "Qty"], ["price", "Unit price"], [null, "Subtotal"], [null, "Discount"], ["total", "Line total"], [null, "Shipping"], ["order_total", "Order total"],
@@ -29,6 +30,7 @@ export default function SalesRecords() {
   const [error, setError] = useState("");
   const [openId, setOpenId] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [confirmReconcile, setConfirmReconcile] = useState(false);
 
   const load = useCallback(() => {
@@ -44,7 +46,7 @@ export default function SalesRecords() {
   async function exportCsv() {
     setExporting(true);
     try {
-      const { page, per_page, ...rest } = cleanParams(filters); // the export covers every matching row, not one page
+      const { page, per_page, ...rest } = cleanParams(filters);
       await downloadFile(client, "/api/admin/sales-records/export.csv", rest, "rainchem-sales-records.csv");
     } catch (err) {
       showToast(err.response?.data?.error || "The export could not be created", "error");
@@ -73,10 +75,11 @@ export default function SalesRecords() {
       <div className="admin-topbar">
         <div>
           <h1>Sales Records</h1>
-          <p>Every product line of every order, filled in automatically. Read only: amounts come from the orders.</p>
+          <p>Every product line of every order, filled in automatically. Read only: amounts come from the orders. Excel imports are marked "Imported".</p>
         </div>
         <div className="row-actions">
           {tab === "records" && <button type="button" className="btn btn-primary" disabled={exporting || !data?.total} onClick={exportCsv}>{exporting ? "Preparing..." : "Export CSV"}</button>}
+          {admin?.isHead && tab === "records" && <button type="button" className="btn btn-outline" onClick={() => setImporting(true)}>Import Excel</button>}
           {admin?.isHead && <button type="button" className="btn btn-outline" onClick={() => setConfirmReconcile(true)}>Reconcile with orders</button>}
         </div>
       </div>
@@ -92,6 +95,10 @@ export default function SalesRecords() {
             <div className="field"><label htmlFor="sr-q">Search</label><input id="sr-q" type="search" placeholder="Order, customer, product or SKU" value={filters.q} onChange={(e) => set({ q: e.target.value })} /></div>
             <div className="field"><label htmlFor="sr-from">From</label><input id="sr-from" type="date" value={filters.from} onChange={(e) => set({ from: e.target.value })} /></div>
             <div className="field"><label htmlFor="sr-to">To</label><input id="sr-to" type="date" value={filters.to} onChange={(e) => set({ to: e.target.value })} /></div>
+            <div className="field"><label htmlFor="sr-source">Source</label>
+              <select id="sr-source" value={filters.source} onChange={(e) => set({ source: e.target.value })}>
+                <option value="">All records</option><option value="order">From orders</option><option value="import">Imported (Excel)</option>
+              </select></div>
             <div className="field"><label htmlFor="sr-product">Product</label>
               <select id="sr-product" value={filters.product_id} onChange={(e) => set({ product_id: e.target.value })}>
                 <option value="">All products</option>{data?.filters.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -143,7 +150,9 @@ export default function SalesRecords() {
                 ) : data.records.map((r) => (
                   <tr key={r.id} className="sheet-row" tabIndex={0} onClick={() => setOpenId(r.id)} onKeyDown={(e) => { if (e.key === "Enter") setOpenId(r.id); }}>
                     <td>{formatDate(r.soldAt)}</td><td className="mono">{r.orderNumber}</td><td className="mono">{r.transactionRef}</td>
-                    <td>{r.customerName}</td><td>{r.productName}</td><td className="mono">{r.sku || "-"}</td><td>{r.category || "-"}</td>
+                    <td>{r.customerName}</td>
+                    <td>{r.productName}{r.variant && <div className="muted">{r.variant}</div>}{r.source === "import" && <span className="pill import-pill">Imported</span>}</td>
+                    <td className="mono">{r.sku || "-"}</td><td>{r.category || "-"}</td>
                     <td className="num">{r.quantity}</td><td className="num">{peso(r.unitPrice)}</td><td className="num">{peso(r.subtotal)}</td>
                     <td className="num">{peso(r.discountAmount)}</td><td className="num"><strong>{peso(r.lineTotal)}</strong></td><td className="num">{peso(r.shippingShare)}</td><td className="num">{peso(r.orderTotal)}</td>
                     <td>{r.paymentMethod}<div className="muted">{r.paymentStatus}</div></td><td>{r.orderStatus}</td><td>{r.fulfillmentStatus}</td>
@@ -170,9 +179,10 @@ export default function SalesRecords() {
       )}
 
       {openId && <RecordDetail recordId={openId} isHead={Boolean(admin?.isHead)} onClose={() => setOpenId(null)} onChanged={load} />}
+      {importing && <ImportSales onClose={() => setImporting(false)} onChanged={load} />}
       {confirmReconcile && (
         <ConfirmDialog title="Reconcile with orders?" confirmLabel="Reconcile" danger={false}
-          message="Every record is rebuilt from its order. Records that are missing are created. Descriptive corrections you made are kept. This is safe to repeat." onCancel={() => setConfirmReconcile(false)} onConfirm={reconcile} />
+          message="Every order record is rebuilt from its order. Imported rows are not changed. Descriptive corrections you made are kept. This is safe to repeat." onCancel={() => setConfirmReconcile(false)} onConfirm={reconcile} />
       )}
     </div>
   );
