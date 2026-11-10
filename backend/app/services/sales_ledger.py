@@ -1,8 +1,3 @@
-"""Sales records: one spreadsheet row per product line of an order.
-
-Rows are written from the order itself, inside the same database transaction that changes the order,
-so they cannot drift from it and repeated payment events cannot create duplicates (one row per
-order line, enforced by a unique key). Money is a snapshot of what was charged at the time."""
 import csv
 import io
 from collections import defaultdict
@@ -191,6 +186,11 @@ def filtered_query(args):
             raise dates.ReportError("The end date cannot be before the start date")
         lo, hi = _window(start, end)
         query = query.filter(SalesRecord.sold_at >= lo, SalesRecord.sold_at < hi)
+    source = args.get("source")
+    if source == "import":
+        query = query.filter(SalesRecord.source == "import")
+    elif source == "order":
+        query = query.filter(db.or_(SalesRecord.source.is_(None), SalesRecord.source == "order"))
     for arg, column in (("product_id", SalesRecord.product_id), ("category", SalesRecord.category),
                         ("payment_status", SalesRecord.payment_status), ("order_status", SalesRecord.order_status),
                         ("state", SalesRecord.state)):
@@ -232,7 +232,7 @@ CSV_COLUMNS = [
     ("Subtotal", "subtotal"), ("Discount", "discountAmount"), ("Line total", "lineTotal"), ("Shipping share", "shippingShare"),
     ("Tax", "taxAmount"), ("Order total", "orderTotal"), ("Payment method", "paymentMethod"), ("Payment status", "paymentStatus"),
     ("Order status", "orderStatus"), ("Fulfillment", "fulfillmentStatus"), ("Refund", "refundStatus"), ("Return", "returnStatus"),
-    ("Sale state", "state"), ("Notes", "notes"),
+    ("Sale state", "state"), ("Notes", "notes"), ("Source", "source"), ("Variant", "variant"),
 ]
 
 
@@ -273,7 +273,8 @@ def build_summary(start, end, granularity):
         by_state[r.state].append(r)
     happened = by_state["completed"] + by_state["refunded"] + by_state["returned"]
     gross, discounts = money(happened, "subtotal"), money(happened, "discount_amount")
-    refunds = money(by_state["refunded"] + by_state["returned"], "line_total")
+    # A refund can be partial: use the amount actually refunded when it is known, else the whole line.
+    refunds = float(sum(((r.refund_amount if r.refund_amount is not None else r.line_total) for r in by_state["refunded"] + by_state["returned"]), Decimal(0)))
     summary = {
         "recordedRows": len(rows), "recordedValue": money(rows, "line_total"),
         "completedRows": len(by_state["completed"]), "completedValue": money(by_state["completed"], "line_total"),

@@ -57,3 +57,51 @@ def test_an_error_reply_from_mailjet_is_not_retried(app, mail, monkeypatch):
     with app.app_context():
         assert email_service.send_email("admin@example.com", "Code", "123456") is False
     assert len(calls) == 1
+
+
+def test_resend_is_used_when_it_is_the_chosen_provider(app, mail, monkeypatch):
+    app.config["EMAIL_PROVIDER"] = "resend"
+    monkeypatch.setenv("RESEND_API_KEY", "re_test")
+    calls = []
+
+    def fake(url, **kwargs):
+        calls.append((url, kwargs["headers"]["Authorization"]))
+        return Reply(200)
+
+    monkeypatch.setattr("app.services.email_service.requests.post", fake)
+    try:
+        with app.app_context():
+            assert email_service.send_email("admin@example.com", "Code", "123456") is True
+    finally:
+        app.config["EMAIL_PROVIDER"] = "mailjet"
+    assert calls == [("https://api.resend.com/emails", "Bearer re_test")]
+
+
+def test_mailjet_connection_failure_falls_back_to_resend(app, mail, monkeypatch):
+    monkeypatch.setenv("RESEND_API_KEY", "re_test")
+    urls = []
+
+    def fake(url, **kwargs):
+        urls.append(url)
+        if "mailjet" in url:
+            raise requests.ConnectionError("Connection reset by peer")
+        return Reply(200)
+
+    monkeypatch.setattr("app.services.email_service.requests.post", fake)
+    with app.app_context():
+        assert email_service.send_email("admin@example.com", "Code", "123456") is True
+    assert urls[-1] == "https://api.resend.com/emails"
+
+
+def test_a_mailjet_error_reply_does_not_fall_back(app, mail, monkeypatch):
+    monkeypatch.setenv("RESEND_API_KEY", "re_test")
+    urls = []
+
+    def fake(url, **kwargs):
+        urls.append(url)
+        return Reply(401)
+
+    monkeypatch.setattr("app.services.email_service.requests.post", fake)
+    with app.app_context():
+        assert email_service.send_email("admin@example.com", "Code", "123456") is False
+    assert urls == ["https://api.mailjet.com/v3.1/send"]

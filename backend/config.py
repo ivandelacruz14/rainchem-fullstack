@@ -48,6 +48,12 @@ class Config:
     ADMIN_IDLE_MINUTES = int(os.getenv("ADMIN_IDLE_MINUTES", "10"))
     ADMIN_SESSION_HOURS = int(os.getenv("ADMIN_SESSION_HOURS", "8"))
 
+    # Cloudflare Turnstile secret key. Leave empty in local development to skip the check.
+    TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
+
+    # Email provider: "mailjet" (default) or "resend". Mailjet falls back to Resend when its connection keeps failing.
+    EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "mailjet")
+
     # Hours between UTC and the shop's local time, used to group sales by day.
     STORE_UTC_OFFSET_HOURS = int(os.getenv("STORE_UTC_OFFSET_HOURS", "8"))
 
@@ -71,6 +77,7 @@ class Config:
 
 
 class TestConfig(Config):
+    TURNSTILE_SECRET_KEY = ""
     ADMIN_OTP_REQUIRED = False  # tests sign in with the password only; the OTP tests switch it on
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
