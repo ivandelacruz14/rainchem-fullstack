@@ -3,7 +3,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
 from app.models import Admin, AdminEmailChange, ApprovalOtp, ChangeRequest, Product, ProductSale, Service
-from app.services import admin_email_change, admin_login_otp
+from app.services import admin_email_change, admin_login_otp, captcha
 from app.services.auth_utils import is_valid_email, validate_password
 from app.services.permissions import (
     ASSIGNABLE_ROLES, PERMISSIONS, clean_permissions, default_permissions, is_head_role, role_info,
@@ -38,6 +38,10 @@ def _active_heads():
 
 @admin_auth_bp.post("/login")
 def admin_login():
+    try:
+        captcha.verify((request.get_json(silent=True) or {}).get("captchaToken"))
+    except captcha.CaptchaError as error:
+        return _error(str(error), error.status)
     data = request.get_json() or {}
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""

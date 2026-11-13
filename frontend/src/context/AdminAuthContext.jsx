@@ -9,7 +9,11 @@ const WARNING_SECONDS = 60;
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "pointerdown", "touchstart", "scroll"];
 const HEARTBEAT_MS = 60 * 1000;
 
-
+/**
+ * Admin sign-in state, the idle timeout, and the warning shown before it happens.
+ * The server is the authority: it ends a session that is idle too long. This screen mirrors that so the
+ * person is warned and taken to the login page without waiting for a failed request.
+ */
 export function AdminAuthProvider({ children }) {
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);

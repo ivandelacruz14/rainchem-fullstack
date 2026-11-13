@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import client from "../api/client";
 import PasswordInput from "../components/PasswordInput";
+import Turnstile, { captchaEnabled } from "../components/Turnstile";
 import { ADMIN_NOTICE_KEY, useAdminAuth } from "../context/AdminAuthContext";
 
 /** Two steps: email and password, then the six-digit code emailed to the admin. */
@@ -17,6 +18,12 @@ export default function AdminLogin() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const captchaRef = useRef(null);
+  const [captchaToken, setCaptchaToken] = useState("");
+  function resetCaptcha() {
+    captchaRef.current?.reset();
+    setCaptchaToken("");
+  }
 
   useEffect(() => {
     const saved = sessionStorage.getItem(ADMIN_NOTICE_KEY);
@@ -35,8 +42,12 @@ export default function AdminLogin() {
     setBusy(true);
     setError("");
     setNotice("");
+    if (captchaEnabled() && !captchaToken) {
+      setError("Please complete the security check.");
+      return;
+    }
     try {
-      const res = await client.post("/api/admin/auth/login", { email, password });
+      const res = await client.post("/api/admin/auth/login", { email, password, captchaToken });
       if (res.data.otpRequired) {
         setChallenge(res.data.challenge);
         setMaskedEmail(res.data.maskedEmail);
@@ -46,6 +57,7 @@ export default function AdminLogin() {
         loginWithToken(res.data.token, res.data.admin, res.data.idleMinutes);
       }
     } catch (err) {
+      resetCaptcha();
       setError(err.response?.data?.error || "Could not sign in. Please try again.");
     } finally {
       setBusy(false);
@@ -93,6 +105,7 @@ export default function AdminLogin() {
               <label htmlFor="admin-password">Password</label>
               <PasswordInput id="admin-password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
             </div>
+            <Turnstile ref={captchaRef} onToken={setCaptchaToken} />
             <button type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? "Checking..." : "Next"}</button>
           </form>
         ) : (

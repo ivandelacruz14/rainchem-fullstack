@@ -1,3 +1,8 @@
+"""Sales records: one spreadsheet row per product line of an order.
+
+Rows are written from the order itself, inside the same database transaction that changes the order,
+so they cannot drift from it and repeated payment events cannot create duplicates (one row per
+order line, enforced by a unique key). Money is a snapshot of what was charged at the time."""
 import csv
 import io
 from collections import defaultdict

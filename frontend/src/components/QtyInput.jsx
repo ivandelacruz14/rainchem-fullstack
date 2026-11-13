@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 
+/**
+ * Quantity you can type. The value is always pieces; when the product has a pack size, the person can switch
+ * the unit to boxes, and the number is converted (boxes x pieces per box). Typed numbers are checked on leave or Enter.
+ */
 export default function QtyInput({ value, onCommit, max = null, packSize = null }) {
   const canUseBoxes = Number(packSize) > 1;
   const [unit, setUnit] = useState("pcs");

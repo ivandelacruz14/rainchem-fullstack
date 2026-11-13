@@ -1,3 +1,6 @@
+/* Admin console. Layout rules are written mobile-safe: grid children can shrink (minmax(0, 1fr)),
+   wide content scrolls inside its own container, and nothing relies on a fixed width. */
+
 .admin-login-screen { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, var(--surface), var(--red-100)); padding: 20px; }
 .admin-login-card { background: var(--surface); border-radius: 14px; width: min(400px, 100%); padding: 32px 28px; box-shadow: var(--shadow-md); }
 .admin-login-card .sub-title { text-align: center; color: var(--soft); font-size: 13px; margin-bottom: 22px; }
