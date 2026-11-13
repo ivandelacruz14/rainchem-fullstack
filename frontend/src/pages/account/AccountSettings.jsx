@@ -1,6 +1,7 @@
 import { useState } from "react";
 import client from "../../api/client";
 import PasswordInput from "../../components/PasswordInput";
+import PrivacySection from "../../components/PrivacySection";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/ToastContext";
@@ -62,6 +63,7 @@ export default function AccountSettings() {
   return (
     <div>
       <h2>Settings &amp; Privacy</h2>
+      <PrivacySection />
 
       <div className="panel" style={{ maxWidth: 520, marginBottom: 20 }}>
         <h3 style={{ marginTop: 0 }}>Appearance</h3>

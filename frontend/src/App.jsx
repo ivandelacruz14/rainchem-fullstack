@@ -29,6 +29,7 @@ import AccountProfile from "./pages/account/AccountProfile";
 import AccountSettings from "./pages/account/AccountSettings";
 import AccountHelp from "./pages/account/AccountHelp";
 import AccountServices from "./pages/account/AccountServices";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 import AdminLogin from "./admin/AdminLogin";
 import AdminLayout from "./admin/AdminLayout";
@@ -89,6 +90,7 @@ export default function App() {
                     <Route path="/receipt/:orderId" element={<ProtectedRoute><Receipt /></ProtectedRoute>} />
 
                     <Route path="/track" element={<ProtectedRoute><div className="container track-shell"><AccountTrack /></div></ProtectedRoute>} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/account/track" element={<TrackRedirect />} />
                     <Route path="/account" element={<ProtectedRoute><AccountLayout /></ProtectedRoute>}>
                       <Route index element={<AccountOverview />} />

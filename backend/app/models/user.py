@@ -27,6 +27,9 @@ class User(db.Model):
     business_name = db.Column(db.String(150), nullable=True)
     tin = db.Column(db.String(30), nullable=True)  # optional; never required
     business_verified = db.Column(db.Boolean, nullable=False, default=False)  # set by an admin
+    # False until the person chooses Personal or Business (Google sign-ups and older accounts start False).
+    account_type_chosen = db.Column(db.Boolean, nullable=False, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -40,6 +43,7 @@ class User(db.Model):
             "businessName": self.business_name,
             "tin": self.tin,
             "businessVerified": bool(self.business_verified),
+            "accountTypeChosen": bool(self.account_type_chosen),
             "phone": self.phone,
             "age": self.age,
             "gender": self.gender,

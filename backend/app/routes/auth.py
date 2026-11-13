@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.extensions import db
-from app.models import User, EmailVerification, PasswordReset
+from app.models import User, EmailVerification, PasswordReset, CartItem
 from app.services.auth_utils import (
     validate_password, is_valid_email, is_valid_phone,
     generate_verification_code, generate_reset_token,
@@ -90,12 +90,13 @@ def register():
         user.phone = phone
         user.password_hash = generate_password_hash(password)
         user.account_type, user.business_name, user.tin = account_type, business_name or None, tin
+        user.account_type_chosen = True
         db.session.commit()
     else:
         user = User(
             name=name, email=email, phone=phone,
             password_hash=generate_password_hash(password), verified=False,
-            account_type=account_type, business_name=business_name or None, tin=tin,
+            account_type=account_type, business_name=business_name or None, tin=tin, account_type_chosen=True,
         )
         db.session.add(user)
         db.session.commit()
@@ -414,6 +415,55 @@ def update_avatar():
     user.avatar_photo = photo
     db.session.commit()
     return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.put("/me/account-type")
+@require_user
+def set_account_type():
+    """Personal or Business. Changing the type clears the business verification, which must be done again."""
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+    account_type = (data.get("accountType") or "").strip().lower()
+    if account_type not in ("personal", "business"):
+        return jsonify({"error": "Choose Personal or Business"}), 400
+    business_name = (data.get("businessName") or "").strip()[:150]
+    if account_type == "business" and not business_name:
+        return jsonify({"error": "Enter your business name"}), 400
+    if account_type != user.account_type:
+        user.business_verified = False
+    user.account_type = account_type
+    user.business_name = business_name if account_type == "business" else None
+    user.tin = ((data.get("tin") or "").strip()[:30] or None) if account_type == "business" else None
+    user.account_type_chosen = True
+    db.session.commit()
+    return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.delete("/me/account")
+@require_user
+def delete_account():
+    """Deletes the signed-in account: the login, contact details, address, photo and cart are erased.
+    Orders and receipts are kept for accounting. The email is replaced so it can be used to register again."""
+    user = User.query.get(current_user_id())
+    data = request.get_json(silent=True) or {}
+    if user.password_hash:
+        if not check_password_hash(user.password_hash, data.get("password") or ""):
+            return jsonify({"error": "Your password is incorrect"}), 400
+    elif (data.get("confirmText") or "").strip().upper() != "DELETE":
+        return jsonify({"error": "Type DELETE to confirm"}), 400
+    CartItem.query.filter_by(user_id=user.id).delete()
+    user.deleted_at = datetime.utcnow()
+    user.name = "Deleted user"
+    user.email = f"deleted-{user.id}@deleted.invalid"
+    user.phone = user.password_hash = user.google_id = user.avatar_photo = None
+    user.age = user.gender = user.business_name = user.tin = None
+    user.address_line1 = user.address_city = user.address_province = user.address_region = user.address_zip = None
+    user.verified = False
+    user.account_type = "personal"
+    user.account_type_chosen = True
+    user.business_verified = False
+    db.session.commit()
+    return jsonify({"message": "Your account has been deleted"})
 
 
 @auth_bp.put("/me/password")

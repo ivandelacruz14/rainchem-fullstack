@@ -3,6 +3,7 @@ import client from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { resizeImage } from "../../utils/imageResize";
+import AccountTypeSection from "../../components/AccountTypeSection";
 
 export default function AccountProfile() {
   async function handleAvatarChange(e) {
@@ -84,6 +85,7 @@ export default function AccountProfile() {
   </div>
 </div>
       <h2>Profile</h2>
+      <AccountTypeSection />
 
       <div className="panel" style={{ maxWidth: 520, marginBottom: 20 }}>
         <form onSubmit={handleSaveProfile}>
