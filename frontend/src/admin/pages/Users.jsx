@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import client from "../../api/client";
 import { formatDate } from "../../utils/format";
+import AccountTypeDialog from "../AccountTypeDialog";
 
 export default function Users() {
   const [summary, setSummary] = useState(null);
   const [revealed, setRevealed] = useState(false);
   const [users, setUsers] = useState([]);
+  const [typeEdit, setTypeEdit] = useState(null);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -74,7 +76,20 @@ export default function Users() {
                       <td style={{ fontWeight: 600 }}>{u.name}</td>
                       <td>{u.email}</td>
                       <td>{u.phone || "-"}</td>
-                      <td>{u.accountType === "business" ? (u.businessName || "Business") : "Personal"}</td>
+                      <td>
+                        {u.accountType === "business" ? (u.businessName || "Business") : "Personal"}{" "}
+                        <button className="icon-action" onClick={() => setTypeEdit(u)}>Change</button>
+                        {typeEdit?.id === u.id && (
+                          <AccountTypeDialog
+                            user={u}
+                            onClose={() => setTypeEdit(null)}
+                            onSaved={(saved) => {
+                              setUsers((list) => list.map((x) => (x.id === saved.id ? { ...x, ...saved } : x)));
+                              setTypeEdit(null);
+                            }}
+                          />
+                        )}
+                      </td>
                       <td>{u.accountType === "business" ? (
                         <button className="icon-action" onClick={async () => {
                           await client.put(`/api/admin/users/${u.id}/business`, { businessVerified: !u.businessVerified, reason: "Reviewed from the Customers page" });
