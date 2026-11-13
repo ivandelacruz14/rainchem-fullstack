@@ -21,6 +21,18 @@ from app.utils.auth_decorators import require_user, current_user_id
 orders_bp = Blueprint("orders", __name__, url_prefix="/api/orders")
 
 
+@orders_bp.get("/rules")
+def order_rules():
+    """The box and bulk limits, so the storefront can show them before checkout (no sign-in needed)."""
+    cfg = current_app.config
+    return jsonify({
+        "personalMaxBoxes": cfg["PERSONAL_MAX_BOXES"],
+        "basicMaxBoxes": cfg["BULK_BASIC_MAX_BOXES"],
+        "verifiedMaxBoxes": cfg["BULK_VERIFIED_MAX_BOXES"],
+        "reviewBoxes": cfg["BULK_REVIEW_BOXES"],
+    })
+
+
 @orders_bp.post("")
 @require_user
 def create_order():
@@ -82,10 +94,17 @@ def create_order():
     total_boxes = sum(li["boxes"] for li in line_items)
     account = User.query.get(current_user_id())
     is_business = bool(account and account.account_type == "business")
-    box_limit = current_app.config["BULK_VERIFIED_MAX_BOXES"] if (is_business and account.business_verified) else current_app.config["BULK_BASIC_MAX_BOXES"]
-    if is_business and total_boxes > box_limit:
-        return jsonify({"error": f"Business accounts can order up to {box_limit} boxes per order. Please split the order or contact our team."}), 400
+    if is_business:
+        box_limit = current_app.config["BULK_VERIFIED_MAX_BOXES"] if account.business_verified else current_app.config["BULK_BASIC_MAX_BOXES"]
+        if total_boxes > box_limit:
+            return jsonify({"error": f"Business accounts can order up to {box_limit} boxes per order. Please split the order or contact our team."}), 400
+    else:
+        box_limit = current_app.config["PERSONAL_MAX_BOXES"]
+        if total_boxes > box_limit:
+            return jsonify({"error": f"Personal accounts can order up to {box_limit} boxes per order. For bigger orders, register a business account."}), 400
     is_bulk = total_boxes >= current_app.config["BULK_REVIEW_BOXES"]
+    if is_bulk and not is_business:
+        return jsonify({"error": "Bulk orders are for business accounts"}), 400
     if is_bulk and payment_method == COD:
         return jsonify({"error": "Bulk orders must be paid in advance by card or GCash"}), 400
     # The same items and total again within a few minutes: most likely a double click or a repeated submit.

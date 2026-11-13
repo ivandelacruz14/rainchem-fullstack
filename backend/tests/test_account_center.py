@@ -28,20 +28,22 @@ def test_choosing_business_needs_a_name_and_is_saved(client, make_user, user_log
     google_style_user()
     h = user_login("customer@example.com")
     assert client.put("/api/auth/me/account-type", headers=h, json={"accountType": "business"}).status_code == 400
-    r = client.put("/api/auth/me/account-type", headers=h, json={"accountType": "business", "businessName": "Juan Hardware", "tin": ""})
+    r = client.put("/api/auth/me/account-type", headers=h, json={"accountType": "business", "businessName": "Juan Hardware", "tin": "", "phone": "09171234567"})
     assert r.status_code == 200
     u = r.get_json()["user"]
     assert u["accountType"] == "business" and u["businessName"] == "Juan Hardware" and u["accountTypeChosen"] is True
     assert u["tin"] is None
 
 
-def test_switching_type_clears_the_business_verification(client, make_user, user_login):
+def test_the_store_changing_the_type_clears_the_business_verification(client, make_user, make_admin, admin_login):
     user = make_user()
-    user.account_type, user.business_name, user.business_verified = "business", "Juan Hardware", True
+    user.account_type, user.business_name, user.business_verified, user.account_type_chosen = "business", "Juan Hardware", True, True
     db.session.commit()
-    h = user_login("customer@example.com")
-    r = client.put("/api/auth/me/account-type", headers=h, json={"accountType": "personal"})
-    assert r.get_json()["user"]["businessVerified"] is False
+    make_admin()
+    h = admin_login("head@example.com")
+    r = client.put(f"/api/admin/users/{user.id}/account-type", headers=h, json={"accountType": "personal", "reason": "Closed the business"})
+    assert r.status_code == 200 and r.get_json()["user"]["businessVerified"] is False
+
 
 
 def test_delete_needs_the_right_password(client, make_user, user_login):
@@ -74,3 +76,28 @@ def test_a_google_only_account_must_type_delete(client, user_login, make_user):
     h = {"Authorization": f"Bearer {token}"}
     assert client.delete("/api/auth/me/account", headers=h, json={"confirmText": "yes"}).status_code == 400
     assert client.delete("/api/auth/me/account", headers=h, json={"confirmText": "delete"}).status_code == 200
+
+
+def test_the_type_cannot_be_changed_by_the_customer_once_chosen(client, make_user, user_login):
+    make_user()
+    h = user_login("customer@example.com")
+    assert client.put("/api/auth/me/account-type", headers=h, json={"accountType": "business", "businessName": "X", "phone": "09171234567"}).status_code == 200
+    r = client.put("/api/auth/me/account-type", headers=h, json={"accountType": "personal", "phone": "09171234567"})
+    assert r.status_code == 403
+
+
+def test_the_first_choice_needs_a_valid_phone(client, make_user, user_login):
+    make_user()
+    h = user_login("customer@example.com")
+    assert client.put("/api/auth/me/account-type", headers=h, json={"accountType": "personal", "phone": "123"}).status_code == 400
+
+
+def test_the_store_can_change_the_type_with_a_reason(client, make_user, make_admin, admin_login):
+    user = make_user()
+    make_admin()
+    h = admin_login("head@example.com")
+    assert client.put(f"/api/admin/users/{user.id}/account-type", headers=h, json={"accountType": "business", "businessName": "X"}).status_code == 400
+    r = client.put(f"/api/admin/users/{user.id}/account-type", headers=h, json={"accountType": "business", "businessName": "Juan Hardware", "reason": "Business permit checked"})
+    assert r.status_code == 200 and r.get_json()["user"]["accountType"] == "business"
+    from app.models import AuditLog
+    assert AuditLog.query.filter_by(action="account_type_change").one().reason == "Business permit checked"

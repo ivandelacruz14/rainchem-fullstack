@@ -30,6 +30,16 @@ export default function AccountTypeSection() {
     }
   }
 
+  if (user?.accountTypeChosen) {
+    return (
+      <div className="panel" style={{ maxWidth: 520, marginBottom: 20 }}>
+        <h3 style={{ marginTop: 0 }}>Account type</h3>
+        <p><strong>{user.accountType === "business" ? `Business: ${user.businessName || ""}` : "Personal"}</strong></p>
+        <p className="field-hint">This was set when the account was created. To change it, contact the store.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="panel" style={{ maxWidth: 520, marginBottom: 20 }}>
       <h3 style={{ marginTop: 0 }}>Account type</h3>

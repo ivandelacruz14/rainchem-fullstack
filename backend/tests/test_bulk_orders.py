@@ -58,6 +58,7 @@ def test_a_product_without_pack_size_counts_one_piece_per_box(client, make_user,
 
 def test_bulk_orders_must_be_prepaid_and_are_marked(client, make_user, user_login, make_product, monkeypatch):
     make_user()
+    business(verified=True)
     p = boxed(make_product)
     h = user_login("customer@example.com")
     assert place(client, h, p, 100 * 24).status_code == 400                       # 100 boxes on cash on delivery
@@ -130,3 +131,28 @@ def test_admin_can_set_pieces_per_box(client, make_admin, admin_login, make_prod
     db.session.refresh(p)
     assert p.pack_size == 24
     assert client.put(f"/api/products/{p.id}", headers=h, json={"packSize": 0.5}).status_code == 400
+
+
+def test_the_storefront_can_read_the_limits(client):
+    r = client.get("/api/orders/rules")
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body == {"personalMaxBoxes": 10, "basicMaxBoxes": 20, "verifiedMaxBoxes": 200, "reviewBoxes": 100}
+
+
+def test_a_personal_account_is_limited_in_boxes(client, make_user, user_login, make_product):
+    make_user()
+    p = boxed(make_product)
+    h = user_login("customer@example.com")
+    r = place(client, h, p, 11 * 24)
+    assert r.status_code == 400 and "10 boxes" in r.get_json()["error"]
+    assert place(client, h, p, 10 * 24).status_code == 201
+
+
+def test_a_personal_account_cannot_place_a_bulk_order(client, make_user, user_login, make_product, monkeypatch):
+    make_user()
+    online(monkeypatch)
+    monkeypatch.setattr("app.routes.orders.current_app.config", {**__import__("flask").current_app.config, "PERSONAL_MAX_BOXES": 500})
+    p = boxed(make_product)
+    r = place(client, user_login("customer@example.com"), p, 100 * 24, method="GCash")
+    assert r.status_code == 400 and "business accounts" in r.get_json()["error"]

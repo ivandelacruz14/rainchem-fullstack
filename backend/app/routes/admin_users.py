@@ -65,6 +65,32 @@ def set_business_verified(user_id):
     return jsonify({"user": user.to_dict()})
 
 
+@admin_users_bp.put("/<int:user_id>/account-type")
+@require_permission("customers")
+def set_account_type_admin(user_id):
+    """The store changes a customer's account type (the customer cannot). A reason is required and is audited."""
+    user = User.query.get_or_404(user_id)
+    data = request.get_json() or {}
+    reason = str(data.get("reason") or "").strip()[:500]
+    if not reason:
+        return jsonify({"error": "Give a reason for the change"}), 400
+    account_type = (data.get("accountType") or "").strip().lower()
+    if account_type not in ("personal", "business"):
+        return jsonify({"error": "Choose Personal or Business"}), 400
+    business_name = (data.get("businessName") or "").strip()[:150]
+    if account_type == "business" and not business_name:
+        return jsonify({"error": "Enter the business name"}), 400
+    before = user.account_type
+    if account_type != before:
+        user.business_verified = False
+    user.account_type = account_type
+    user.business_name = business_name if account_type == "business" else None
+    user.account_type_chosen = True
+    audit.record("account_type_change", "user", user.id, {"accountType": before}, {"accountType": account_type}, reason, current_admin())
+    db.session.commit()
+    return jsonify({"user": user.to_dict()})
+
+
 @admin_users_bp.delete("/<int:user_id>")
 @require_permission("customers")
 def deactivate_user(user_id):

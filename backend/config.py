@@ -55,6 +55,7 @@ class Config:
     EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "mailjet")
 
     # Bulk and repeat-order rules. Boxes, not pesos. Defaults are placeholders: change them here or in the environment.
+    PERSONAL_MAX_BOXES = int(os.getenv("PERSONAL_MAX_BOXES", "10"))
     BULK_BASIC_MAX_BOXES = int(os.getenv("BULK_BASIC_MAX_BOXES", "20"))
     BULK_VERIFIED_MAX_BOXES = int(os.getenv("BULK_VERIFIED_MAX_BOXES", "200"))
     BULK_REVIEW_BOXES = int(os.getenv("BULK_REVIEW_BOXES", "100"))

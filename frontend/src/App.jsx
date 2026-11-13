@@ -30,6 +30,7 @@ import AccountSettings from "./pages/account/AccountSettings";
 import AccountHelp from "./pages/account/AccountHelp";
 import AccountServices from "./pages/account/AccountServices";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import OnboardingGate from "./components/OnboardingGate";
 
 import AdminLogin from "./admin/AdminLogin";
 import AdminLayout from "./admin/AdminLayout";
@@ -75,6 +76,7 @@ export default function App() {
           <AdminAuthProvider>
             <CartProvider>
               <UIProvider>
+                <OnboardingGate />
                 <Routes>
                   <Route element={<Layout />}>
                     <Route path="/" element={<Home />} />

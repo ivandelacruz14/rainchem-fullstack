@@ -422,15 +422,19 @@ def update_avatar():
 def set_account_type():
     """Personal or Business. Changing the type clears the business verification, which must be done again."""
     user = User.query.get(current_user_id())
+    if user.account_type_chosen:
+        return jsonify({"error": "Your account type is already set. Contact the store to change it."}), 403
     data = request.get_json() or {}
+    phone = (data.get("phone") or "").strip()
+    if not is_valid_phone(phone):
+        return jsonify({"error": "Please enter a valid contact number"}), 400
     account_type = (data.get("accountType") or "").strip().lower()
     if account_type not in ("personal", "business"):
         return jsonify({"error": "Choose Personal or Business"}), 400
     business_name = (data.get("businessName") or "").strip()[:150]
     if account_type == "business" and not business_name:
         return jsonify({"error": "Enter your business name"}), 400
-    if account_type != user.account_type:
-        user.business_verified = False
+    user.phone = phone
     user.account_type = account_type
     user.business_name = business_name if account_type == "business" else None
     user.tin = ((data.get("tin") or "").strip()[:30] or None) if account_type == "business" else None

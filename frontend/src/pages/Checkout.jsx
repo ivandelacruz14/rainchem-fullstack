@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useCart, FREE_SHIPPING_SUBTOTAL } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "../components/ConfirmDialog";
+import useOrderRules from "../hooks/useOrderRules";
 
 const PAYMENT_OPTIONS = [
   { value: "Cash on Delivery", label: "Cash on Delivery", hint: "Pay in cash when your order arrives." },
@@ -38,7 +39,11 @@ export default function Checkout() {
 
   // Same rule as the server: 100 boxes or more is a bulk order, and bulk orders are paid in advance.
   const totalBoxes = lines.reduce((sum, l) => sum + Math.ceil(l.qty / (Number(l.product.packSize) || 1)), 0);
-  const bulk = totalBoxes >= 100;
+  const rules = useOrderRules();
+  const bulk = totalBoxes >= rules.reviewBoxes;
+  const anyBoxed = lines.some((l) => Number(l.product.packSize) > 1);
+  const isBusiness = user?.accountType === "business";
+  const boxLimit = isBusiness ? (user?.businessVerified ? rules.verifiedMaxBoxes : rules.basicMaxBoxes) : rules.personalMaxBoxes;
   useEffect(() => {
     if (bulk && form.payment === "Cash on Delivery") update("payment", "GCash");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -143,9 +148,17 @@ export default function Checkout() {
             <div className="field"><label>ZIP Code</label><input required value={form.zip} onChange={(e) => update("zip", e.target.value)} /></div>
           </div>
 
-          {bulk && (
+          {anyBoxed && (
             <p className="field-hint" style={{ marginBottom: 10 }}>
-              This is a bulk order ({totalBoxes} boxes). Bulk orders are paid in advance by card or GCash.
+              Your order: {totalBoxes} box{totalBoxes === 1 ? "" : "es"}.
+              {isBusiness
+                ? ` Business accounts can order up to ${boxLimit} boxes per order. Orders of ${rules.reviewBoxes} boxes or more are bulk orders, paid in advance by card or GCash.`
+                : ` Personal accounts can order up to ${boxLimit} boxes per order. For bigger orders, register a business account.`}
+            </p>
+          )}
+          {bulk && (
+            <p className="field-hint" style={{ marginBottom: 10, color: "var(--warn-fg)" }}>
+              This is a bulk order ({totalBoxes} boxes). Cash on delivery is not available for bulk orders.
             </p>
           )}
           {duplicateOrder && (
