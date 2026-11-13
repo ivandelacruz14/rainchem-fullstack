@@ -10,6 +10,7 @@ class Product(db.Model):
     category = db.Column(db.String(80), nullable=False)
     price = db.Column(db.Numeric(10, 2), nullable=False)
     stock = db.Column(db.Integer, nullable=False, default=0)
+    pack_size = db.Column(db.Integer, nullable=True)  # pieces per box; empty means 1 piece per box
     rating = db.Column(db.Numeric(2, 1), nullable=False, default=4.5)
     reviews = db.Column(db.Integer, nullable=False, default=0)
     image_glyph = db.Column(db.String(60), nullable=True)
@@ -33,6 +34,7 @@ class Product(db.Model):
             "price": float(self.price),
             "stock": self.stock,
             "sku": self.sku,
+            "packSize": self.pack_size,
             "rating": round(float(average_rating or 0), 1),
             "reviews": int(review_count or 0),
             **self._sale_fields(sale),

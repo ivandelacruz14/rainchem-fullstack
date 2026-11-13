@@ -67,13 +67,20 @@ export default function Users() {
             </div>
             <div className="table-wrap">
               <table className="admin-table">
-                <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Orders</th><th>Joined</th><th></th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Account</th><th>Business</th><th>Status</th><th>Orders</th><th>Joined</th><th></th><th></th></tr></thead>
                 <tbody>
                   {users.map((u) => (
                     <tr key={u.id}>
                       <td style={{ fontWeight: 600 }}>{u.name}</td>
                       <td>{u.email}</td>
                       <td>{u.phone || "-"}</td>
+                      <td>{u.accountType === "business" ? (u.businessName || "Business") : "Personal"}</td>
+                      <td>{u.accountType === "business" ? (
+                        <button className="icon-action" onClick={async () => {
+                          await client.put(`/api/admin/users/${u.id}/business`, { businessVerified: !u.businessVerified, reason: "Reviewed from the Customers page" });
+                          setUsers((list) => list.map((x) => (x.id === u.id ? { ...x, businessVerified: !u.businessVerified } : x)));
+                        }}>{u.businessVerified ? "Verified (undo)" : "Verify business"}</button>
+                      ) : "-"}</td>
                       <td><span className={`pill ${u.verified ? "pill-approved" : "pill-pending"}`}>{u.verified ? "Verified" : "Unverified"}</span></td>
                       <td>{u.orderCount}</td>
                       <td>{formatDate(u.createdAt).split(",")[0]}</td>

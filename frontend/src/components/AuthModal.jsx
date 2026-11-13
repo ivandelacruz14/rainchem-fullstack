@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import client from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -6,6 +6,7 @@ import { useUI } from "../context/UIContext";
 import { useToast } from "../context/ToastContext";
 import { validatePassword } from "../utils/format";
 import GoogleSignInButton from "./GoogleSignInButton";
+import Turnstile, { captchaEnabled } from "./Turnstile";
 import PasswordInput from "./PasswordInput";
 
 const PASSWORD_RULES = [
@@ -17,6 +18,16 @@ const PASSWORD_RULES = [
 ];
 
 export default function AuthModal() {
+  const captchaRef = useRef(null);
+  const [captchaToken, setCaptchaToken] = useState("");
+  function resetCaptcha() {
+    captchaRef.current?.reset();
+    setCaptchaToken("");
+  }
+  function captchaMissing() {
+    return captchaEnabled() && !captchaToken;
+  }
+
   const [remember, setRemember] = useState(true);
   const { authModal, switchAuthMode, closeAuth } = useUI();
   const navigate = useNavigate();
@@ -51,12 +62,17 @@ export default function AuthModal() {
   async function handleLogin(e) {
     e.preventDefault();
     setError("");
+    if (captchaMissing()) {
+      setError("Please complete the security check.");
+      return;
+    }
     try {
-      const res = await client.post("/api/auth/login", { email: form.email, password: form.password });
+      const res = await client.post("/api/auth/login", { email: form.email, password: form.password, captchaToken });
       loginWithToken(res.data.token, res.data.user, remember);
       showToast(`Welcome back, ${res.data.user.name.split(" ")[0]}!`, "success");
       finishLogin();
     } catch (err) {
+      resetCaptcha();
       const data = err.response?.data;
       if (data?.needsVerification) {
         setPendingEmail(data.email);
@@ -70,6 +86,10 @@ export default function AuthModal() {
   async function handleRegister(e) {
     e.preventDefault();
     setError("");
+    if (captchaMissing()) {
+      setError("Please complete the security check.");
+      return;
+    }
     const passwordErrors = validatePassword(form.password || "");
     if (form.password !== form.password2) {
       setError("Passwords do not match.");
@@ -81,11 +101,14 @@ export default function AuthModal() {
     }
     try {
       const res = await client.post("/api/auth/register", {
+        captchaToken,
         name: form.name, email: form.email, phone: form.phone, password: form.password,
+        accountType: form.accountType || "personal", businessName: form.businessName || "", tin: form.tin || "",
       });
       setPendingEmail(res.data.email);
       switchMode("verify");
     } catch (err) {
+      resetCaptcha();
       const errors = err.response?.data?.errors;
       setError(errors ? errors.join(" ") : "Something went wrong. Please try again.");
     }
@@ -116,10 +139,15 @@ export default function AuthModal() {
   async function handleForgot(e) {
     e.preventDefault();
     setError("");
+    if (captchaMissing()) {
+      setError("Please complete the security check.");
+      return;
+    }
     try {
-      const res = await client.post("/api/auth/forgot-password", { email: form.email });
+      const res = await client.post("/api/auth/forgot-password", { email: form.email, captchaToken });
       setInfo(res.data.message);
     } catch {
+      resetCaptcha();
       setError("Something went wrong. Please try again.");
     }
   }
@@ -171,6 +199,7 @@ export default function AuthModal() {
                   Forgot password?
                 </button>
               </div>
+              <Turnstile ref={captchaRef} onToken={setCaptchaToken} />
               <button type="submit" className="btn btn-primary btn-block">Log In</button>
               <div className="divider-text">or</div>
               <GoogleSignInButton onCredential={handleGoogleCredential} />
@@ -187,6 +216,25 @@ export default function AuthModal() {
                 <label>Full Name</label>
                 <input required value={form.name || ""} onChange={(e) => update("name", e.target.value)} />
               </div>
+              <div className="field">
+                <label>Account Type</label>
+                <select value={form.accountType || "personal"} onChange={(e) => update("accountType", e.target.value)}>
+                  <option value="personal">Personal</option>
+                  <option value="business">Business (company or shop)</option>
+                </select>
+              </div>
+              {form.accountType === "business" && (
+                <>
+                  <div className="field">
+                    <label>Business Name</label>
+                    <input required value={form.businessName || ""} onChange={(e) => update("businessName", e.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label>TIN (optional, for a higher bulk limit later)</label>
+                    <input value={form.tin || ""} onChange={(e) => update("tin", e.target.value)} />
+                  </div>
+                </>
+              )}
               <div className="field">
                 <label>Email Address</label>
                 <input required type="email" value={form.email || ""} onChange={(e) => update("email", e.target.value)} />
@@ -208,6 +256,7 @@ export default function AuthModal() {
                 <label>Confirm Password</label>
                 <PasswordInput value={form.password2 || ""} onChange={(e) => update("password2", e.target.value)} autoComplete="new-password" />
               </div>
+              <Turnstile ref={captchaRef} onToken={setCaptchaToken} />
               <button type="submit" className="btn btn-primary btn-block">Create Account</button>
               <div className="divider-text">or</div>
               <GoogleSignInButton onCredential={handleGoogleCredential} />
@@ -248,6 +297,7 @@ export default function AuthModal() {
                 <label>Email Address</label>
                 <input required type="email" value={form.email || ""} onChange={(e) => update("email", e.target.value)} />
               </div>
+              <Turnstile ref={captchaRef} onToken={setCaptchaToken} />
               <button type="submit" className="btn btn-primary btn-block">Send Reset Link</button>
               <p className="auth-switch">
                 <button type="button" className="link-btn" onClick={() => switchMode("login")}>Back to log in</button>

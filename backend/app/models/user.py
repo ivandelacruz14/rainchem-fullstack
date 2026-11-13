@@ -12,15 +12,21 @@ class User(db.Model):
     google_id = db.Column(db.String(120), nullable=True, unique=True)
     phone = db.Column(db.String(30), nullable=True)
     verified = db.Column(db.Boolean, nullable=False, default=False)
+    phone = db.Column(db.String(30), nullable=True)
     age = db.Column(db.Integer, nullable=True)
     gender = db.Column(db.String(20), nullable=True)
     avatar_photo = db.Column(db.Text(length=4294967295), nullable=True)
+    verified = db.Column(db.Boolean, nullable=False, default=False)
 
     address_line1 = db.Column(db.String(200), nullable=True)
     address_city = db.Column(db.String(100), nullable=True)
     address_province = db.Column(db.String(100), nullable=True)
     address_region = db.Column(db.String(100), nullable=True)
     address_zip = db.Column(db.String(20), nullable=True)
+    account_type = db.Column(db.String(10), nullable=False, default="personal")  # personal | business
+    business_name = db.Column(db.String(150), nullable=True)
+    tin = db.Column(db.String(30), nullable=True)  # optional; never required
+    business_verified = db.Column(db.Boolean, nullable=False, default=False)  # set by an admin
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -30,6 +36,10 @@ class User(db.Model):
             "id": self.id,
             "name": self.name,
             "email": self.email,
+            "accountType": self.account_type,
+            "businessName": self.business_name,
+            "tin": self.tin,
+            "businessVerified": bool(self.business_verified),
             "phone": self.phone,
             "age": self.age,
             "gender": self.gender,
@@ -63,5 +73,5 @@ class PasswordReset(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     token = db.Column(db.String(120), nullable=False, unique=True)
     expires_at = db.Column(db.DateTime, nullable=False)
-    used = db.Column(db.Boolean, nullable=False, default=False)
+    used = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

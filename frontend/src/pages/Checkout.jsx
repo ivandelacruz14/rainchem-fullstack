@@ -5,6 +5,7 @@ import { peso } from "../utils/format";
 import { useAuth } from "../context/AuthContext";
 import { useCart, FREE_SHIPPING_SUBTOTAL } from "../context/CartContext";
 import { useToast } from "../context/ToastContext";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const PAYMENT_OPTIONS = [
   { value: "Cash on Delivery", label: "Cash on Delivery", hint: "Pay in cash when your order arrives." },
@@ -33,6 +34,16 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [methods, setMethods] = useState({ "Cash on Delivery": true });
   const [demoMode, setDemoMode] = useState(false);
+  const [duplicateOrder, setDuplicateOrder] = useState(null);
+
+  // Same rule as the server: 100 boxes or more is a bulk order, and bulk orders are paid in advance.
+  const totalBoxes = lines.reduce((sum, l) => sum + Math.ceil(l.qty / (Number(l.product.packSize) || 1)), 0);
+  const bulk = totalBoxes >= 100;
+  useEffect(() => {
+    if (bulk && form.payment === "Cash on Delivery") update("payment", "GCash");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulk]);
+
 
   useEffect(() => {
     client.get("/api/payments/config").then((res) => {
@@ -60,7 +71,7 @@ export default function Checkout() {
     placeOrder();
   }
 
-  async function placeOrder() {
+  async function placeOrder(confirmDuplicate = false) {
     let leavingPage = false;
     setSubmitting(true);
     try {
@@ -69,6 +80,7 @@ export default function Checkout() {
         customer: { name: form.name, phone: form.phone, email: form.email },
         address: { line1: form.line1, city: form.city, province: form.province, region: form.region, zip: form.zip },
         paymentMethod: form.payment,
+        confirmDuplicate,
       });
       clearCart();
 
@@ -81,6 +93,10 @@ export default function Checkout() {
       showToast("Order placed successfully. A confirmation email is on its way.", "success");
       navigate("/order-success", { state: { order: res.data.order, recommendations: res.data.recommendations } });
     } catch (err) {
+      if (err.response?.status === 409 && err.response.data?.needsConfirmation) {
+        setDuplicateOrder(err.response.data.duplicateOrder);
+        return;
+      }
       setError(
         err.response?.data?.error
           || (err.response
@@ -127,10 +143,23 @@ export default function Checkout() {
             <div className="field"><label>ZIP Code</label><input required value={form.zip} onChange={(e) => update("zip", e.target.value)} /></div>
           </div>
 
+          {bulk && (
+            <p className="field-hint" style={{ marginBottom: 10 }}>
+              This is a bulk order ({totalBoxes} boxes). Bulk orders are paid in advance by card or GCash.
+            </p>
+          )}
+          {duplicateOrder && (
+            <ConfirmDialog
+              title="Is this a new order?" confirmLabel="Place a new order" danger={false}
+              message={`You placed the same order a few minutes ago (${duplicateOrder}). Place another one?`}
+              onCancel={() => setDuplicateOrder(null)}
+              onConfirm={() => { setDuplicateOrder(null); placeOrder(true); }}
+            />
+          )}
           <h4 style={{ margin: "18px 0 12px" }}>Payment Method</h4>
           <div className="pay-options">
             {PAYMENT_OPTIONS.map((opt) => {
-              const available = opt.value === "Cash on Delivery" || methods[opt.value] === true;
+              const available = opt.value === "Cash on Delivery" ? !bulk : methods[opt.value] === true;
               return (
                 <label key={opt.value} className={`pay-option ${form.payment === opt.value ? "selected" : ""} ${available ? "" : "disabled"}`}>
                   <input

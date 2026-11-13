@@ -1,3 +1,4 @@
+import QtyInput from "./QtyInput";
 import { useNavigate } from "react-router-dom";
 import ProductVisual from "./ProductVisual";
 import { peso } from "../utils/format";
@@ -6,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { useUI } from "../context/UIContext";
 
 export default function CartDrawer() {
-  const { lines, subtotal, totalQty, savings, shipping, changeQty, removeItem } = useCart();
+  const { lines, subtotal, totalQty, savings, shipping, changeQty, setQty, removeItem } = useCart();
   const { user } = useAuth();
   const { cartOpen, closeCart, requireLogin } = useUI();
   const navigate = useNavigate();
@@ -44,9 +45,7 @@ export default function CartDrawer() {
                     {l.discountRate > 0 && <span style={{ color: "var(--ok-text)" }}> &middot; {Math.round(l.discountRate * 100)}% {l.saleApplied ? "sale" : "bulk"} off</span>}
                   </span>
                   <div className="qty-control">
-                    <button onClick={() => changeQty(l.product.id, -1)}>-</button>
-                    <span>{l.qty}</span>
-                    <button onClick={() => changeQty(l.product.id, 1)}>+</button>
+                    <QtyInput value={l.qty} onCommit={(pcs) => setQty(l.product.id, pcs)} max={l.product.stock} packSize={l.product.packSize} />
                     <span className="remove-link" onClick={() => removeItem(l.product.id)}>Remove</span>
                   </div>
                 </div>

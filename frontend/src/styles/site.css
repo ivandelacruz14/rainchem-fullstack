@@ -951,3 +951,10 @@ body.no-scroll { overflow: hidden; }
 
 /* Cart is in the header for every device; the badge sits on the icon */
 .cart-btn { position: relative; }
+
+/* Quantity you can type (pieces or boxes) */
+.qty-input-wrap { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.qty-input-wrap button { min-width: 32px; height: 32px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); border-radius: 8px; cursor: pointer; }
+.qty-input-wrap button:disabled { opacity: 0.4; cursor: not-allowed; }
+.qty-input { width: 64px; height: 32px; text-align: center; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; }
+.qty-unit { height: 32px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); padding: 0 6px; }

@@ -1,7 +1,7 @@
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, current_app, request, jsonify
 
 from app.extensions import db
 from app.models import CartItem, Order, OrderItem, OrderStatusHistory, Product, User
@@ -76,6 +76,28 @@ def create_order():
     shipping_fee = compute_shipping(subtotal, total_qty)
     total = subtotal + shipping_fee
 
+    # Boxes: a box holds pack_size pieces (1 piece when the product has no pack size). Round up partial boxes.
+    for li in line_items:
+        li["boxes"] = -(-li["qty"] // (li["product"].pack_size or 1))
+    total_boxes = sum(li["boxes"] for li in line_items)
+    account = User.query.get(current_user_id())
+    is_business = bool(account and account.account_type == "business")
+    box_limit = current_app.config["BULK_VERIFIED_MAX_BOXES"] if (is_business and account.business_verified) else current_app.config["BULK_BASIC_MAX_BOXES"]
+    if is_business and total_boxes > box_limit:
+        return jsonify({"error": f"Business accounts can order up to {box_limit} boxes per order. Please split the order or contact our team."}), 400
+    is_bulk = total_boxes >= current_app.config["BULK_REVIEW_BOXES"]
+    if is_bulk and payment_method == COD:
+        return jsonify({"error": "Bulk orders must be paid in advance by card or GCash"}), 400
+    # The same items and total again within a few minutes: most likely a double click or a repeated submit.
+    signature = sorted((li["product"].id, li["qty"]) for li in line_items)
+    since = datetime.utcnow() - timedelta(minutes=current_app.config["DUPLICATE_ORDER_MINUTES"])
+    recent = Order.query.filter(Order.user_id == current_user_id(), Order.status == "pending_confirmation", Order.created_at >= since).all()
+    for previous in recent:
+        if sorted((i.product_id, i.quantity) for i in previous.items) == signature and previous.total == money(total):
+            if not data.get("confirmDuplicate"):
+                return jsonify({"error": f"You placed the same order a few minutes ago ({previous.order_number}). Is this a new order?", "duplicateOrder": previous.order_number, "needsConfirmation": True}), 409
+            break
+
     order = Order(
         order_number=generate_order_number(),
         user_id=current_user_id(),
@@ -94,6 +116,7 @@ def create_order():
         subtotal=money(subtotal),
         shipping_fee=shipping_fee,
         total=money(total),
+        is_bulk=is_bulk, bulk_boxes=total_boxes,
     )
     db.session.add(order)
     db.session.flush()

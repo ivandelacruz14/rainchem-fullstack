@@ -5,7 +5,7 @@ import { useToast } from "../../context/ToastContext";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 
 const CATEGORIES = ["Oils & Fluids", "Coolant", "Filters", "Brakes", "Accessories"];
-const emptyForm = { name: "", category: CATEGORIES[0], price: "", stock: "", sku: "", stockReason: "", shortDesc: "", description: "", specs: "", benefits: "", usage: "" };
+const emptyForm = { name: "", category: CATEGORIES[0], price: "", stock: "", sku: "", packSize: "", stockReason: "", shortDesc: "", description: "", specs: "", benefits: "", usage: "" };
 
 function resizeImage(file) {
   return new Promise((resolve, reject) => {
@@ -60,7 +60,7 @@ export default function Products() {
     setEditing(product);
     setForm({
       name: product.name, category: product.category, price: product.price, stock: product.stock,
-      sku: product.sku || "", stockReason: "", shortDesc: product.shortDesc, description: product.description,
+      sku: product.sku || "", packSize: product.packSize || "", stockReason: "", shortDesc: product.shortDesc, description: product.description,
       specs: product.specs.join("\n"), benefits: product.benefits.join("\n"), usage: product.usage.join("\n"),
     });
     setImagePreview(product.imagePhoto);
@@ -87,6 +87,7 @@ export default function Products() {
     };
     if (pendingImage) payload.imagePhoto = pendingImage;
     payload.sku = form.sku.trim();
+    payload.packSize = form.packSize === "" ? null : Number(form.packSize);
     if (editing && Number(form.stock) !== Number(editing.stock)) payload.stockReason = form.stockReason.trim();
 
     if (!form.price || isNaN(parseFloat(form.price))) {
@@ -217,6 +218,10 @@ if (!form.stock || isNaN(parseInt(form.stock))) {
                     <input id="stock-reason" value={form.stockReason} maxLength={255} onChange={(e) => setForm({ ...form, stockReason: e.target.value })} placeholder="e.g. Counted after delivery" />
                   </div>
                 )}
+                <div className="field">
+                  <label htmlFor="product-pack">Pieces per box (leave empty if sold one by one)</label>
+                  <input id="product-pack" type="number" min="1" step="1" value={form.packSize} onChange={(e) => setForm({ ...form, packSize: e.target.value })} placeholder="e.g. 24" />
+                </div>
                 <div className="field"><label>Short Description</label><input required value={form.shortDesc} onChange={(e) => setForm({ ...form, shortDesc: e.target.value })} /></div>
                 <div className="field"><label>Full Description</label><textarea required rows="3" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
                 <div className="field"><label>Specs (one per line)</label><textarea rows="3" value={form.specs} onChange={(e) => setForm({ ...form, specs: e.target.value })} /></div>

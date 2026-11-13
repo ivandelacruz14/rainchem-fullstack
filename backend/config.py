@@ -54,6 +54,12 @@ class Config:
     # Email provider: "mailjet" (default) or "resend". Mailjet falls back to Resend when its connection keeps failing.
     EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "mailjet")
 
+    # Bulk and repeat-order rules. Boxes, not pesos. Defaults are placeholders: change them here or in the environment.
+    BULK_BASIC_MAX_BOXES = int(os.getenv("BULK_BASIC_MAX_BOXES", "20"))
+    BULK_VERIFIED_MAX_BOXES = int(os.getenv("BULK_VERIFIED_MAX_BOXES", "200"))
+    BULK_REVIEW_BOXES = int(os.getenv("BULK_REVIEW_BOXES", "100"))
+    DUPLICATE_ORDER_MINUTES = int(os.getenv("DUPLICATE_ORDER_MINUTES", "5"))
+
     # Hours between UTC and the shop's local time, used to group sales by day.
     STORE_UTC_OFFSET_HOURS = int(os.getenv("STORE_UTC_OFFSET_HOURS", "8"))
 

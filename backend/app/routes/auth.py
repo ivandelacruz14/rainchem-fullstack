@@ -9,6 +9,7 @@ from app.services.auth_utils import (
     validate_password, is_valid_email, is_valid_phone,
     generate_verification_code, generate_reset_token,
 )
+from app.services import captcha
 from app.services.email_service import send_email
 from app.services.google_auth import verify_google_token
 from app.utils.auth_decorators import create_user_token, require_user, current_user_id
@@ -47,13 +48,24 @@ RESET_PROBLEM_MESSAGES = {
 
 @auth_bp.post("/register")
 def register():
+    try:
+        captcha.verify((request.get_json(silent=True) or {}).get("captchaToken"))
+    except captcha.CaptchaError as error:
+        return jsonify({"error": str(error)}), error.status
     data = request.get_json() or {}
     name = (data.get("name") or "").strip()
     email = (data.get("email") or "").strip().lower()
     phone = (data.get("phone") or "").strip()
     password = data.get("password") or ""
+    account_type = (data.get("accountType") or "personal").strip().lower()
+    business_name = (data.get("businessName") or "").strip()[:150]
+    tin = (data.get("tin") or "").strip()[:30] or None
 
     errors = []
+    if account_type not in ("personal", "business"):
+        errors.append("Choose a Personal or Business account")
+    if account_type == "business" and not business_name:
+        errors.append("Enter your business name")
     if not name:
         errors.append("Please enter your full name")
     if not is_valid_email(email):
@@ -77,11 +89,13 @@ def register():
         user.name = name
         user.phone = phone
         user.password_hash = generate_password_hash(password)
+        user.account_type, user.business_name, user.tin = account_type, business_name or None, tin
         db.session.commit()
     else:
         user = User(
             name=name, email=email, phone=phone,
             password_hash=generate_password_hash(password), verified=False,
+            account_type=account_type, business_name=business_name or None, tin=tin,
         )
         db.session.add(user)
         db.session.commit()
@@ -151,6 +165,10 @@ def resend_code():
 
 @auth_bp.post("/login")
 def login():
+    try:
+        captcha.verify((request.get_json(silent=True) or {}).get("captchaToken"))
+    except captcha.CaptchaError as error:
+        return jsonify({"error": str(error)}), error.status
     data = request.get_json() or {}
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
@@ -212,6 +230,10 @@ def google_login():
 
 @auth_bp.post("/forgot-password")
 def forgot_password():
+    try:
+        captcha.verify((request.get_json(silent=True) or {}).get("captchaToken"))
+    except captcha.CaptchaError as error:
+        return jsonify({"error": str(error)}), error.status
     data = request.get_json() or {}
     email = (data.get("email") or "").strip().lower()
     user = User.query.filter_by(email=email).first() if is_valid_email(email) else None

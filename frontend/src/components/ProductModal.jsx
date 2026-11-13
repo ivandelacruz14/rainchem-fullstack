@@ -1,3 +1,4 @@
+import QtyInput from "./QtyInput";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductVisual from "./ProductVisual";
@@ -119,11 +120,7 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
               {user ? (
                 <>
                   <div className="pd-qty">
-                    <div className="qty-control">
-                      <button onClick={() => setQty((q) => Math.max(1, q - 1))}>-</button>
-                      <span>{qty}</span>
-                      <button onClick={() => setQty((q) => q + 1)}>+</button>
-                    </div>
+                    <QtyInput value={qty} onCommit={setQty} max={product.stock} packSize={product.packSize} />
                   </div>
                   <p className="field-hint" style={{ marginTop: -8, marginBottom: 14 }}>
                     {rate > 0

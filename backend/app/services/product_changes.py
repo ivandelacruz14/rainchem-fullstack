@@ -68,6 +68,19 @@ def read_fields(data, creating, product_id=None):
             if clash.first():
                 errors.append("Another product already uses this SKU")
         values["sku"] = sku or None
+    if present("packSize"):
+        raw = data.get("packSize")
+        if raw in (None, "", 0):
+            values["pack_size"] = None
+        else:
+            try:
+                size = int(raw)
+            except (TypeError, ValueError):
+                errors.append("Pieces per box must be a whole number")
+            else:
+                if not 1 <= size <= 10000:
+                    errors.append("Pieces per box must be between 1 and 10000")
+                values["pack_size"] = size
     if present("shortDesc"):
         short = str(data.get("shortDesc") or "").strip()
         if not short:

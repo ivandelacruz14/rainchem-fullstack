@@ -51,6 +51,8 @@ class Order(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     status = db.Column(db.String(30), nullable=False, default="pending_confirmation")
     tracking_number = db.Column(db.String(40), nullable=False)
+    is_bulk = db.Column(db.Boolean, nullable=False, default=False)
+    bulk_boxes = db.Column(db.Integer, nullable=True)
 
     customer_name = db.Column(db.String(150), nullable=False)
     customer_phone = db.Column(db.String(30), nullable=False)
@@ -214,10 +216,10 @@ class Order(db.Model):
         }
 
 
-    def to_scoped_dict(self):
-        """Read-only view for admins who may view orders but not manage them: the customer's
+    def to_scoped_dict(self, product_ids):
+        """Read-only view for a distributor: only their own lines, the customer's
         first name and delivery area, and no contact, payment or receipt details."""
-        items = list(self.items)
+        items = [i for i in self.items if product_ids is None or i.product_id in product_ids]
         subtotal = sum(float(i.unit_price) * i.quantity for i in items)
         first_name = (self.customer_name or "").strip().split(" ")[0]
         return {
