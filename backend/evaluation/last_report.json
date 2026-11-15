@@ -1,0 +1,176 @@
+{
+  "metrics": {
+    "cases": 19,
+    "cases_passed": 19,
+    "product_exact_match": 1.0,
+    "retrieval_hit_at_k": 1.0,
+    "source_validity": 1.0,
+    "refusal": 1.0,
+    "missing_info_handling": 1.0,
+    "unverified_never_used": 1.0,
+    "errors": 0,
+    "avg_ms": 2.1,
+    "max_ms": 16.2,
+    "calls": 44
+  },
+  "cases": [
+    {
+      "id": "moto-full",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Moto 4T 10W-40"
+      ],
+      "passed": true
+    },
+    {
+      "id": "moto-guided",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Moto 4T 10W-40"
+      ],
+      "passed": true
+    },
+    {
+      "id": "moto-unsure",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Moto 4T 10W-40",
+        "TEST Moto 4T 20W-50"
+      ],
+      "passed": true
+    },
+    {
+      "id": "moto-20w50",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Moto 4T 20W-50"
+      ],
+      "passed": true
+    },
+    {
+      "id": "moto-asks-engine",
+      "expected": "needs_info",
+      "got": "needs_info",
+      "products": [],
+      "passed": true
+    },
+    {
+      "id": "coolant-car",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Coolant Long Life"
+      ],
+      "passed": true
+    },
+    {
+      "id": "gear-truck",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Gear Oil 80W-90"
+      ],
+      "passed": true
+    },
+    {
+      "id": "brake-car",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Brake Fluid DOT 4"
+      ],
+      "passed": true
+    },
+    {
+      "id": "two-stroke",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST 2T Motor Oil"
+      ],
+      "passed": true
+    },
+    {
+      "id": "diesel-truck",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Diesel 15W-40"
+      ],
+      "passed": true
+    },
+    {
+      "id": "car-5w30",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Auto 5W-30"
+      ],
+      "passed": true
+    },
+    {
+      "id": "unverified-never-used",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Moto 4T 10W-40"
+      ],
+      "passed": true
+    },
+    {
+      "id": "unknown-equipment",
+      "expected": "insufficient",
+      "got": "insufficient",
+      "products": [],
+      "passed": true
+    },
+    {
+      "id": "tractor",
+      "expected": "insufficient",
+      "got": "insufficient",
+      "products": [],
+      "passed": true
+    },
+    {
+      "id": "grade-not-documented",
+      "expected": "insufficient",
+      "got": "insufficient",
+      "products": [],
+      "passed": true
+    },
+    {
+      "id": "wrong-engine-type",
+      "expected": "insufficient",
+      "got": "insufficient",
+      "products": [],
+      "passed": true
+    },
+    {
+      "id": "wrong-vehicle",
+      "expected": "insufficient",
+      "got": "insufficient",
+      "products": [],
+      "passed": true
+    },
+    {
+      "id": "injection",
+      "expected": "needs_info",
+      "got": "needs_info",
+      "products": [],
+      "passed": true
+    },
+    {
+      "id": "injection-with-requirements",
+      "expected": "matches",
+      "got": "matches",
+      "products": [
+        "TEST Moto 4T 10W-40"
+      ],
+      "passed": true
+    }
+  ]
+}

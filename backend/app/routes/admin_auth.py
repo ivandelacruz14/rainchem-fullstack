@@ -1,0 +1,318 @@
+from flask import Blueprint, current_app, request, jsonify
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from app.extensions import db
+from app.models import Admin, AdminEmailChange, ApprovalOtp, ChangeRequest, Product, ProductSale, Service
+from app.services import admin_email_change, admin_login_otp, captcha, audit
+from app.services import permissions as perms
+from app.services.auth_utils import is_valid_email, validate_password
+from app.services.permissions import (
+    ASSIGNABLE_ROLES, PERMISSIONS, clean_permissions, default_permissions, is_head_role, role_info,
+)
+from app.utils.auth_decorators import create_admin_token, current_admin, require_admin, require_head_admin
+
+admin_auth_bp = Blueprint("admin_auth", __name__, url_prefix="/api/admin/auth")
+
+
+def _error(message, status=400):
+    return jsonify({"error": message}), status
+
+
+def _actor_confirmed(data):
+    """Sensitive account actions need the acting Head Admin's own password again."""
+    return check_password_hash(current_admin().password_hash, str(data.get("confirmPassword") or ""))
+
+
+def _permissions_for(role, requested):
+    """Stored permissions for a role: none for a Head Admin (they have everything), the
+    role's starting set when nothing was chosen, otherwise only what that role may hold."""
+    if is_head_role(role):
+        return None
+    if requested is None:
+        return default_permissions(role)
+    return clean_permissions(requested, role)
+
+
+def _active_heads():
+    return [a for a in Admin.query.filter_by(is_active=True).all() if a.is_head]
+
+
+@admin_auth_bp.post("/login")
+def admin_login():
+    try:
+        captcha.verify((request.get_json(silent=True) or {}).get("captchaToken"))
+    except captcha.CaptchaError as error:
+        return _error(str(error), error.status)
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+
+    admin = Admin.query.filter_by(email=email).first()
+    if not admin or not check_password_hash(admin.password_hash, password):
+        return _error("Incorrect email or password", 401)
+    if not admin.is_active:
+        return _error("This account has been disabled. Contact the Head Admin.", 403)
+
+    if not current_app.config.get("ADMIN_OTP_REQUIRED", True):
+        return jsonify(_signed_in(admin))
+    try:
+        challenge, masked = admin_login_otp.start(admin)
+    except admin_login_otp.AdminLoginError as error:
+        return _error(str(error), error.status)
+    return jsonify({
+        "otpRequired": True, "challenge": challenge, "maskedEmail": masked,
+        "expiresInMinutes": admin_login_otp.CODE_MINUTES,
+    }), 202
+
+
+def _signed_in(admin):
+    from app.services import admin_session
+    return {"token": create_admin_token(admin), "admin": admin.to_dict(), "idleMinutes": admin_session.idle_minutes()}
+
+
+@admin_auth_bp.post("/login/verify")
+def admin_login_verify():
+    """Second step: the six-digit code from the admin's email."""
+    data = request.get_json() or {}
+    try:
+        admin_id = admin_login_otp.verify(data.get("challenge"), data.get("code"))
+    except admin_login_otp.AdminLoginError as error:
+        return _error(str(error), error.status)
+    admin = db.session.get(Admin, admin_id)
+    if admin is None or not admin.is_active:
+        return _error("This account is disabled or no longer exists", 403)
+    return jsonify(_signed_in(admin))
+
+
+@admin_auth_bp.post("/heartbeat")
+@require_admin
+def admin_heartbeat():
+    """Sent by the admin screen while someone is working, so an active person is not signed out."""
+    from app.services import admin_session
+    return jsonify({"ok": True, "idleMinutes": admin_session.idle_minutes()})
+
+
+@admin_auth_bp.post("/logout")
+def admin_logout():
+    """Ends the session on the server. It also works after the token has expired, so the screen can always clean up."""
+    from flask_jwt_extended import get_jwt, verify_jwt_in_request
+    from app.models import AdminSession
+    from app.services import admin_session
+    try:
+        verify_jwt_in_request()
+        claims = get_jwt()
+    except Exception:  # noqa: BLE001 - an invalid or expired token simply has nothing to end
+        return jsonify({"message": "Logged out"})
+    session = db.session.get(AdminSession, claims.get("sid")) if claims.get("sid") else None
+    if session is not None:
+        admin_session.end(session, "logout")
+    return jsonify({"message": "Logged out"})
+
+
+@admin_auth_bp.get("/me")
+@require_admin
+def admin_me():
+    from app.services import admin_session
+    return jsonify({"admin": current_admin().to_dict(), "idleMinutes": admin_session.idle_minutes()})
+
+
+@admin_auth_bp.put("/me/password")
+@require_admin
+def change_own_password():
+    admin = current_admin()
+    data = request.get_json() or {}
+    if not check_password_hash(admin.password_hash, str(data.get("currentPassword") or "")):
+        return _error("Current password is incorrect")
+    problems = validate_password(data.get("newPassword") or "")
+    if problems:
+        return _error("Password requirements not met: " + ", ".join(problems))
+    admin.password_hash = generate_password_hash(data["newPassword"])
+    db.session.commit()
+    return jsonify({"message": "Password updated"})
+
+
+@admin_auth_bp.post("/me/email/start")
+@require_admin
+def start_email_change():
+    """Step 1: password and the new address. A code is emailed to the new address."""
+    data = request.get_json() or {}
+    try:
+        admin_email_change.start(current_admin(), data.get("password"), data.get("newEmail"))
+    except admin_email_change.EmailChangeError as error:
+        return jsonify({"error": str(error)}), error.status
+    return jsonify({"message": "Code sent", "expiresInMinutes": admin_email_change.CODE_MINUTES})
+
+
+@admin_auth_bp.post("/me/email/confirm")
+@require_admin
+def confirm_email_change():
+    """Step 2: the code from the new address. Only now does the login email change."""
+    try:
+        admin = admin_email_change.confirm(current_admin(), (request.get_json() or {}).get("code"))
+    except admin_email_change.EmailChangeError as error:
+        return jsonify({"error": str(error)}), error.status
+    return jsonify({"admin": admin.to_dict()})
+
+
+def _can_manage(actor, target):
+    """Only a higher level can manage an account. Super Admin accounts are managed by Super Admins alone."""
+    if target.id == actor.id:
+        return False
+    if target.role == perms.SUPER_ADMIN:
+        return actor.role == perms.SUPER_ADMIN
+    return perms.rank_of(actor.role) > perms.rank_of(target.role)
+
+
+def _can_assign(actor, role):
+    if role == perms.SUPER_ADMIN:
+        return actor.role == perms.SUPER_ADMIN
+    return actor.role == perms.SUPER_ADMIN or perms.rank_of(role) < perms.rank_of(actor.role)
+
+
+def _active_supers():
+    return Admin.query.filter(Admin.role == perms.SUPER_ADMIN, Admin.is_active.is_(True)).count()
+
+
+@admin_auth_bp.get("/accounts")
+@require_head_admin
+def list_admins():
+    admins = Admin.query.order_by(Admin.created_at).all()
+    return jsonify({
+        "admins": [a.to_dict() for a in admins],
+        "roles": ASSIGNABLE_ROLES,
+        "roleInfo": role_info(),
+        "permissions": [{"key": k, "label": v} for k, v in PERMISSIONS.items()],
+    })
+
+
+@admin_auth_bp.post("/accounts")
+@require_head_admin
+def create_admin():
+    data = request.get_json() or {}
+    if not _actor_confirmed(data):
+        return _error("Enter your own password to confirm this change", 403)
+
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    role = data.get("role") or "Support Staff"
+    password = data.get("password") or ""
+
+    if not name:
+        return _error("Please enter a name")
+    if not is_valid_email(email):
+        return _error("Please enter a valid email address")
+    if role not in ASSIGNABLE_ROLES:
+        return _error("Choose a valid role")
+    if not _can_assign(current_admin(), role):
+        return _error("You can only create accounts below your own level", 403)
+    if Admin.query.filter_by(email=email).first():
+        return _error("An admin with this email already exists")
+    problems = validate_password(password)
+    if problems:
+        return _error("Password requirements not met: " + ", ".join(problems))
+
+    admin = Admin(
+        name=name, email=email, role=role, is_active=True,
+        password_hash=generate_password_hash(password),
+        permissions=_permissions_for(role, data.get("permissions")),
+    )
+    db.session.add(admin)
+    db.session.flush()
+    audit.record("admin_created", "admin", admin.id, None, {"role": role, "name": name}, None, current_admin())
+    db.session.commit()
+    return jsonify({"admin": admin.to_dict()}), 201
+
+
+@admin_auth_bp.put("/accounts/<int:admin_id>")
+@require_head_admin
+def update_admin(admin_id):
+    actor = current_admin()
+    data = request.get_json() or {}
+    if not _actor_confirmed(data):
+        return _error("Enter your own password to confirm this change", 403)
+
+    admin = Admin.query.get_or_404(admin_id)
+    if admin.id == actor.id:
+        return _error("You cannot change your own role, permissions or status")
+    if not _can_manage(actor, admin):
+        return _error("You cannot change an account at or above your level", 403)
+    old = {"role": admin.role, "isActive": admin.is_active}
+
+    if "name" in data:
+        name = (data.get("name") or "").strip()
+        if not name:
+            return _error("Please enter a name")
+        admin.name = name
+    role_changed = False
+    if "role" in data and data["role"] != admin.role:
+        if data["role"] not in ASSIGNABLE_ROLES:
+            return _error("Choose a valid role")
+        if not _can_assign(actor, data["role"]):
+            return _error("You cannot give a role at or above your own level", 403)
+        admin.role = data["role"]
+        role_changed = True
+    if "isActive" in data:
+        admin.is_active = bool(data["isActive"])
+    if "permissions" in data:
+        admin.permissions = _permissions_for(admin.role, data["permissions"])
+    elif role_changed:
+        admin.permissions = _permissions_for(admin.role, None)
+
+    if not _active_heads():
+        db.session.rollback()
+        return _error("At least one active Head Admin must remain")
+    if old["role"] == perms.SUPER_ADMIN and old["isActive"] and not _active_supers():
+        db.session.rollback()
+        return _error("At least one active Super Admin must remain")
+    audit.record("admin_updated", "admin", admin.id, old, {"role": admin.role, "isActive": admin.is_active}, None, actor)
+    db.session.commit()
+    return jsonify({"admin": admin.to_dict()})
+
+
+@admin_auth_bp.post("/accounts/<int:admin_id>/password")
+@require_head_admin
+def reset_admin_password(admin_id):
+    data = request.get_json() or {}
+    if not _actor_confirmed(data):
+        return _error("Enter your own password to confirm this change", 403)
+    admin = Admin.query.get_or_404(admin_id)
+    if not _can_manage(current_admin(), admin):
+        return _error("You cannot change the password of an account at or above your level", 403)
+    problems = validate_password(data.get("newPassword") or "")
+    if problems:
+        return _error("Password requirements not met: " + ", ".join(problems))
+    admin.password_hash = generate_password_hash(data["newPassword"])
+    db.session.commit()
+    return jsonify({"message": "Password reset. Share the new password with them securely."})
+
+
+@admin_auth_bp.delete("/accounts/<int:admin_id>")
+@require_head_admin
+def delete_admin(admin_id):
+    actor = current_admin()
+    data = request.get_json(silent=True) or {}
+    if not _actor_confirmed(data):
+        return _error("Enter your own password to confirm this change", 403)
+
+    admin = Admin.query.get_or_404(admin_id)
+    if admin.id == actor.id:
+        return _error("You cannot remove your own account")
+    if not _can_manage(actor, admin):
+        return _error("You cannot remove an account at or above your level", 403)
+    if admin.role == perms.SUPER_ADMIN:
+        return _error("Super Admin accounts cannot be deleted. Deactivate them instead.", 403)
+    if admin.is_head and len(_active_heads()) <= 1 and admin.is_active:
+        return _error("At least one active Head Admin must remain")
+
+    # What they owned goes back to the Head Admins.
+    Product.query.filter_by(owner_admin_id=admin.id).update({"owner_admin_id": None})
+    Service.query.filter_by(owner_admin_id=admin.id).update({"owner_admin_id": None})
+    ProductSale.query.filter_by(created_by=admin.id).update({"created_by": None})
+    ChangeRequest.query.filter_by(requested_by=admin.id).update({"requested_by": None})
+    ChangeRequest.query.filter_by(decided_by=admin.id).update({"decided_by": None})
+    ApprovalOtp.query.filter_by(admin_id=admin.id).delete()
+    AdminEmailChange.query.filter_by(admin_id=admin.id).delete()
+    audit.record("admin_removed", "admin", admin.id, {"role": admin.role, "name": admin.name}, None, None, actor)
+    db.session.delete(admin)
+    db.session.commit()
+    return jsonify({"message": "Admin account removed"})

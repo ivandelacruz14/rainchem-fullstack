@@ -1,0 +1,57 @@
+from app.routes.auth import auth_bp
+from app.routes.admin_auth import admin_auth_bp
+from app.routes.products import products_bp
+from app.routes.orders import orders_bp
+from app.routes.payments import payments_bp
+from app.routes.admin_orders import admin_orders_bp
+from app.routes.admin_users import admin_users_bp
+from app.routes.knowledge import knowledge_bp
+from app.routes.chat import chat_bp
+from app.routes.admin_dashboard import admin_dashboard_bp
+from app.routes.admin_analytics import admin_analytics_bp
+from app.routes.admin_settings import admin_settings_bp
+from app.routes.cart import cart_bp
+from app.routes.services import services_bp
+from app.routes.admin_services import admin_services_bp
+from app.routes.admin_sales import admin_sales_bp
+from app.routes.admin_approvals import admin_approvals_bp
+from app.routes.live_chat import live_chat_bp
+from app.routes.addresses import addresses_bp
+from app.routes.admin_diagnostics import admin_diagnostics_bp
+from app.routes.rider import rider_bp
+from app.routes.payment_receipts import payment_receipts_bp
+from app.routes.admin_product_docs import admin_product_docs_bp
+from app.routes.admin_inventory import admin_inventory_bp
+from app.routes.admin_sales_records import admin_sales_records_bp
+from app.routes.admin_chat_monitor import admin_chat_monitor_bp
+from app.routes.admin_live_chat import admin_live_chat_bp
+
+
+def register_routes(app):
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_auth_bp)
+    app.register_blueprint(products_bp)
+    app.register_blueprint(orders_bp)
+    app.register_blueprint(payments_bp)
+    app.register_blueprint(admin_orders_bp)
+    app.register_blueprint(admin_users_bp)
+    app.register_blueprint(knowledge_bp)
+    app.register_blueprint(chat_bp)
+    app.register_blueprint(admin_dashboard_bp)
+    app.register_blueprint(admin_analytics_bp)
+    app.register_blueprint(admin_settings_bp)
+    app.register_blueprint(cart_bp)
+    app.register_blueprint(services_bp)
+    app.register_blueprint(admin_services_bp)
+    app.register_blueprint(admin_sales_bp)
+    app.register_blueprint(admin_approvals_bp)
+    app.register_blueprint(live_chat_bp)
+    app.register_blueprint(addresses_bp)
+    app.register_blueprint(admin_diagnostics_bp)
+    app.register_blueprint(rider_bp)
+    app.register_blueprint(payment_receipts_bp)
+    app.register_blueprint(admin_product_docs_bp)
+    app.register_blueprint(admin_inventory_bp)
+    app.register_blueprint(admin_sales_records_bp)
+    app.register_blueprint(admin_chat_monitor_bp)
+    app.register_blueprint(admin_live_chat_bp)

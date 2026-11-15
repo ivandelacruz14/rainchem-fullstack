@@ -1,0 +1,139 @@
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import { AdminAuthProvider, useAdminAuth } from "./context/AdminAuthContext";
+import { CartProvider } from "./context/CartContext";
+import { ToastProvider } from "./context/ToastContext";
+import { UIProvider } from "./context/UIContext";
+
+import Layout from "./components/Layout";
+import { ProtectedRoute, AdminProtectedRoute, PermissionRoute } from "./components/ProtectedRoute";
+
+import Home from "./pages/Home";
+import Shop from "./pages/Shop";
+import FAQs from "./pages/FAQs";
+import Services from "./pages/Services";
+import ResetPassword from "./pages/ResetPassword";
+import Checkout from "./pages/Checkout";
+import OrderSuccess from "./pages/OrderSuccess";
+import PaymentPage from "./pages/PaymentPage";
+import PaymentResult from "./pages/PaymentResult";
+import PaymentDemo from "./pages/PaymentDemo";
+import Receipt from "./pages/Receipt";
+
+import AccountLayout from "./pages/account/AccountLayout";
+import AccountOverview from "./pages/account/AccountOverview";
+import AccountOrders from "./pages/account/AccountOrders";
+import AccountTrack from "./pages/account/AccountTrack";
+import AccountAddress from "./pages/account/AccountAddress";
+import AccountProfile from "./pages/account/AccountProfile";
+import AccountSettings from "./pages/account/AccountSettings";
+import AccountHelp from "./pages/account/AccountHelp";
+import AccountServices from "./pages/account/AccountServices";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import OnboardingGate from "./components/OnboardingGate";
+
+import AdminLogin from "./admin/AdminLogin";
+import AdminLayout from "./admin/AdminLayout";
+import Overview from "./admin/pages/Overview";
+import Products from "./admin/pages/Products";
+import Orders from "./admin/pages/Orders";
+import Users from "./admin/pages/Users";
+import Knowledge from "./admin/pages/Knowledge";
+import ChatMonitor from "./admin/pages/ChatMonitor";
+import AdminAccounts from "./admin/pages/AdminAccounts";
+import Analytics from "./admin/pages/Analytics";
+import PaymentSettings from "./admin/pages/PaymentSettings";
+import AdminServices from "./admin/pages/AdminServices";
+import AdminSales from "./admin/pages/AdminSales";
+import Approvals from "./admin/pages/Approvals";
+import MyAccount from "./admin/pages/MyAccount";
+import SalesRecords from "./admin/pages/SalesRecords";
+import RiderDeliveries from "./admin/pages/RiderDeliveries";
+import InventoryAlerts from "./admin/pages/InventoryAlerts";
+import ProductKnowledge from "./admin/pages/ProductKnowledge";
+import LiveChat from "./admin/pages/LiveChat";
+import ScopedOrders from "./admin/pages/ScopedOrders";
+
+function TrackRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/track${search}`} replace />;
+}
+
+function OrdersRoute() {
+  const { can } = useAdminAuth();
+  if (can("manage_orders")) return <Orders />;
+  return (
+    <PermissionRoute permission="orders">
+      <ScopedOrders />
+    </PermissionRoute>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <ToastProvider>
+        <AuthProvider>
+          <AdminAuthProvider>
+            <CartProvider>
+              <UIProvider>
+                <OnboardingGate />
+                <Routes>
+                  <Route element={<Layout />}>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/shop" element={<Shop />} />
+                    <Route path="/faqs" element={<FAQs />} />
+                    <Route path="/services" element={<Services />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+                    <Route path="/payment/:orderId" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
+                    <Route path="/payment/result" element={<ProtectedRoute><PaymentResult /></ProtectedRoute>} />
+                    <Route path="/payment/demo/:orderId" element={<ProtectedRoute><PaymentDemo /></ProtectedRoute>} />
+                    <Route path="/order-success" element={<ProtectedRoute><OrderSuccess /></ProtectedRoute>} />
+                    <Route path="/receipt/:orderId" element={<ProtectedRoute><Receipt /></ProtectedRoute>} />
+
+                    <Route path="/track" element={<ProtectedRoute><div className="container track-shell"><AccountTrack /></div></ProtectedRoute>} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/account/track" element={<TrackRedirect />} />
+                    <Route path="/account" element={<ProtectedRoute><AccountLayout /></ProtectedRoute>}>
+                      <Route index element={<AccountOverview />} />
+                      <Route path="orders" element={<AccountOrders />} />
+                      <Route path="services" element={<AccountServices />} />
+                      <Route path="track" element={<AccountTrack />} />
+                      <Route path="address" element={<AccountAddress />} />
+                      <Route path="profile" element={<AccountProfile />} />
+                      <Route path="settings" element={<AccountSettings />} />
+                      <Route path="help" element={<AccountHelp />} />
+                    </Route>
+                  </Route>
+
+                  <Route path="/admin/login" element={<AdminLogin />} />
+                  <Route path="/admin" element={<AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>}>
+                    <Route index element={<Overview />} />
+                    <Route path="products" element={<PermissionRoute permission="products"><Products /></PermissionRoute>} />
+                    <Route path="orders" element={<OrdersRoute />} />
+                    <Route path="users" element={<PermissionRoute permission="customers"><Users /></PermissionRoute>} />
+                    <Route path="knowledge" element={<PermissionRoute permission="chatbot"><Knowledge /></PermissionRoute>} />
+                    <Route path="monitor" element={<PermissionRoute permission="chatbot"><ChatMonitor /></PermissionRoute>} />
+                    <Route path="accounts" element={<PermissionRoute headOnly><AdminAccounts /></PermissionRoute>} />
+                    <Route path="analytics" element={<PermissionRoute permission="analytics"><Analytics /></PermissionRoute>} />
+                    <Route path="services" element={<PermissionRoute permission="services"><AdminServices /></PermissionRoute>} />
+                    <Route path="account" element={<MyAccount />} />
+                    <Route path="sales-records" element={<PermissionRoute permission="analytics"><SalesRecords /></PermissionRoute>} />
+                    <Route path="rider" element={<PermissionRoute permission="deliveries"><RiderDeliveries /></PermissionRoute>} />
+                    <Route path="inventory" element={<PermissionRoute permission="products"><InventoryAlerts /></PermissionRoute>} />
+                    <Route path="product-knowledge" element={<PermissionRoute permission="chatbot"><ProductKnowledge /></PermissionRoute>} />
+                    <Route path="live-chat" element={<PermissionRoute permission="livechat"><LiveChat /></PermissionRoute>} />
+                    <Route path="approvals" element={<PermissionRoute permission="products"><Approvals /></PermissionRoute>} />
+                    <Route path="sales" element={<PermissionRoute permission="products"><AdminSales /></PermissionRoute>} />
+                    <Route path="payments" element={<PermissionRoute headOnly><PaymentSettings /></PermissionRoute>} />
+                  </Route>
+                </Routes>
+              </UIProvider>
+            </CartProvider>
+          </AdminAuthProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </BrowserRouter>
+  );
+}

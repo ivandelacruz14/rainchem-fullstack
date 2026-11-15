@@ -1,0 +1,519 @@
+import hashlib
+from datetime import datetime, timedelta
+from flask import Blueprint, request, jsonify, current_app
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from app.extensions import db
+from app.models import User, EmailVerification, PasswordReset, CartItem
+from app.services.auth_utils import (
+    validate_password, is_valid_email, is_valid_phone,
+    generate_verification_code, generate_reset_token,
+)
+from app.services import captcha
+from app.services.email_policy import is_disposable_email
+from app.services.ratelimit import allow
+from app.services.auth_utils import normalize_ph_mobile
+import hmac
+from flask import current_app
+from app.services.email_service import send_email
+from app.services.google_auth import verify_google_token
+from app.utils.auth_decorators import create_user_token, require_user, current_user_id
+
+auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+
+RESET_TOKEN_MINUTES = 30
+RESET_REQUEST_COOLDOWN_SECONDS = 60
+
+
+def hash_reset_token(token):
+    """Only a hash of the reset token is stored, so a database leak does not leak working links."""
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+
+
+def find_reset_request(token):
+    """Returns (reset_row, problem) where problem is None, "invalid", "used" or "expired"."""
+    if not token or len(token) > 200:
+        return None, "invalid"
+    row = PasswordReset.query.filter_by(token=hash_reset_token(token)).first()
+    if row is None:
+        return None, "invalid"
+    if row.used:
+        return row, "used"
+    if row.expires_at < datetime.utcnow():
+        return row, "expired"
+    return row, None
+
+
+RESET_PROBLEM_MESSAGES = {
+    "invalid": "This reset link is not valid. Please request a new one.",
+    "used": "This reset link has already been used. Please request a new one if you still need to reset your password.",
+    "expired": "This reset link has expired. Please request a new one.",
+}
+
+
+@auth_bp.post("/register")
+def register():
+    if not allow("register:" + (request.remote_addr or "unknown"), current_app.config["REGISTER_LIMIT_PER_HOUR"], 3600):
+        return jsonify({"error": "Too many sign-ups from this connection. Please try again later."}), 429
+    try:
+        captcha.verify((request.get_json(silent=True) or {}).get("captchaToken"))
+    except captcha.CaptchaError as error:
+        return jsonify({"error": str(error)}), error.status
+    data = request.get_json() or {}
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    phone = normalize_ph_mobile((data.get("phone") or "").strip()) or (data.get("phone") or "").strip()
+    password = data.get("password") or ""
+    account_type = (data.get("accountType") or "personal").strip().lower()
+    business_name = (data.get("businessName") or "").strip()[:150]
+    tin = (data.get("tin") or "").strip()[:30] or None
+
+    errors = []
+    if account_type not in ("personal", "business"):
+        errors.append("Choose a Personal or Business account")
+    if account_type == "business" and not business_name:
+        errors.append("Enter your business name")
+    if not name:
+        errors.append("Please enter your full name")
+    if email and is_valid_email(email) and is_disposable_email(email):
+        errors.append("Temporary email addresses are not allowed. Please use your real email.")
+    if not is_valid_email(email):
+        errors.append("Please enter a valid email address")
+
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user and existing_user.verified:
+        errors.append("An account with this email already exists")
+    if not is_valid_phone(phone):
+        errors.append("Please enter a valid contact number")
+
+    password_errors = validate_password(password)
+    if password_errors:
+        errors.append("Password requirements not met: " + ", ".join(password_errors))
+
+    if errors:
+        return jsonify({"errors": errors}), 400
+
+    if existing_user and not existing_user.verified:
+        user = existing_user
+        user.name = name
+        user.phone = phone
+        user.password_hash = generate_password_hash(password)
+        user.account_type, user.business_name, user.tin = account_type, business_name or None, tin
+        user.account_type_chosen = True
+        db.session.commit()
+    else:
+        user = User(
+            name=name, email=email, phone=phone,
+            password_hash=generate_password_hash(password), verified=False,
+            account_type=account_type, business_name=business_name or None, tin=tin, account_type_chosen=True,
+        )
+        db.session.add(user)
+        db.session.commit()
+
+    code = generate_verification_code()
+    verification = EmailVerification(
+        user_id=user.id, code=code,
+        expires_at=datetime.utcnow() + timedelta(minutes=10),
+    )
+    db.session.add(verification)
+    db.session.commit()
+
+    send_email(
+        email, "Verify your Rainchem account",
+        f"Hi {name},\n\nYour verification code is {code}. It expires in 10 minutes.",
+        user_id=user.id, sensitive=True,
+    )
+
+    return jsonify({"message": "Account created. Check your email for a verification code.", "email": email})
+
+
+@auth_bp.post("/verify-email")
+def verify_email():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    code = (data.get("code") or "").strip()
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"error": "Account not found"}), 404
+
+    latest = EmailVerification.query.filter_by(user_id=user.id).order_by(EmailVerification.id.desc()).first()
+    if not latest:
+        return jsonify({"error": "Incorrect or expired code"}), 400
+    if latest.expires_at < datetime.utcnow():
+        return jsonify({"error": "This code has expired. Please request a new one."}), 400
+
+    max_attempts = current_app.config["OTP_MAX_ATTEMPTS"]
+    if (latest.attempts or 0) >= max_attempts:
+        return jsonify({"error": "Too many wrong attempts. Please request a new code."}), 429
+
+    if not hmac.compare_digest(latest.code, code):
+        latest.attempts = (latest.attempts or 0) + 1
+        db.session.commit()
+        left = max_attempts - latest.attempts
+        message = f"Incorrect code. {left} tries left." if left > 0 else "Too many wrong attempts. Please request a new code."
+        return jsonify({"error": message}), 400
+
+    user.verified = True
+    EmailVerification.query.filter_by(user_id=user.id).delete()
+    db.session.commit()
+
+    token = create_user_token(user)
+    return jsonify({"token": token, "user": user.to_dict()})
+
+
+@auth_bp.post("/resend-code")
+def resend_code():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"error": "Account not found"}), 404
+
+    now = datetime.utcnow()
+    cooldown = current_app.config["OTP_RESEND_COOLDOWN_SECONDS"]
+    last = EmailVerification.query.filter_by(user_id=user.id).order_by(EmailVerification.id.desc()).first()
+    if last and last.created_at and (now - last.created_at).total_seconds() < cooldown:
+        return jsonify({"error": f"Please wait {cooldown} seconds before requesting another code."}), 429
+    today = EmailVerification.query.filter(
+        EmailVerification.user_id == user.id, EmailVerification.created_at >= now - timedelta(days=1)
+    ).count()
+    if today >= current_app.config["OTP_MAX_PER_DAY"]:
+        return jsonify({"error": "Too many codes requested today. Please try again tomorrow."}), 429
+
+    code = generate_verification_code()
+    db.session.add(EmailVerification(
+        user_id=user.id, code=code, attempts=0, created_at=now,
+        expires_at=now + timedelta(minutes=10),
+    ))
+    db.session.commit()
+
+    send_email(email, "Your new Rainchem verification code",
+               f"Your verification code is {code}. It expires in 10 minutes.", user_id=user.id, sensitive=True)
+    return jsonify({"message": "A new code has been sent"})
+
+
+@auth_bp.post("/login")
+def login():
+    try:
+        captcha.verify((request.get_json(silent=True) or {}).get("captchaToken"))
+    except captcha.CaptchaError as error:
+        return jsonify({"error": str(error)}), error.status
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.password_hash or not check_password_hash(user.password_hash, password):
+        return jsonify({"error": "Incorrect email or password"}), 401
+
+    if not user.verified:
+        return jsonify({"error": "Account not verified", "needsVerification": True, "email": email}), 403
+
+    token = create_user_token(user)
+    return jsonify({"token": token, "user": user.to_dict()})
+
+
+@auth_bp.post("/google")
+def google_login():
+    data = request.get_json() or {}
+    id_token_value = data.get("token")
+    if not id_token_value:
+        return jsonify({"error": "Missing Google token"}), 400
+
+    try:
+        payload = verify_google_token(id_token_value)
+    except ValueError as error:
+        current_app.logger.warning("Google sign-in refused: %s", error)
+        reason = str(error)
+        if "audience" in reason.lower():
+            reason = "Google sign-in is set up for a different Client ID. Check GOOGLE_CLIENT_ID on the server."
+        elif "not configured" not in reason.lower():
+            reason = "Could not verify Google sign-in. Please try again."
+        return jsonify({"error": reason}), 400
+    except Exception as error:
+        current_app.logger.warning("Google sign-in failed: %s", error)
+        return jsonify({"error": "Could not verify Google sign-in. Please try again."}), 400
+
+    if not payload.get("email_verified"):
+        return jsonify({"error": "Your Google email address is not verified."}), 400
+
+    user = User.query.filter_by(google_id=payload["google_id"]).first()
+    if not user:
+        user = User.query.filter_by(email=payload["email"]).first()
+
+    if user:
+        user.google_id = payload["google_id"]
+        if payload.get("email_verified"):
+            user.verified = True
+    else:
+        user = User(
+            name=payload["name"], email=payload["email"],
+            google_id=payload["google_id"], verified=True,
+        )
+        db.session.add(user)
+
+    db.session.commit()
+    token = create_user_token(user)
+    return jsonify({"token": token, "user": user.to_dict()})
+
+
+@auth_bp.post("/forgot-password")
+def forgot_password():
+    try:
+        captcha.verify((request.get_json(silent=True) or {}).get("captchaToken"))
+    except captcha.CaptchaError as error:
+        return jsonify({"error": str(error)}), error.status
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    user = User.query.filter_by(email=email).first() if is_valid_email(email) else None
+
+    # Same answer whether or not the address is registered.
+    generic_response = jsonify({
+        "message": "If an account with that email exists, a reset link has been sent."
+    })
+    if not user:
+        return generic_response
+
+    cutoff = datetime.utcnow() - timedelta(seconds=RESET_REQUEST_COOLDOWN_SECONDS)
+    recent = PasswordReset.query.filter(
+        PasswordReset.user_id == user.id, PasswordReset.used.is_(False), PasswordReset.created_at > cutoff,
+    ).first()
+    if recent:
+        return generic_response
+
+    # A new request replaces any earlier link that was never used.
+    PasswordReset.query.filter_by(user_id=user.id, used=False).update({"used": True})
+
+    token = generate_reset_token()
+    db.session.add(PasswordReset(
+        user_id=user.id, token=hash_reset_token(token),
+        expires_at=datetime.utcnow() + timedelta(minutes=RESET_TOKEN_MINUTES),
+    ))
+    db.session.commit()
+
+    reset_link = f"{current_app.config['FRONTEND_BASE_URL']}/reset-password?token={token}"
+    send_email(
+        email, "Reset your Rainchem password",
+        f"Hi {user.name},\n\nUse the link below to reset your password. "
+        f"It expires in {RESET_TOKEN_MINUTES} minutes and can only be used once.\n\n{reset_link}\n\n"
+        "If you did not request this, you can ignore this email.",
+        user_id=user.id, sensitive=True,
+    )
+    return generic_response
+
+
+@auth_bp.get("/reset-password/check")
+def check_reset_token():
+    """Lets the reset page tell a bad link from a good one before the person types a password.
+    Opening this never uses up the token."""
+    _, problem = find_reset_request(request.args.get("token", ""))
+    if problem:
+        return jsonify({"valid": False, "reason": problem, "error": RESET_PROBLEM_MESSAGES[problem]})
+    return jsonify({"valid": True})
+
+
+@auth_bp.post("/reset-password")
+def reset_password():
+    data = request.get_json() or {}
+    token = data.get("token") or ""
+    new_password = data.get("password") or ""
+
+    reset_request, problem = find_reset_request(token)
+    if problem:
+        return jsonify({"error": RESET_PROBLEM_MESSAGES[problem], "reason": problem}), 400
+
+    password_errors = validate_password(new_password)
+    if password_errors:
+        return jsonify({
+            "error": "Password requirements not met: " + ", ".join(password_errors),
+            "errors": password_errors,
+        }), 400
+
+    user = db.session.get(User, reset_request.user_id)
+    user.password_hash = generate_password_hash(new_password)
+    PasswordReset.query.filter_by(user_id=user.id, used=False).update({"used": True})
+    db.session.commit()
+
+    send_email(user.email, "Your Rainchem password was changed",
+               "Your password was just changed. If this wasn't you, contact support immediately.",
+               user_id=user.id)
+    return jsonify({"message": "Password updated. You can now log in."})
+
+
+@auth_bp.get("/me")
+@require_user
+def me():
+    user = User.query.get(current_user_id())
+    return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.put("/me/address")
+@require_user
+def update_address():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+    user.address_line1 = data.get("line1", user.address_line1)
+    user.address_city = data.get("city", user.address_city)
+    user.address_province = data.get("province", user.address_province)
+    user.address_region = data.get("region", user.address_region)
+    user.address_zip = data.get("zip", user.address_zip)
+    db.session.commit()
+    return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.put("/me/profile")
+@require_user
+def update_profile():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+
+    name = (data.get("name") or "").strip()
+    phone = normalize_ph_mobile((data.get("phone") or "").strip()) or (data.get("phone") or "").strip()
+    age = data.get("age")
+    gender = (data.get("gender") or "").strip()
+
+    if not name:
+        return jsonify({"error": "Name cannot be empty"}), 400
+    if not is_valid_phone(phone):
+        return jsonify({"error": "Please enter a valid contact number"}), 400
+
+    user.name = name
+    user.phone = phone
+    user.age = int(age) if age not in (None, "") else None
+    user.gender = gender or None
+    db.session.commit()
+    return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.post("/me/email/request-change")
+@require_user
+def request_email_change():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+    new_email = (data.get("newEmail") or "").strip().lower()
+
+    if not is_valid_email(new_email):
+        return jsonify({"error": "Please enter a valid email address"}), 400
+    if User.query.filter_by(email=new_email).first():
+        return jsonify({"error": "That email is already in use"}), 400
+
+    code = generate_verification_code()
+    db.session.add(EmailVerification(
+        user_id=user.id, code=code, pending_email=new_email,
+        expires_at=datetime.utcnow() + timedelta(minutes=10),
+    ))
+    db.session.commit()
+
+    send_email(new_email, "Confirm your new Rainchem email",
+               f"Your confirmation code is {code}. It expires in 10 minutes.",
+               user_id=user.id, sensitive=True)
+    return jsonify({"message": "A confirmation code was sent to your new email address"})
+
+
+@auth_bp.post("/me/email/confirm-change")
+@require_user
+def confirm_email_change():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+    code = (data.get("code") or "").strip()
+
+    verification = (
+        EmailVerification.query.filter_by(user_id=user.id, code=code)
+        .filter(EmailVerification.pending_email.isnot(None))
+        .order_by(EmailVerification.id.desc())
+        .first()
+    )
+    if not verification or verification.expires_at < datetime.utcnow():
+        return jsonify({"error": "Incorrect or expired code"}), 400
+
+    user.email = verification.pending_email
+    db.session.delete(verification)
+    db.session.commit()
+    return jsonify({"user": user.to_dict(), "message": "Email address updated"})
+
+
+@auth_bp.put("/me/avatar")
+@require_user
+def update_avatar():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+    photo = data.get("avatarPhoto")
+    if not photo:
+        return jsonify({"error": "No image provided"}), 400
+    user.avatar_photo = photo
+    db.session.commit()
+    return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.put("/me/account-type")
+@require_user
+def set_account_type():
+    """Personal or Business. Changing the type clears the business verification, which must be done again."""
+    user = User.query.get(current_user_id())
+    if user.account_type_chosen:
+        return jsonify({"error": "Your account type is already set. Contact the store to change it."}), 403
+    data = request.get_json() or {}
+    phone = normalize_ph_mobile((data.get("phone") or "").strip()) or (data.get("phone") or "").strip()
+    if not is_valid_phone(phone):
+        return jsonify({"error": "Please enter a valid contact number"}), 400
+    account_type = (data.get("accountType") or "").strip().lower()
+    if account_type not in ("personal", "business"):
+        return jsonify({"error": "Choose Personal or Business"}), 400
+    business_name = (data.get("businessName") or "").strip()[:150]
+    if account_type == "business" and not business_name:
+        return jsonify({"error": "Enter your business name"}), 400
+    user.phone = phone
+    user.account_type = account_type
+    user.business_name = business_name if account_type == "business" else None
+    user.tin = ((data.get("tin") or "").strip()[:30] or None) if account_type == "business" else None
+    user.account_type_chosen = True
+    db.session.commit()
+    return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.delete("/me/account")
+@require_user
+def delete_account():
+    """Deletes the signed-in account: the login, contact details, address, photo and cart are erased.
+    Orders and receipts are kept for accounting. The email is replaced so it can be used to register again."""
+    user = User.query.get(current_user_id())
+    data = request.get_json(silent=True) or {}
+    if user.password_hash:
+        if not check_password_hash(user.password_hash, data.get("password") or ""):
+            return jsonify({"error": "Your password is incorrect"}), 400
+    elif (data.get("confirmText") or "").strip().upper() != "DELETE":
+        return jsonify({"error": "Type DELETE to confirm"}), 400
+    CartItem.query.filter_by(user_id=user.id).delete()
+    user.deleted_at = datetime.utcnow()
+    user.name = "Deleted user"
+    user.email = f"deleted-{user.id}@deleted.invalid"
+    user.phone = user.password_hash = user.google_id = user.avatar_photo = None
+    user.age = user.gender = user.business_name = user.tin = None
+    user.address_line1 = user.address_city = user.address_province = user.address_region = user.address_zip = None
+    user.verified = False
+    user.account_type = "personal"
+    user.account_type_chosen = True
+    user.business_verified = False
+    db.session.commit()
+    return jsonify({"message": "Your account has been deleted"})
+
+
+@auth_bp.put("/me/password")
+@require_user
+def change_password():
+    user = User.query.get(current_user_id())
+    data = request.get_json() or {}
+    current_password = data.get("currentPassword") or ""
+    new_password = data.get("newPassword") or ""
+
+    if not check_password_hash(user.password_hash, current_password):
+        return jsonify({"error": "Current password is incorrect"}), 400
+
+    password_errors = validate_password(new_password)
+    if password_errors:
+        return jsonify({"error": "Password requirements not met: " + ", ".join(password_errors)}), 400
+
+    user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    return jsonify({"message": "Password updated"})

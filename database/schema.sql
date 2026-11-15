@@ -1,0 +1,631 @@
+CREATE DATABASE IF NOT EXISTS rainchem CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE rainchem;
+
+CREATE TABLE admins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(180) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(60) NOT NULL DEFAULT 'Head Admin',
+    permissions JSON NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(180) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NULL,
+    google_id VARCHAR(120) NULL UNIQUE,
+    phone VARCHAR(30) NULL,
+    verified TINYINT(1) NOT NULL DEFAULT 0,
+    address_line1 VARCHAR(200) NULL,
+    address_city VARCHAR(100) NULL,
+    address_province VARCHAR(100) NULL,
+    address_region VARCHAR(100) NULL,
+    address_zip VARCHAR(20) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE email_verifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    code VARCHAR(10) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE password_resets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token VARCHAR(120) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    used TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    category VARCHAR(80) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    stock INT NOT NULL DEFAULT 0,
+    rating DECIMAL(2,1) NOT NULL DEFAULT 4.5,
+    reviews INT NOT NULL DEFAULT 0,
+    image_glyph VARCHAR(60) NULL,
+    image_photo LONGTEXT NULL,
+    short_desc VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    specs JSON NULL,
+    benefits JSON NULL,
+    usage_steps JSON NULL,
+    sku VARCHAR(40) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_number VARCHAR(40) NOT NULL UNIQUE,
+    user_id INT NULL,
+    status ENUM('pending_confirmation','confirmed','processing','shipped','delivered','cancelled')
+        NOT NULL DEFAULT 'pending_confirmation',
+    tracking_number VARCHAR(40) NOT NULL,
+    customer_name VARCHAR(150) NOT NULL,
+    customer_phone VARCHAR(30) NOT NULL,
+    customer_email VARCHAR(180) NOT NULL,
+    address_line1 VARCHAR(200) NOT NULL,
+    address_city VARCHAR(100) NOT NULL,
+    address_province VARCHAR(100) NOT NULL,
+    address_region VARCHAR(100) NOT NULL,
+    address_zip VARCHAR(20) NOT NULL,
+    payment_method VARCHAR(60) NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL,
+    shipping_fee DECIMAL(10,2) NOT NULL,
+    total DECIMAL(10,2) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    confirmed_at DATETIME NULL,
+    cancelled_at DATETIME NULL,
+    payment_status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
+    payment_reference VARCHAR(120) NULL,
+    payment_proof LONGTEXT NULL,
+    payment_submitted_at DATETIME NULL,
+    paid_at DATETIME NULL,
+    return_status VARCHAR(20) NOT NULL DEFAULT 'none',
+    return_reason VARCHAR(500) NULL,
+    return_requested_at DATETIME NULL,
+    return_note VARCHAR(500) NULL,
+    review_rating TINYINT NULL,
+    review_comment VARCHAR(500) NULL,
+    reviewed_at DATETIME NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    product_id INT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    discount_rate DECIMAL(4,2) NOT NULL DEFAULT 0,
+    quantity INT NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+);
+
+CREATE TABLE order_status_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    status VARCHAR(40) NOT NULL,
+    changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+CREATE TABLE receipts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL UNIQUE,
+    receipt_number VARCHAR(40) NOT NULL UNIQUE,
+    issued_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    items_snapshot JSON NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL,
+    shipping_fee DECIMAL(10,2) NOT NULL,
+    total DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+CREATE TABLE settings (
+    `key` VARCHAR(80) PRIMARY KEY,
+    value LONGTEXT NULL
+);
+
+CREATE TABLE product_reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    order_id INT NOT NULL,
+    user_id INT NOT NULL,
+    rating SMALLINT NOT NULL,
+    comment VARCHAR(500) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_review_order_product (order_id, product_id),
+    INDEX ix_product_reviews_product (product_id),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE cart_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    updated_at DATETIME NULL,
+    UNIQUE KEY uq_cart_user_product (user_id, product_id),
+    INDEX ix_cart_items_user (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+CREATE TABLE services (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    category VARCHAR(80) NULL,
+    description TEXT NOT NULL,
+    requirements TEXT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    owner_admin_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL,
+    FOREIGN KEY (owner_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE service_areas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    service_id INT NOT NULL,
+    area_name VARCHAR(120) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    is_available TINYINT(1) NOT NULL DEFAULT 1,
+    notes VARCHAR(255) NULL,
+    UNIQUE KEY uq_service_area_name (service_id, area_name),
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+);
+
+CREATE TABLE service_bookings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    booking_number VARCHAR(40) NOT NULL UNIQUE,
+    user_id INT NOT NULL,
+    service_id INT NOT NULL,
+    service_area_id INT NULL,
+    service_name VARCHAR(150) NOT NULL,
+    area_name VARCHAR(120) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    customer_name VARCHAR(150) NOT NULL,
+    customer_phone VARCHAR(30) NOT NULL,
+    customer_email VARCHAR(180) NULL,
+    address VARCHAR(255) NOT NULL,
+    preferred_date DATE NULL,
+    notes VARCHAR(500) NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'requested',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (service_id) REFERENCES services(id),
+    FOREIGN KEY (service_area_id) REFERENCES service_areas(id) ON DELETE SET NULL
+);
+
+CREATE TABLE product_sales (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    discount_percent SMALLINT NOT NULL,
+    starts_at DATETIME NOT NULL,
+    ends_at DATETIME NOT NULL,
+    label VARCHAR(60) NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_by INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_product_sales_product (product_id),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE change_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kind VARCHAR(30) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    product_id INT NULL,
+    target_name VARCHAR(200) NOT NULL,
+    payload JSON NULL,
+    image_photo LONGTEXT NULL,
+    requested_by INT NULL,
+    requester_name VARCHAR(120) NOT NULL DEFAULT '',
+    requester_role VARCHAR(60) NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    decided_by INT NULL,
+    decider_name VARCHAR(120) NULL,
+    decided_at DATETIME NULL,
+    decision_note VARCHAR(255) NULL,
+    INDEX ix_change_requests_product (product_id),
+    FOREIGN KEY (requested_by) REFERENCES admins(id) ON DELETE SET NULL,
+    FOREIGN KEY (decided_by) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE approval_otps (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    change_request_id INT NOT NULL,
+    admin_id INT NOT NULL,
+    salt VARCHAR(32) NOT NULL,
+    code_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts SMALLINT NOT NULL DEFAULT 0,
+    used TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_approval_otps_request (change_request_id),
+    FOREIGN KEY (change_request_id) REFERENCES change_requests(id) ON DELETE CASCADE,
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);
+
+CREATE TABLE admin_email_changes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL,
+    new_email VARCHAR(180) NOT NULL,
+    salt VARCHAR(32) NOT NULL,
+    code_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts SMALLINT NOT NULL DEFAULT 0,
+    used TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_admin_email_changes_admin (admin_id),
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);
+
+CREATE TABLE live_conversations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    topic VARCHAR(20) NOT NULL DEFAULT 'other',
+    order_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(12) NOT NULL DEFAULT 'open',
+    resolved_at DATETIME NULL,
+    user_last_seen_at DATETIME NULL,
+    last_message_at DATETIME NULL,
+    INDEX ix_live_conversations_last (last_message_at),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
+);
+
+CREATE TABLE live_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_id INT NOT NULL,
+    sender_type VARCHAR(10) NOT NULL,
+    sender_admin_id INT NULL,
+    sender_name VARCHAR(120) NOT NULL DEFAULT '',
+    kind VARCHAR(10) NOT NULL DEFAULT 'text',
+    body TEXT NOT NULL,
+    meta JSON NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    delivered_at DATETIME NULL,
+    read_at DATETIME NULL,
+    deleted_at DATETIME NULL,
+    deleted_by VARCHAR(10) NULL,
+    updated_at DATETIME NULL,
+    INDEX ix_live_messages_conversation (conversation_id),
+    INDEX ix_live_messages_updated (updated_at),
+    FOREIGN KEY (conversation_id) REFERENCES live_conversations(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE audit_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    admin_id INT NULL,
+    admin_name VARCHAR(120) NOT NULL DEFAULT '',
+    action VARCHAR(60) NOT NULL,
+    entity_type VARCHAR(40) NOT NULL,
+    entity_id VARCHAR(60) NOT NULL,
+    old_value JSON NULL,
+    new_value JSON NULL,
+    reason VARCHAR(500) NULL,
+    INDEX ix_audit_logs_created (created_at),
+    INDEX ix_audit_logs_action (action),
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE inventory_movements (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NULL,
+    product_name VARCHAR(200) NOT NULL DEFAULT '',
+    movement_type VARCHAR(24) NOT NULL,
+    quantity_change INT NOT NULL,
+    order_id INT NULL,
+    reference VARCHAR(120) NULL,
+    reason VARCHAR(255) NULL,
+    actor_admin_id INT NULL,
+    actor_name VARCHAR(120) NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_inventory_movements_product (product_id),
+    INDEX ix_inventory_movements_order (order_id),
+    INDEX ix_inventory_movements_created (created_at),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL,
+    FOREIGN KEY (actor_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE inventory_alerts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fingerprint VARCHAR(190) NOT NULL UNIQUE,
+    category VARCHAR(30) NOT NULL,
+    product_id INT NULL,
+    product_name VARCHAR(200) NULL,
+    order_id INT NULL,
+    order_number VARCHAR(40) NULL,
+    expected_value VARCHAR(80) NULL,
+    recorded_value VARCHAR(80) NULL,
+    difference VARCHAR(80) NULL,
+    explanation TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'open',
+    assigned_admin_id INT NULL,
+    assigned_name VARCHAR(120) NULL,
+    resolution_note TEXT NULL,
+    resolved_by VARCHAR(120) NULL,
+    detected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME NULL,
+    INDEX ix_inventory_alerts_category (category),
+    INDEX ix_inventory_alerts_product (product_id),
+    INDEX ix_inventory_alerts_order (order_id),
+    INDEX ix_inventory_alerts_detected (detected_at),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL,
+    FOREIGN KEY (assigned_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE TABLE sales_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_item_id INT NOT NULL UNIQUE,
+    order_id INT NOT NULL,
+    order_number VARCHAR(40) NOT NULL,
+    transaction_ref VARCHAR(120) NOT NULL DEFAULT '',
+    sold_at DATETIME NOT NULL,
+    customer_id INT NULL,
+    customer_name VARCHAR(150) NOT NULL DEFAULT '',
+    product_id INT NULL,
+    product_name VARCHAR(200) NOT NULL,
+    sku VARCHAR(40) NULL,
+    category VARCHAR(80) NULL,
+    quantity INT NOT NULL,
+    list_unit_price DECIMAL(10,2) NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL,
+    discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    line_total DECIMAL(10,2) NOT NULL,
+    shipping_share DECIMAL(10,2) NOT NULL DEFAULT 0,
+    tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    order_total DECIMAL(10,2) NOT NULL,
+    payment_method VARCHAR(60) NOT NULL DEFAULT '',
+    payment_status VARCHAR(20) NOT NULL DEFAULT '',
+    order_status VARCHAR(30) NOT NULL DEFAULT '',
+    fulfillment_status VARCHAR(30) NOT NULL DEFAULT '',
+    refund_status VARCHAR(20) NOT NULL DEFAULT 'none',
+    return_status VARCHAR(20) NOT NULL DEFAULT 'none',
+    state VARCHAR(12) NOT NULL DEFAULT 'pending',
+    notes VARCHAR(500) NULL,
+    overrides JSON NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL,
+    INDEX ix_sales_records_order (order_id),
+    INDEX ix_sales_records_number (order_number),
+    INDEX ix_sales_records_sold (sold_at),
+    INDEX ix_sales_records_product (product_id),
+    INDEX ix_sales_records_state (state),
+    FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+CREATE TABLE live_attachments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    message_id INT NOT NULL UNIQUE,
+    conversation_id INT NOT NULL,
+    stored_name VARCHAR(60) NOT NULL,
+    mime VARCHAR(30) NOT NULL,
+    size INT NOT NULL,
+    sha256 VARCHAR(64) NOT NULL,
+    data LONGBLOB NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_live_attachments_conversation (conversation_id),
+    FOREIGN KEY (message_id) REFERENCES live_messages(id) ON DELETE CASCADE,
+    FOREIGN KEY (conversation_id) REFERENCES live_conversations(id) ON DELETE CASCADE
+);
+
+CREATE TABLE product_documents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NULL,
+    title VARCHAR(200) NOT NULL,
+    doc_type VARCHAR(32) NOT NULL DEFAULT 'technical_data_sheet',
+    version VARCHAR(40) NULL,
+    source VARCHAR(255) NULL,
+    content TEXT NOT NULL,
+    facts JSON NULL,
+    verified TINYINT(1) NOT NULL DEFAULT 0,
+    authorized TINYINT(1) NOT NULL DEFAULT 0,
+    verified_by VARCHAR(120) NULL,
+    verified_at DATETIME NULL,
+    created_by VARCHAR(120) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL,
+    INDEX ix_product_documents_product (product_id),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+);
+
+CREATE TABLE recommendation_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) NOT NULL,
+    application VARCHAR(30) NULL,
+    slots_given JSON NULL,
+    product_ids JSON NULL,
+    document_ids JSON NULL,
+    top_score FLOAT NULL,
+    elapsed_ms INT NULL,
+    INDEX ix_recommendation_logs_created (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at DATETIME NOT NULL,
+    expires_at DATETIME NOT NULL,
+    ended_at DATETIME NULL,
+    end_reason VARCHAR(20) NULL,
+    INDEX ix_admin_sessions_admin (admin_id),
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS admin_login_challenges (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL,
+    challenge_hash VARCHAR(64) NOT NULL,
+    salt VARCHAR(32) NOT NULL,
+    code_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    attempts SMALLINT NOT NULL DEFAULT 0,
+    used TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_admin_login_challenges_admin (admin_id),
+    INDEX ix_admin_login_challenges_hash (challenge_hash),
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);
+
+CREATE TABLE knowledge_base (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    question VARCHAR(500) NOT NULL,
+    answer TEXT NOT NULL,
+    category VARCHAR(80) NOT NULL,
+    status ENUM('pending','approved') NOT NULL DEFAULT 'pending',
+    hits INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE chat_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    question VARCHAR(500) NOT NULL,
+    answer TEXT NOT NULL,
+    matched_knowledge_id INT NULL,
+    confidence INT NOT NULL DEFAULT 0,
+    resolved TINYINT(1) NOT NULL DEFAULT 0,
+    user_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source VARCHAR(20) NULL,
+    rating TINYINT NULL,
+    feedback VARCHAR(500) NULL,
+    rated_at DATETIME NULL,
+    handed_off_at DATETIME NULL,
+    admin_resolved_at DATETIME NULL,
+    FOREIGN KEY (matched_knowledge_id) REFERENCES knowledge_base(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    channel VARCHAR(20) NOT NULL DEFAULT 'email',
+    subject VARCHAR(200) NOT NULL,
+    body TEXT NOT NULL,
+    sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+INSERT INTO products (name, category, price, stock, rating, reviews, image_glyph, short_desc, description, specs, benefits, usage_steps) VALUES
+('RAIMOL FLASH 4T Fully Synthetic 10W-40 Engine Oil', 'Oils & Fluids', 585.00, 140, 4.8, 212, 'oil-synthetic',
+ 'Full synthetic protection for high-revving 4-stroke engines.',
+ 'RAIMOL FLASH 4T is engineered for modern air- and liquid-cooled 4-stroke motorcycle engines. Maintains viscosity under high RPM and high heat, protects against clutch slip (JASO MA2 certified), and keeps your engine cleaner for longer between services.',
+ JSON_ARRAY('Viscosity: 10W-40', 'JASO MA2 / API SL certified', 'Volume: 1 Liter', 'Recommended interval: every 3,000 km'),
+ JSON_ARRAY('Maintains full engine power in stop-and-go traffic', 'Reduces carbon build-up with an added Oil Stabilizer', 'Protects wet clutch systems, no slip or glazing'),
+ JSON_ARRAY('Warm up the engine for 2-3 minutes before draining old oil', 'Drain fully, replace the oil filter, then refill to the dipstick full mark', 'Recheck the level after a short ride and top up if needed')),
+
+('RAIMOL FLASH 4T Semi-Synthetic 20W-50 Engine Oil', 'Oils & Fluids', 320.00, 200, 4.6, 165, 'oil-semi',
+ 'Everyday protection for carbureted and fuel-injected engines.',
+ 'A reliable semi-synthetic blend from the RAIMOL FLASH line for daily commuting and everyday riding. Good film strength for older engines and hot climates.',
+ JSON_ARRAY('Viscosity: 20W-50', 'JASO MA / API SG', 'Volume: 1 Liter', 'Recommended interval: every 2,000 km'),
+ JSON_ARRAY('Budget-friendly protection for daily commuters', 'Strong oil film for older, higher-mileage engines'),
+ JSON_ARRAY('Change every 2,000 km or 2 months, whichever comes first', 'Check level weekly if riding daily in heavy traffic')),
+
+('RAIMOL RadCool Concentrate Coolant (Red)', 'Coolant', 245.00, 180, 4.9, 301, 'coolant-red',
+ 'High-performance concentrate coolant. Mix 1:1 with distilled water.',
+ 'RAIMOL RadCool is a high-performance synthetic coolant formulated with a Cooling System Conditioner that reduces surface tension to help lower engine temperatures. Concentrate must be diluted before use.',
+ JSON_ARRAY('Type: Concentrate (dilute 1:1)', 'Color: Red', 'Volume: 1 Liter', 'Boiling point (diluted): ~108C'),
+ JSON_ARRAY('Cooling System Conditioner lowers surface tension for better heat transfer', 'Corrosion inhibitors safe for aluminum radiators'),
+ JSON_ARRAY('Dilute 1:1 with distilled or de-ionized water, never tap water', 'Only fill when the engine is cool')),
+
+('RAIMOL RadCool Ready-To-Use Coolant (Red)', 'Coolant', 195.00, 150, 4.7, 189, 'coolant-ready',
+ 'Pre-mixed and ready to pour, no dilution needed.',
+ 'The convenient pre-mixed version of RAIMOL RadCool. Pour directly into the radiator reservoir up to the full mark.',
+ JSON_ARRAY('Type: Ready-to-use (pre-mixed)', 'Color: Red', 'Volume: 1 Liter'),
+ JSON_ARRAY('No mixing or measuring required', 'Same corrosion protection as the concentrate formula'),
+ JSON_ARRAY('Only open the reservoir cap when the engine is cool', 'Top up to the full line, do not overfill')),
+
+('RAIMOL TriboFilm Chain & Component Lubricant', 'Accessories', 210.00, 220, 4.5, 98, 'chain-lube',
+ 'Anti-wear formula that minimizes metal-to-metal contact.',
+ 'RAIMOL TriboFilm is a wax-based chain lubricant built on anti-wear additive technology. It minimizes direct metal-to-metal rubbing, extending chain and sprocket life.',
+ JSON_ARRAY('Format: 400ml aerosol', 'Safe for O-ring / X-ring chains', 'Apply every 300-500 km'),
+ JSON_ARRAY('Anti-wear technology reduces metal-to-metal contact', 'Resists fling-off and water wash-off at highway speed'),
+ JSON_ARRAY('Apply to a warm chain right after a ride', 'Wipe excess after 10-15 minutes')),
+
+('RAIMOL Oil Filter (Universal Fit A)', 'Filters', 145.00, 260, 4.6, 143, 'oil-filter',
+ 'OEM-spec spin-on oil filter for common 125cc-160cc models.',
+ 'Precision-pleated filter media rated to trap particles as small as 15 microns, protecting your engine internals during every oil change.',
+ JSON_ARRAY('Fits most 125cc-160cc engines', 'Filtration: 15 microns'),
+ JSON_ARRAY('Traps contaminants as small as 15 microns'),
+ JSON_ARRAY('Always replace at every full oil change', 'Hand-tighten only')),
+
+('RAIMOL Air Filter (Foam, Washable)', 'Filters', 175.00, 190, 4.4, 76, 'air-filter',
+ 'Reusable foam air filter, clean, oil, and reuse.',
+ 'A washable dual-layer foam filter designed to be cleaned and re-oiled instead of replaced.',
+ JSON_ARRAY('Type: Foam, washable', 'Clean every 3,000-5,000 km'),
+ JSON_ARRAY('Reusable, saves money over disposable filters'),
+ JSON_ARRAY('Wash in mild detergent, rinse, and air dry fully')),
+
+('RAIMOL Ceramic Brake Pads (Front)', 'Brakes', 390.00, 130, 4.7, 121, 'brake-pads',
+ 'Low-dust ceramic compound for consistent stopping power.',
+ 'Ceramic composite pads offering quieter operation, less brake dust, and stable performance in wet and dry conditions.',
+ JSON_ARRAY('Compound: Ceramic', 'Position: Front'),
+ JSON_ARRAY('Low-dust ceramic compound keeps wheels cleaner'),
+ JSON_ARRAY('Bed in new pads with gradual braking for the first 100 km')),
+
+('RAIMOL DOT 4 Brake Fluid', 'Oils & Fluids', 165.00, 210, 4.8, 88, 'brake-fluid',
+ 'High boiling point brake fluid for hydraulic disc systems.',
+ 'DOT 4 glycol-based brake fluid with a high dry boiling point, recommended for hydraulic disc brake and clutch systems.',
+ JSON_ARRAY('Type: DOT 4', 'Volume: 500ml'),
+ JSON_ARRAY('High dry boiling point resists brake fade'),
+ JSON_ARRAY('Never mix DOT 4 with DOT 5 silicone-based fluid')),
+
+('Oil Change Service (Labor + Disposal)', 'Services', 150.00, 999, 4.9, 410, 'service-oil',
+ 'Professional oil change service at our partner service bays.',
+ 'Book a professional oil change at any Rainchem partner shop. Price covers labor and proper used-oil disposal.',
+ JSON_ARRAY('Duration: ~20-30 mins', 'Includes labor and eco disposal'),
+ JSON_ARRAY('Certified technicians at every partner bay'),
+ JSON_ARRAY('Bring your order confirmation and plate number')),
+
+('Radiator Flush & RadCool Service', 'Services', 250.00, 999, 4.8, 152, 'service-coolant',
+ 'Full radiator flush and RadCool refill service.',
+ 'We drain your old coolant, flush the system, and refill with RAIMOL RadCool to manufacturer-recommended levels.',
+ JSON_ARRAY('Duration: ~30-45 mins', 'Includes flush and 1L RadCool'),
+ JSON_ARRAY('Removes old, degraded coolant and built-up scale'),
+ JSON_ARRAY('Best done every 12 months or 10,000 km')),
+
+('RAIMOL Titanium Iridium Spark Plug', 'Accessories', 220.00, 175, 4.6, 64, 'spark-plug',
+ 'Iridium-tipped plug for improved ignition and fuel economy.',
+ 'A fine iridium center electrode gives a more consistent spark, smoother idle, and better fuel efficiency.',
+ JSON_ARRAY('Type: Iridium', 'Fits most 110cc-160cc engines'),
+ JSON_ARRAY('Finer iridium tip for a more consistent spark'),
+ JSON_ARRAY('Gap the plug to manufacturer spec before installing'));
+
+INSERT INTO knowledge_base (question, answer, category, status, hits) VALUES
+('How often should I change my motorcycle oil?', 'For fully synthetic oil, we recommend changing it every 3,000 km or 3 months, whichever comes first. For semi-synthetic oil, change it every 2,000 km. Riding mostly in stop-and-go traffic or hot weather can shorten this interval.', 'Oil & Maintenance', 'approved', 34),
+('How do I mix RadCool concentrate coolant?', 'RadCool Concentrate should be diluted 1:1 with distilled or de-ionized water before use, never tap water, since minerals can cause corrosion. We also carry RadCool Ready-To-Use if you prefer not to mix it yourself.', 'Coolant', 'approved', 27),
+('Can I mix RadCool with other brands of coolant?', 'We do not recommend mixing coolant brands. Different coolants use different corrosion-inhibitor chemistry, and mixing them can reduce protection or cause a gel-like precipitate to form. Fully flush the old coolant before switching.', 'Coolant', 'approved', 19),
+('What is the difference between fully synthetic and semi-synthetic oil?', 'Fully synthetic oil is chemically engineered for more consistent molecule size, giving better performance at high temperatures and longer intervals between changes. Semi-synthetic is a blend of synthetic and mineral oil, more affordable, and still solid for everyday commuting.', 'Oil & Maintenance', 'approved', 22),
+('How long does delivery take?', 'Metro Manila orders typically arrive within 1-2 business days. Provincial orders take 3-5 business days depending on the courier and location. You can track your order anytime from My Orders using your tracking number.', 'Orders & Shipping', 'approved', 41),
+('What payment methods do you accept?', 'We currently accept Cash on Delivery, GCash, and major debit or credit cards at checkout.', 'Orders & Shipping', 'approved', 30),
+('Do you offer installation or service for the products I buy?', 'Yes. Open the Services page, choose your area, and send a service request. The price and availability shown depend on your area. Our partner service bays handle installation.', 'Services', 'approved', 15),
+('Does RadCool coolant expire?', 'Unopened RadCool concentrate has a shelf life of about 3 years from the manufacture date. Once diluted and installed in a radiator, we recommend replacing it every 12 months or 10,000 km.', 'Coolant', 'pending', 4),
+('Can I use car engine oil in my motorcycle?', 'It is not recommended. Car oils often contain friction modifiers meant to save fuel, which can cause wet-clutch slippage in motorcycles. Always use a motorcycle-specific oil rated JASO MA or MA2.', 'Oil & Maintenance', 'pending', 6);
