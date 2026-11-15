@@ -56,7 +56,7 @@ class Product(db.Model):
         if sale is None:
             return {"onSale": False, "salePercent": 0, "salePrice": None, "saleEndsAt": None, "saleEndDate": None, "saleLabel": None}
         from app.services.pricing import unit_price_after_discount
-        from app.services.from datetime import datetime
+        from datetime import datetime
 from app.extensions import db
 
 
