@@ -28,7 +28,7 @@ export default function AuthModal() {
     return captchaEnabled() && !captchaToken;
   }
 
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(false);
   const { authModal, switchAuthMode, closeAuth } = useUI();
   const navigate = useNavigate();
   const { loginWithToken } = useAuth();

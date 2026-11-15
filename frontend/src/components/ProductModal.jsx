@@ -1,3 +1,4 @@
+import ProductFacts from "./ProductFacts";
 import QtyInput from "./QtyInput";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -54,8 +55,11 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
         </div>
         <div className="modal-body">
           <div className="pd-grid">
-            <div className="pd-visual">
-              <ProductVisual product={product} widthPercent={44} />
+            <div>
+              <div className="pd-visual">
+                <ProductVisual product={product} widthPercent={44} />
+              </div>
+              <ProductFacts product={product} />
             </div>
             <div>
               <span className="product-cat">{product.category}</span>
@@ -72,9 +76,6 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
               </span>
               <p style={{ marginTop: 14, color: "var(--muted)" }}>{product.description}</p>
 
-              <ul className="pd-specs">
-                {product.specs.map((s, i) => <li key={i}>{s}</li>)}
-              </ul>
 
               {product.benefits?.length > 0 && (
                 <div className="pd-extra">

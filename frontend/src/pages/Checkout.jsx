@@ -34,6 +34,44 @@ export default function Checkout() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [methods, setMethods] = useState({ "Cash on Delivery": true });
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [addressChoice, setAddressChoice] = useState("");
+
+  function pickAddress(a) {
+    setAddressChoice(String(a.id));
+    const line = [a.unit, [a.houseNumber, a.street].filter(Boolean).join(" "), a.subdivision, a.village, a.landmark]
+      .filter(Boolean).join(", ");
+    setForm((f) => ({
+      ...f, line1: line, city: a.city.name, province: (a.province && a.province.name) || a.region.name,
+      region: a.region.name, zip: a.zipCode || "",
+    }));
+  }
+
+  function chooseAddress(value) {
+    if (value === "new") {
+      setAddressChoice("new");
+      setForm((f) => ({ ...f, line1: "", city: "", province: "", region: "", zip: "" }));
+      return;
+    }
+    const found = savedAddresses.find((a) => String(a.id) === value);
+    if (found) pickAddress(found);
+  }
+
+  useEffect(() => {
+    let active = true;
+    Promise.resolve()
+      .then(() => client.get("/api/addresses"))
+      .then((res) => {
+        if (!active) return;
+        const list = res.data.addresses || [];
+        setSavedAddresses(list);
+        const chosen = list.find((a) => a.isDefault) || list[0];
+        if (chosen) pickAddress(chosen);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [demoMode, setDemoMode] = useState(false);
   const [duplicateOrder, setDuplicateOrder] = useState(null);
 
@@ -137,6 +175,16 @@ export default function Checkout() {
           </div>
           <div className="field"><label>Email Address</label><input required type="email" value={form.email} onChange={(e) => update("email", e.target.value)} /></div>
 
+          {savedAddresses.length > 0 && (
+            <div className="field">
+              <label htmlFor="ck-address">Deliver to</label>
+              <select id="ck-address" value={addressChoice} onChange={(e) => chooseAddress(e.target.value)}>
+                {savedAddresses.map((a) => <option key={a.id} value={a.id}>{a.label}: {a.formatted}</option>)}
+                <option value="new">Use a new address</option>
+              </select>
+              <p className="field-hint">Manage your saved addresses in My Account &gt; Addresses.</p>
+            </div>
+          )}
           <h4 style={{ margin: "18px 0 12px" }}>Delivery Address</h4>
           <div className="field"><label>Street Address</label><input required placeholder="House/Unit No., Street, Barangay" value={form.line1} onChange={(e) => update("line1", e.target.value)} /></div>
           <div className="field-row">

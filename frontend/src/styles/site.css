@@ -988,3 +988,16 @@ main, .container { max-width: 100%; box-sizing: border-box; }
   .product-bottom { flex-direction: column; align-items: stretch; }
 }
 @media (prefers-reduced-motion: reduce) { .skeleton-block, .skeleton-line { animation: none; } }
+
+/* Product modal: quick facts under the photo, so the left column is not empty */
+.pd-facts { margin-top: 14px; }
+.pd-facts dl { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.pd-fact-row { display: grid; grid-template-columns: 40% 60%; gap: 8px; padding: 9px 12px; border-top: 1px solid var(--line); font-size: 14px; }
+.pd-fact-row:first-child { border-top: 0; }
+.pd-fact-row dt { color: var(--muted); }
+.pd-fact-row dd { margin: 0; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.pd-more-btn { margin-top: 10px; width: 100%; padding: 9px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--red-700); font-weight: 700; cursor: pointer; }
+.pd-facts .pd-specs { margin-top: 10px; }
+/* Cart rows: keep Remove on one line and let the quantity row wrap cleanly */
+.remove-link { white-space: nowrap; }
+.qty-control { flex-wrap: wrap; }

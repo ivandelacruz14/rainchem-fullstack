@@ -1,9 +1,12 @@
+import { Navigate } from "react-router-dom";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import client from "../../api/client";
 import { peso } from "../../utils/format";
 
 export default function Overview() {
+  const { admin, can } = useAdminAuth();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -14,14 +17,21 @@ export default function Overview() {
       .catch((err) => {
         const status = err.response?.status;
         setError(
-          status === 401 || status === 403
+          status === 401
             ? "Your admin session has expired. Please log out and sign in again."
+            : status === 403
+              ? "You do not have access to this dashboard. Ask the Head Admin for the permissions you need."
             : status
               ? `The dashboard could not be loaded (server error ${status}). Check the backend logs on Render.`
               : "Could not reach the server. It may be waking up on Render's free tier - wait a few seconds and refresh."
         );
       });
   }, []);
+  const hasDashboard = admin?.isHead || ["orders", "manage_orders", "analytics", "products", "services", "customers", "chatbot", "livechat"].some((k) => can(k));
+  if (admin && !hasDashboard) {
+    if (can("deliveries")) return <Navigate to="/admin/rider" replace />;
+    return <div className="alert alert-info">Your account has no dashboard. Ask the Head Admin for the permissions you need.</div>;
+  }
 
   if (error) return <div className="alert alert-error">{error}</div>;
   if (!data) return <p style={{ color: "var(--soft)" }}>Loading dashboard...</p>;

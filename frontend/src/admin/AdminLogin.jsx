@@ -99,11 +99,11 @@ export default function AdminLogin() {
           <form onSubmit={sendPassword}>
             <div className="field">
               <label htmlFor="admin-email">Email</label>
-              <input id="admin-email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input id="admin-email" type="email" autoComplete="off" name="admin-login-email-field" required value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="field">
               <label htmlFor="admin-password">Password</label>
-              <PasswordInput id="admin-password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+              <PasswordInput id="admin-password" autoComplete="new-password" name="admin-login-password-field" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
             </div>
             <Turnstile ref={captchaRef} onToken={setCaptchaToken} />
             <button type="submit" className="btn btn-primary btn-block" disabled={busy}>{busy ? "Checking..." : "Next"}</button>
