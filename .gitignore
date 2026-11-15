@@ -30,3 +30,11 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+node_modules/
+requirements-local.txt

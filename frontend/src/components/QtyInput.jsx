@@ -44,6 +44,11 @@ export default function QtyInput({ value, onCommit, max = null, packSize = null 
           <option value="boxes">boxes</option>
         </select>
       )}
+      {canUseBoxes && (
+        <span className="field-hint" style={{ width: "100%", marginTop: 4 }}>
+          1 box = {Number(packSize)} pcs{unit === "boxes" ? ` (${value} pcs in total)` : ""}
+        </span>
+      )}
     </span>
   );
 }

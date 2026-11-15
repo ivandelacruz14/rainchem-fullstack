@@ -49,6 +49,11 @@ describe("quantity you can type", () => {
     expect(input.value).toBe("5");
   });
 
+  it("shows what one box holds when the product has a pack size", () => {
+    render(<QtyInput value={24} onCommit={() => {}} max={500} packSize={24} />);
+    expect(screen.getByText(/1 box = 24 pcs/)).toBeTruthy();
+  });
+
   it("hides the unit choice when the product has no pack size", () => {
     render(<QtyInput value={2} onCommit={() => {}} max={9} />);
     expect(screen.queryByLabelText("Unit")).toBeNull();
