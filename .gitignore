@@ -20,3 +20,13 @@ build/
 
 # Logs
 *.log
+requirements-local.txt
+history-report.json
+staged-report.json
+.venv/
+venv/
+node_modules/
+__pycache__/
+.env
+.env.*
+!.env.example
