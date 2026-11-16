@@ -1001,3 +1001,8 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 /* Cart rows: keep Remove on one line and let the quantity row wrap cleanly */
 .remove-link { white-space: nowrap; }
 .qty-control { flex-wrap: wrap; }
+
+/* Cart: select items to order or delete */
+.cart-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 8px; font-size: 13px; }
+.cart-bar label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.cart-item > input[type="checkbox"] { margin-top: 36px; flex-shrink: 0; width: 18px; height: 18px; }

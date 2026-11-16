@@ -16,7 +16,7 @@ const PAYMENT_OPTIONS = [
 
 export default function Checkout() {
   const { user } = useAuth();
-  const { lines, subtotal, savings, shipping, total, clearCart } = useCart();
+  const { selectedLines: lines, selSubtotal: subtotal, selSavings: savings, selShipping: shipping, selTotal: total, reloadCart } = useCart();
   const showToast = useToast();
   const navigate = useNavigate();
 
@@ -125,7 +125,7 @@ export default function Checkout() {
         paymentMethod: form.payment,
         confirmDuplicate,
       });
-      clearCart();
+      reloadCart();
 
       if (res.data.payPath) {
         // GCash / card: continue on our payment page (where the method can still be changed).

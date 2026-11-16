@@ -94,6 +94,12 @@ export function CartProvider({ children }) {
     } catch { /* the order already cleared what was bought */ }
   }
 
+  const reloadCart = useCallback(async () => {
+    try {
+      apply(await client.get("/api/cart"));
+    } catch { /* keep what is shown */ }
+  }, [apply]);
+
   const lines = items.map((line) => {
     const priced = priceLine(line.product.price, line.qty, line.product.salePercent);
     return {
@@ -113,9 +119,33 @@ export function CartProvider({ children }) {
   const shipping = computeShipping(subtotal, totalQty);
   const total = Math.round(subtotal * 100 + shipping * 100) / 100;
 
+  // Which lines are picked for ordering. Everything is picked unless it was unticked, so new items start picked.
+  const [excluded, setExcluded] = useState([]);
+  const isPicked = (productId) => !excluded.includes(productId);
+  const selectedLines = lines.filter((l) => isPicked(l.product.id));
+  const selSubtotal = selectedLines.reduce((sum, l) => sum + l.lineCents, 0) / 100;
+  const selQty = selectedLines.reduce((sum, l) => sum + l.qty, 0);
+  const selSavings = selectedLines.reduce((sum, l) => sum + (l.originalTotal - l.lineTotal), 0);
+  const selShipping = selectedLines.length ? computeShipping(selSubtotal, selQty) : 0;
+  const selTotal = Math.round(selSubtotal * 100 + selShipping * 100) / 100;
+  const toggleLine = (productId) => setExcluded((ex) => (ex.includes(productId) ? ex.filter((x) => x !== productId) : [...ex, productId]));
+  const setAllPicked = (on) => setExcluded(on ? [] : lines.map((l) => l.product.id));
+
+  async function removeMany(productIds) {
+    try {
+      apply(await client.post("/api/cart/remove", { productIds }));
+      setExcluded([]);
+    } catch (err) {
+      showToast(errorText(err, "Could not remove the selected items"), "error");
+    }
+  }
+
   return (
     <CartContext.Provider
-      value={{ items, lines, subtotal, totalQty, savings, shipping, total, addItem, changeQty, setQty, removeItem, clearCart }}
+      value={{
+        items, lines, subtotal, totalQty, savings, shipping, total, addItem, changeQty, setQty, removeItem, clearCart,
+        reloadCart, selectedLines, selSubtotal, selQty, selSavings, selShipping, selTotal, isPicked, toggleLine, setAllPicked, removeMany,
+      }}
     >
       {children}
     </CartContext.Provider>

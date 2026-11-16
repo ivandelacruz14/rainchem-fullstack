@@ -129,6 +129,19 @@ def remove_item(product_id):
     return jsonify(cart_payload(user_id))
 
 
+@cart_bp.post("/remove")
+@require_user
+def remove_items():
+    """Removes only the chosen products from the cart. Anything not in the list stays."""
+    user_id = current_user_id()
+    data = request.get_json() or {}
+    ids = [int(x) for x in data.get("productIds", []) if str(x).isdigit()]
+    if ids:
+        CartItem.query.filter(CartItem.user_id == user_id, CartItem.product_id.in_(ids)).delete(synchronize_session=False)
+        db.session.commit()
+    return jsonify(cart_payload(user_id))
+
+
 @cart_bp.delete("")
 @require_user
 def clear_cart():

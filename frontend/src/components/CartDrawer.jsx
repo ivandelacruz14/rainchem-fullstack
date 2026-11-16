@@ -1,3 +1,4 @@
+import { useState } from "react";
 import QtyInput from "./QtyInput";
 import { useNavigate } from "react-router-dom";
 import ProductVisual from "./ProductVisual";
@@ -7,7 +8,12 @@ import { useAuth } from "../context/AuthContext";
 import { useUI } from "../context/UIContext";
 
 export default function CartDrawer() {
-  const { lines, subtotal, totalQty, savings, shipping, changeQty, setQty, removeItem } = useCart();
+  const { lines, changeQty, setQty, removeItem, selectedLines, selSubtotal: subtotal, selQty: totalQty, selSavings: savings,
+    selShipping: shipping, isPicked, toggleLine, setAllPicked, removeMany } = useCart();
+  const [editing, setEditing] = useState(false);
+  const [deleteIds, setDeleteIds] = useState([]);
+  const allPicked = lines.length > 0 && lines.every((l) => isPicked(l.product.id));
+  const allToDelete = lines.length > 0 && deleteIds.length === lines.length;
   const { user } = useAuth();
   const { cartOpen, closeCart, requireLogin } = useUI();
   const navigate = useNavigate();
@@ -32,11 +38,33 @@ export default function CartDrawer() {
           <button className="modal-close" onClick={closeCart}>&times;</button>
         </div>
         <div className="drawer-body">
+          {lines.length > 0 && (
+            <div className="cart-bar">
+              {!editing ? (
+                <label><input type="checkbox" checked={allPicked} onChange={(e) => setAllPicked(e.target.checked)} /> Select all to order</label>
+              ) : (
+                <label><input type="checkbox" checked={allToDelete} onChange={(e) => setDeleteIds(e.target.checked ? lines.map((l) => l.product.id) : [])} /> Select all to delete</label>
+              )}
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => { setEditing((v) => !v); setDeleteIds([]); }}>{editing ? "Done" : "Edit"}</button>
+              {editing && (
+                <button type="button" className="btn btn-primary btn-sm" disabled={deleteIds.length === 0}
+                  onClick={async () => { await removeMany(deleteIds); setDeleteIds([]); setEditing(false); }}>
+                  Delete selected ({deleteIds.length})
+                </button>
+              )}
+            </div>
+          )}
           {lines.length === 0 ? (
             <div className="empty-state"><p>Your cart is empty.</p></div>
           ) : (
             lines.map((l) => (
               <div className="cart-item" key={l.product.id}>
+                {editing ? (
+                  <input type="checkbox" aria-label="Delete this item" checked={deleteIds.includes(l.product.id)}
+                    onChange={() => setDeleteIds((ids) => (ids.includes(l.product.id) ? ids.filter((x) => x !== l.product.id) : [...ids, l.product.id]))} />
+                ) : (
+                  <input type="checkbox" aria-label="Order this item" checked={isPicked(l.product.id)} onChange={() => toggleLine(l.product.id)} />
+                )}
                 <div className="thumb"><ProductVisual product={l.product} widthPercent={100} /></div>
                 <div style={{ flex: 1 }}>
                   <h5 style={{ margin: "0 0 4px", fontFamily: "var(--ff-display)", fontSize: 14 }}>{l.product.name}</h5>
@@ -75,7 +103,7 @@ export default function CartDrawer() {
                   ? <span style={{ color: "var(--ok-text)" }}>Free shipping applied</span>
                   : `Add ${peso(FREE_SHIPPING_SUBTOTAL - subtotal)} more or ${FREE_SHIPPING_QTY - totalQty} more items for free shipping`}
               </div>
-              <button className="btn btn-primary btn-block" style={{ marginTop: 10 }} onClick={handleCheckout}>Checkout</button>
+              <button className="btn btn-primary btn-block" style={{ marginTop: 10 }} disabled={selectedLines.length === 0} onClick={handleCheckout}>Checkout ({selectedLines.length} selected)</button>
             </>
           )}
         </div>

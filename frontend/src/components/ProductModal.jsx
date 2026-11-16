@@ -74,6 +74,32 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
               <span className={`stock-count ${product.stock < 20 ? "low" : ""}`} style={{ display: "block", marginTop: 4 }}>
                 {product.stock > 0 ? `${product.stock} units available` : "Out of stock"}
               </span>
+              {user ? (
+                <>
+                  <div className="pd-qty">
+                    <QtyInput value={qty} onCommit={setQty} max={product.stock} packSize={product.packSize} />
+                  </div>
+                  <p className="field-hint" style={{ marginTop: -8, marginBottom: 14 }}>
+                    {rate > 0
+                      ? <span style={{ color: "var(--ok-text)", fontWeight: 600 }}>{Math.round(rate * 100)}% {saleBeatsBulk ? "sale" : "bulk"} discount applied - {peso(discountedUnit)} per unit &middot; {peso(priced.lineTotal)} total</span>
+                      : qty < 20 ? `Buy ${nextTier - qty} more to unlock a bulk discount` : ""}
+                  </p>
+                  <div className="flex gap-12">
+                    <button className="btn btn-outline btn-block" disabled={product.stock === 0} onClick={handleAddToCart}>Add to Cart</button>
+                    <button className="btn btn-primary btn-block" disabled={product.stock === 0} onClick={handleBuyNow}>Buy Now</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="alert alert-info" style={{ marginTop: 16 }}>
+                    Log in or create a free account to add this item to your cart or buy it now.
+                  </div>
+                  <div className="flex gap-12">
+                    <button className="btn btn-outline btn-block" onClick={() => { onClose(); requireLogin("login", null, returnTo); }}>Log In</button>
+                    <button className="btn btn-primary btn-block" onClick={() => { onClose(); requireLogin("register", null, returnTo); }}>Create Account</button>
+                  </div>
+                </>
+              )}
               <p style={{ marginTop: 14, color: "var(--muted)" }}>{product.description}</p>
 
 
@@ -118,32 +144,6 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
                 </p>
               )}
 
-              {user ? (
-                <>
-                  <div className="pd-qty">
-                    <QtyInput value={qty} onCommit={setQty} max={product.stock} packSize={product.packSize} />
-                  </div>
-                  <p className="field-hint" style={{ marginTop: -8, marginBottom: 14 }}>
-                    {rate > 0
-                      ? <span style={{ color: "var(--ok-text)", fontWeight: 600 }}>{Math.round(rate * 100)}% {saleBeatsBulk ? "sale" : "bulk"} discount applied - {peso(discountedUnit)} per unit &middot; {peso(priced.lineTotal)} total</span>
-                      : qty < 20 ? `Buy ${nextTier - qty} more to unlock a bulk discount` : ""}
-                  </p>
-                  <div className="flex gap-12">
-                    <button className="btn btn-outline btn-block" disabled={product.stock === 0} onClick={handleAddToCart}>Add to Cart</button>
-                    <button className="btn btn-primary btn-block" disabled={product.stock === 0} onClick={handleBuyNow}>Buy Now</button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="alert alert-info" style={{ marginTop: 16 }}>
-                    Log in or create a free account to add this item to your cart or buy it now.
-                  </div>
-                  <div className="flex gap-12">
-                    <button className="btn btn-outline btn-block" onClick={() => { onClose(); requireLogin("login", null, returnTo); }}>Log In</button>
-                    <button className="btn btn-primary btn-block" onClick={() => { onClose(); requireLogin("register", null, returnTo); }}>Create Account</button>
-                  </div>
-                </>
-              )}
                     </div>
           </div>
 
