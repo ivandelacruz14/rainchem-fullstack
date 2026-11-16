@@ -369,16 +369,25 @@ def update_profile():
     user = User.query.get(current_user_id())
     data = request.get_json() or {}
 
-    name = (data.get("name") or "").strip()
-    phone = normalize_ph_mobile((data.get("phone") or "").strip()) or (data.get("phone") or "").strip()
-    age = data.get("age")
-    gender = (data.get("gender") or "").strip()
-
+    if any(k in data for k in ("firstName", "middleName", "lastName")):
+        first, middle, last, problems = clean_name_parts({
+            "firstName": data.get("firstName"), "middleName": data.get("middleName"), "lastName": data.get("lastName"),
+        })
+        if problems:
+            return jsonify({"error": problems[0]}), 400
+        user.first_name, user.middle_name, user.last_name = first, middle, last
+        name = " ".join(x for x in (first, middle, last) if x)[:120]
+    else:
+        name = (data.get("name") or "").strip()
     if not name:
         return jsonify({"error": "Name cannot be empty"}), 400
+
+    phone = normalize_ph_mobile((data.get("phone") or "").strip()) or (data.get("phone") or "").strip()
     if not is_valid_phone(phone):
         return jsonify({"error": "Please enter a valid contact number"}), 400
 
+    age = data.get("age")
+    gender = (data.get("gender") or "").strip()
     user.name = name
     user.phone = phone
     user.age = int(age) if age not in (None, "") else None

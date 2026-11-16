@@ -1061,3 +1061,63 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .checkout-summary { position: sticky; top: 16px; }
 .checkout-summary .cart-summary-row.total { font-size: 18px; }
 @media (max-width: 480px) { .checkout-item { grid-template-columns: 68px 1fr; } .checkout-item-total { grid-column: 2; } .checkout-item-thumb { width: 68px; height: 68px; } }
+
+/* ---------- My Account: sidebar + cards (customer) ---------- */
+.acct-page { padding: 0; background: var(--bg); }
+.acct-shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: calc(100vh - 70px); max-width: 1320px; margin: 0 auto; }
+.acct-side { background: var(--surface); border-right: 1px solid var(--line); padding: 24px 16px; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; }
+.acct-side-user { text-align: center; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.acct-side-avatar { width: 72px; height: 72px; margin: 0 auto 8px; border-radius: 50%; overflow: hidden; background: var(--red-700); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 26px; }
+.acct-side-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.acct-side-name { font-weight: 700; overflow-wrap: anywhere; }
+.acct-side-email { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.acct-nav { display: grid; gap: 4px; }
+.acct-nav a { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: var(--muted); font-weight: 600; font-size: 14px; text-decoration: none; }
+.acct-nav a:hover { background: var(--fog); color: var(--ink); }
+.acct-nav a.active { background: var(--red-700); color: #fff; }
+.acct-logout { margin-top: auto; display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 0; background: none; color: var(--red-700); font-weight: 700; cursor: pointer; border-top: 1px solid var(--line); padding-top: 16px; }
+.acct-main { padding: 28px 32px 48px; min-width: 0; }
+.acct-title { margin: 0; font-size: 26px; }
+.acct-subtitle { margin: 4px 0 22px; color: var(--muted); font-size: 14px; }
+.acct-subtitle-small { font-size: 13.5px; color: var(--muted); margin: 0 0 12px; }
+.acct-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); gap: 20px; align-items: start; }
+.acct-side-cards { display: grid; gap: 20px; }
+.acct-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; min-width: 0; }
+.acct-card-head { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; }
+.acct-card-head h3, .acct-card h3 { margin: 0; font-size: 17px; }
+.acct-card-head p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.acct-card-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--red-100); color: var(--red-700); display: inline-flex; align-items: center; justify-content: center; font-size: 18px; }
+.acct-photo-row { display: flex; gap: 18px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+.acct-photo { position: relative; width: 104px; height: 104px; border-radius: 50%; overflow: hidden; background: var(--red-700); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 800; border: 3px solid var(--red-700); flex-shrink: 0; }
+.acct-photo img { width: 100%; height: 100%; object-fit: cover; }
+.acct-photo-btn { position: absolute; right: 2px; bottom: 2px; width: 32px; height: 32px; border-radius: 50%; background: #111; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
+.acct-photo-hint { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
+.acct-outline-btn { display: inline-block; padding: 9px 16px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: none; text-align: center; width: fit-content; }
+.acct-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.acct-field-row.three { grid-template-columns: 1fr 1fr 1fr; }
+.acct-actions { margin-top: 6px; display: flex; justify-content: flex-end; }
+.acct-status-head { display: flex; gap: 12px; align-items: center; }
+.acct-status-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--red-100); color: var(--red-700); display: inline-flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; }
+.acct-status-badge { display: inline-block; margin-top: 4px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--line); color: var(--muted); }
+.acct-status-badge.ok { background: #e8f7ee; color: #15803d; }
+.acct-status-note { font-size: 13px; color: var(--muted); margin: 12px 0; }
+.acct-checks { list-style: none; margin: 0; padding: 0; }
+.acct-checks li { display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.acct-checks .tick { color: #15803d; font-weight: 800; }
+.acct-checks .cross { color: var(--muted); font-weight: 800; }
+.acct-address-box { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 14px; background: var(--fog); }
+.acct-address-box p { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.acct-address-tag { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--red-700); }
+.acct-empty { color: var(--muted); font-size: 14px; }
+.acct-email { max-width: 640px; }
+@media (max-width: 1080px) { .acct-grid { grid-template-columns: 1fr; } .acct-field-row.three { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 800px) {
+  .acct-shell { grid-template-columns: 1fr; }
+  .acct-side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 12px; }
+  .acct-side-user { display: none; }
+  .acct-nav { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
+  .acct-nav a { white-space: nowrap; }
+  .acct-logout { display: none; }
+  .acct-main { padding: 20px 14px 40px; }
+  .acct-field-row, .acct-field-row.three { grid-template-columns: 1fr; }
+}
