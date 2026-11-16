@@ -56,6 +56,8 @@ class Config:
 
     # Bulk and repeat-order rules. Boxes, not pesos. Defaults are placeholders: change them here or in the environment.
     PERSONAL_MAX_BOXES = int(os.getenv("PERSONAL_MAX_BOXES", "10"))
+    # Only these email providers can register. Temporary (disposable) addresses are refused separately.
+    ALLOWED_EMAIL_DOMAINS = ("gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "ntc.edu.ph")
     REGISTER_LIMIT_PER_HOUR = int(os.getenv("REGISTER_LIMIT_PER_HOUR", "20"))
     OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
     OTP_RESEND_COOLDOWN_SECONDS = int(os.getenv("OTP_RESEND_COOLDOWN_SECONDS", "60"))
@@ -88,6 +90,7 @@ class Config:
 
 
 class TestConfig(Config):
+    ALLOWED_EMAIL_DOMAINS = Config.ALLOWED_EMAIL_DOMAINS + ("example.com",)  # tests only
     TURNSTILE_SECRET_KEY = ""
     ADMIN_OTP_REQUIRED = False  # tests sign in with the password only; the OTP tests switch it on
     TESTING = True

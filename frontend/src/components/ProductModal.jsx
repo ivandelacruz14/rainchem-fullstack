@@ -74,6 +74,10 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
             <div>
               <span className="product-cat">{product.category}</span>
               <h2 style={{ margin: "6px 0 4px" }}>{product.name}</h2>
+              <div className="pd-price" aria-label="Price">
+                <span className="pd-price-now">{peso(product.onSale ? product.salePrice : product.price)}</span>
+                {product.onSale && <span className="pd-price-was">{peso(product.price)}</span>}
+              </div>
               {product.reviews > 0 ? (
                 <span className="product-rating">
                   <StarRating value={product.rating} size={14} /> {product.rating.toFixed(1)} &middot; {product.reviews} review{product.reviews === 1 ? "" : "s"}

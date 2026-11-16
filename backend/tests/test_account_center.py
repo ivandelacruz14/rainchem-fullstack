@@ -14,7 +14,7 @@ def google_style_user(email="gaccount@example.com"):
 
 def test_a_new_registration_already_chose_its_type(client, make_user):
     make_user()
-    client.post("/api/auth/register", json={"name": "Ana", "email": "ana@example.com", "phone": "09171234567", "password": PASSWORD})
+    client.post("/api/auth/register", json={"name": "Ana Reyes", "email": "ana@example.com", "phone": "09171234567", "password": PASSWORD})
     assert User.query.filter_by(email="ana@example.com").first().account_type_chosen is True
 
 

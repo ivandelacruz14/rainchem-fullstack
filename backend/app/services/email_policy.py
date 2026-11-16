@@ -18,3 +18,9 @@ def disposable_domains():
 def is_disposable_email(email):
     domain = (email or "").rsplit("@", 1)[-1].strip().lower()
     return domain in disposable_domains()
+
+
+def is_allowed_email(email, allowed_domains):
+    """The domain must be one of the approved providers, and must not be a temporary address."""
+    domain = (email or "").rsplit("@", 1)[-1].strip().lower()
+    return domain in {d.lower() for d in allowed_domains} and not is_disposable_email(email)

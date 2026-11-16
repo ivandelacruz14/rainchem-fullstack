@@ -102,7 +102,8 @@ export default function AuthModal() {
     try {
       const res = await client.post("/api/auth/register", {
         captchaToken,
-        name: form.name, email: form.email, phone: form.phone, password: form.password,
+        firstName: form.firstName || "", middleName: form.middleName || "", lastName: form.lastName || "",
+        email: form.email, phone: form.phone, password: form.password,
         accountType: form.accountType || "personal", businessName: form.businessName || "", tin: form.tin || "",
       });
       setPendingEmail(res.data.email);
@@ -213,8 +214,16 @@ export default function AuthModal() {
           {mode === "register" && (
             <form onSubmit={handleRegister}>
               <div className="field">
-                <label>Full Name</label>
-                <input required value={form.name || ""} onChange={(e) => update("name", e.target.value)} />
+                <label htmlFor="reg-first">First Name *</label>
+                <input id="reg-first" required maxLength={60} autoComplete="given-name" value={form.firstName || ""} onChange={(e) => update("firstName", e.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="reg-middle">Middle Name (optional)</label>
+                <input id="reg-middle" maxLength={60} autoComplete="additional-name" value={form.middleName || ""} onChange={(e) => update("middleName", e.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="reg-last">Last Name *</label>
+                <input id="reg-last" required maxLength={60} autoComplete="family-name" value={form.lastName || ""} onChange={(e) => update("lastName", e.target.value)} />
               </div>
               <div className="field">
                 <label>Account Type</label>

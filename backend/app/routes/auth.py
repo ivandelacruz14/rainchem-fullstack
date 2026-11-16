@@ -10,9 +10,9 @@ from app.services.auth_utils import (
     generate_verification_code, generate_reset_token,
 )
 from app.services import captcha
-from app.services.email_policy import is_disposable_email
+from app.services.email_policy import is_allowed_email
 from app.services.ratelimit import allow
-from app.services.auth_utils import normalize_ph_mobile
+from app.services.auth_utils import normalize_ph_mobile, clean_name_parts
 import hmac
 from flask import current_app
 from app.services.email_service import send_email
@@ -60,7 +60,8 @@ def register():
     except captcha.CaptchaError as error:
         return jsonify({"error": str(error)}), error.status
     data = request.get_json() or {}
-    name = (data.get("name") or "").strip()
+    first_name, middle_name, last_name, name_problems = clean_name_parts(data)
+    name = " ".join(x for x in (first_name, middle_name, last_name) if x)[:120]
     email = (data.get("email") or "").strip().lower()
     phone = normalize_ph_mobile((data.get("phone") or "").strip()) or (data.get("phone") or "").strip()
     password = data.get("password") or ""
@@ -73,10 +74,9 @@ def register():
         errors.append("Choose a Personal or Business account")
     if account_type == "business" and not business_name:
         errors.append("Enter your business name")
-    if not name:
-        errors.append("Please enter your full name")
-    if email and is_valid_email(email) and is_disposable_email(email):
-        errors.append("Temporary email addresses are not allowed. Please use your real email.")
+    errors.extend(name_problems)
+    if email and is_valid_email(email) and not is_allowed_email(email, current_app.config["ALLOWED_EMAIL_DOMAINS"]):
+        errors.append("Please use a Gmail, Yahoo, Outlook, Hotmail, or NTC email address. Temporary email addresses are not allowed.")
     if not is_valid_email(email):
         errors.append("Please enter a valid email address")
 
@@ -106,6 +106,7 @@ def register():
             name=name, email=email, phone=phone,
             password_hash=generate_password_hash(password), verified=False,
             account_type=account_type, business_name=business_name or None, tin=tin, account_type_chosen=True,
+            first_name=first_name, middle_name=middle_name, last_name=last_name,
         )
         db.session.add(user)
         db.session.commit()

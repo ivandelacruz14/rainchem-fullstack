@@ -1010,3 +1010,8 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 /* Product modal: the photo and its facts stay in view while the details on the right scroll */
 .pd-grid > div:first-child { position: sticky; top: 0; align-self: start; }
 @media (max-width: 760px) { .pd-grid > div:first-child { position: static; } }
+
+/* Product details: the price sits directly under the name */
+.pd-price { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 6px 0 10px; }
+.pd-price-now { font-size: 30px; font-weight: 800; color: var(--red-700); }
+.pd-price-was { font-size: 16px; color: var(--muted); text-decoration: line-through; }

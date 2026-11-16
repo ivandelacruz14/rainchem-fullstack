@@ -7,6 +7,9 @@ class User(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
+    first_name = db.Column(db.String(60), nullable=True)
+    middle_name = db.Column(db.String(60), nullable=True)
+    last_name = db.Column(db.String(60), nullable=True)
     email = db.Column(db.String(180), nullable=False, unique=True)
     password_hash = db.Column(db.String(255), nullable=True)
     google_id = db.Column(db.String(120), nullable=True, unique=True)
@@ -38,6 +41,9 @@ class User(db.Model):
             "avatarPhoto": self.avatar_photo,
             "id": self.id,
             "name": self.name,
+            "firstName": self.first_name,
+            "middleName": self.middle_name,
+            "lastName": self.last_name,
             "email": self.email,
             "accountType": self.account_type,
             "businessName": self.business_name,

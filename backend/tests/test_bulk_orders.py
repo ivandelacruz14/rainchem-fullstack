@@ -103,7 +103,7 @@ def test_a_different_order_is_not_a_duplicate(client, make_user, user_login, mak
 
 def test_registration_remembers_the_account_type(client, make_user):
     make_user()
-    client.post("/api/auth/register", json={"name": "Juan", "email": "juan@example.com", "phone": "09171234567",
+    client.post("/api/auth/register", json={"name": "Juan Santos", "email": "juan@example.com", "phone": "09171234567",
                                              "password": PASSWORD, "accountType": "business", "businessName": "Juan Hardware"})
     u = User.query.filter_by(email="juan@example.com").first()
     assert u.account_type == "business" and u.business_name == "Juan Hardware" and u.business_verified is False
@@ -118,7 +118,7 @@ def test_a_business_signup_needs_a_business_name(client, make_user):
 
 def test_a_personal_signup_is_the_default(client, make_user):
     make_user()
-    client.post("/api/auth/register", json={"name": "Ana", "email": "ana@example.com", "phone": "09171234567", "password": PASSWORD})
+    client.post("/api/auth/register", json={"name": "Ana Reyes", "email": "ana@example.com", "phone": "09171234567", "password": PASSWORD})
     assert User.query.filter_by(email="ana@example.com").first().account_type == "personal"
 
 
