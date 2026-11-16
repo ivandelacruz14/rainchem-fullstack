@@ -1,3 +1,5 @@
+import CheckoutItem from "../components/CheckoutItem";
+import ProductModal from "../components/ProductModal";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import client from "../api/client";
@@ -74,6 +76,7 @@ export default function Checkout() {
   }, []);
   const [demoMode, setDemoMode] = useState(false);
   const [duplicateOrder, setDuplicateOrder] = useState(null);
+  const [viewing, setViewing] = useState(null);
 
   // Same rule as the server: 100 boxes or more is a bulk order, and bulk orders are paid in advance.
   const totalBoxes = lines.reduce((sum, l) => sum + Math.ceil(l.qty / (Number(l.product.packSize) || 1)), 0);
@@ -168,7 +171,7 @@ export default function Checkout() {
       )}
       <form onSubmit={handleSubmit} className="two-col" style={{ gridTemplateColumns: "1.2fr 0.8fr", gap: 26 }}>
         <div>
-          <h4 style={{ marginBottom: 12 }}>Customer Information</h4>
+          <h4 style={{ marginBottom: 12 }}><span className="step-badge">1</span> Customer Information</h4>
           <div className="field-row">
             <div className="field"><label>Full Name</label><input required value={form.name} onChange={(e) => update("name", e.target.value)} /></div>
             <div className="field"><label>Contact Number</label><input required placeholder="09xx xxx xxxx" value={form.phone} onChange={(e) => update("phone", e.target.value)} /></div>
@@ -185,7 +188,7 @@ export default function Checkout() {
               <p className="field-hint">Manage your saved addresses in My Account &gt; Addresses.</p>
             </div>
           )}
-          <h4 style={{ margin: "18px 0 12px" }}>Delivery Address</h4>
+          <h4 style={{ margin: "18px 0 12px" }}><span className="step-badge">2</span> Delivery Address</h4>
           <div className="field"><label>Street Address</label><input required placeholder="House/Unit No., Street, Barangay" value={form.line1} onChange={(e) => update("line1", e.target.value)} /></div>
           <div className="field-row">
             <div className="field"><label>City / Municipality</label><input required value={form.city} onChange={(e) => update("city", e.target.value)} /></div>
@@ -217,7 +220,7 @@ export default function Checkout() {
               onConfirm={() => { setDuplicateOrder(null); placeOrder(true); }}
             />
           )}
-          <h4 style={{ margin: "18px 0 12px" }}>Payment Method</h4>
+          <h4 style={{ margin: "18px 0 12px" }}><span className="step-badge">3</span> Payment Method</h4>
           <div className="pay-options">
             {PAYMENT_OPTIONS.map((opt) => {
               const available = opt.value === "Cash on Delivery" ? !bulk : methods[opt.value] === true;
@@ -240,15 +243,10 @@ export default function Checkout() {
           </div>
         </div>
 
-        <div className="panel">
+        <div className="panel checkout-summary">
           <h4 style={{ marginBottom: 12 }}>Order Summary</h4>
-          <div style={{ maxHeight: 220, overflowY: "auto" }}>
-            {lines.map((l) => (
-              <div className="cart-summary-row" key={l.product.id}>
-                <span>{l.product.name} x {l.qty}{l.discountRate > 0 && <span style={{ color: "var(--ok-text)" }}> (-{Math.round(l.discountRate * 100)}%)</span>}</span>
-                <span>{peso(l.lineTotal)}</span>
-              </div>
-            ))}
+          <div className="checkout-items">
+            {lines.map((l) => <CheckoutItem key={l.product.id} line={l} onOpen={setViewing} />)}
           </div>
           {savings > 0 && (
             <div className="cart-summary-row" style={{ color: "var(--ok-text)", fontWeight: 600, marginTop: 10 }}>
@@ -266,6 +264,7 @@ export default function Checkout() {
           </p>
         </div>
       </form>
+      {viewing && <ProductModal product={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }
