@@ -145,6 +145,7 @@ export function CartProvider({ children }) {
       value={{
         items, lines, subtotal, totalQty, savings, shipping, total, addItem, changeQty, setQty, removeItem, clearCart,
         reloadCart, selectedLines, selSubtotal, selQty, selSavings, selShipping, selTotal, isPicked, toggleLine, setAllPicked, removeMany,
+        setExcludedIds: setExcluded,
       }}
     >
       {children}

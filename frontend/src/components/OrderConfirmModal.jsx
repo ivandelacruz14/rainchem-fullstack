@@ -1,21 +1,23 @@
 import { useEffect, useState } from "react";
 import client from "../api/client";
-import QtyInput from "./QtyInput";
 import ProductVisual from "./ProductVisual";
 import { peso } from "../utils/format";
 import { priceLine } from "../utils/pricing";
 
-/**
- * Confirms a purchase before anything is added or ordered. Shows the product, the actual unit price, the quantity
- * (limited to stock), the subtotal, and, for Buy Now, the delivery address and payment step.
- */
 export default function OrderConfirmModal({ product, initialQty = 1, mode = "cart", busy = false, onCancel, onConfirm }) {
-  const [qty, setQty] = useState(initialQty);
+  const [qty, setQty] = useState(initialQty); // always in pieces
+  const [unit, setUnit] = useState("pcs");
   const [address, setAddress] = useState(null);
   const stock = Number(product.stock) || 0;
+  const packSize = Number(product.packSize) || 0;
+  const canUseBoxes = packSize > 1;
+  const perUnit = unit === "boxes" && canUseBoxes ? packSize : 1;
+  const shown = Math.max(1, Math.round(qty / perUnit));
+  const maxShown = Math.max(1, Math.floor((stock || 1) / perUnit));
   const priced = priceLine(product.price, qty, product.salePercent);
   const isBuy = mode === "buy";
   const discounted = priced.rate > 0;
+  const unitLabel = perUnit === 1 ? "pcs" : shown === 1 ? "box" : "boxes";
 
   useEffect(() => {
     if (!isBuy) return;
@@ -26,6 +28,11 @@ export default function OrderConfirmModal({ product, initialQty = 1, mode = "car
       })
       .catch(() => {});
   }, [isBuy]);
+
+  function setShown(n) {
+    const value = Math.min(Math.max(1, n), maxShown);
+    setQty(value * perUnit);
+  }
 
   return (
     <div className="overlay confirm-overlay" onClick={(e) => { e.stopPropagation(); onCancel(); }}>
@@ -52,10 +59,23 @@ export default function OrderConfirmModal({ product, initialQty = 1, mode = "car
             </div>
           </div>
 
-          <div className="field">
-            <label>Quantity{stock ? ` (${stock} available)` : ""}</label>
-            <QtyInput value={qty} onCommit={setQty} max={stock || null} packSize={product.packSize} />
+          <div className="confirm-qty">
+            <span className="confirm-qty-label">Quantity{stock ? ` · ${stock} available` : ""}</span>
+            <div className="qty-stepper">
+              <button type="button" aria-label="Decrease" onClick={() => setShown(shown - 1)} disabled={shown <= 1}>−</button>
+              <span className="qty-stepper-value" aria-live="polite">{shown} {unitLabel}</span>
+              <button type="button" aria-label="Increase" onClick={() => setShown(shown + 1)} disabled={shown >= maxShown}>+</button>
+            </div>
           </div>
+          {canUseBoxes && (
+            <div className="confirm-qty">
+              <div className="unit-toggle" role="group" aria-label="Count in">
+                <button type="button" className={unit === "pcs" ? "active" : ""} onClick={() => { setUnit("pcs"); setQty(shown); }}>Pieces</button>
+                <button type="button" className={unit === "boxes" ? "active" : ""} onClick={() => { setUnit("boxes"); setQty(shown * packSize); }}>Boxes</button>
+              </div>
+              <span className="field-hint">1 box = {packSize} pcs · total {qty} pcs</span>
+            </div>
+          )}
 
           <div className="confirm-row confirm-subtotal">
             <span>Subtotal</span>

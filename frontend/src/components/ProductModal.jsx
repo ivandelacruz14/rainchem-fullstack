@@ -17,7 +17,7 @@ import StarRating from "./reviews/StarRating";
 
 export default function ProductModal({ product, onClose, allProducts = [], onSelectProduct }) {
   const { user } = useAuth();
-  const { addItem } = useCart();
+  const { addItem, lines, setExcludedIds } = useCart();
   const showToast = useToast();
   const navigate = useNavigate();
   const { requireLogin } = useUI();
@@ -51,9 +51,12 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
     setConfirmBusy(true);
     try {
       const buying = confirming === "buy";
+      // Buy Now must order only this product: every other cart line is unticked for this checkout.
+      const others = lines.filter((l) => l.product.id !== product.id).map((l) => l.product.id);
       if (await addItem(product, pieces)) {
         setConfirming(null);
         if (buying) {
+          setExcludedIds(others);
           onClose();
           navigate("/checkout");
         } else {
