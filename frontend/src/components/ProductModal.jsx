@@ -17,7 +17,7 @@ import StarRating from "./reviews/StarRating";
 
 export default function ProductModal({ product, onClose, allProducts = [], onSelectProduct }) {
   const { user } = useAuth();
-  const { addItem, lines, setExcludedIds } = useCart();
+  const { addItem, startDirect } = useCart();
   const showToast = useToast();
   const navigate = useNavigate();
   const { requireLogin } = useUI();
@@ -45,24 +45,22 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
     setConfirming("buy");
   }
 
-  // Runs only after the customer confirms in the dialog. A second click while it runs is ignored.
+  // Runs only after the customer confirms in the dialog. Buy Now is its own purchase and never changes the cart.
   async function confirmPurchase(pieces) {
     if (confirmBusy) return;
+    if (confirming === "buy") {
+      startDirect(product, pieces);
+      setConfirming(null);
+      onClose();
+      navigate("/checkout");
+      return;
+    }
     setConfirmBusy(true);
     try {
-      const buying = confirming === "buy";
-      // Buy Now must order only this product: every other cart line is unticked for this checkout.
-      const others = lines.filter((l) => l.product.id !== product.id).map((l) => l.product.id);
       if (await addItem(product, pieces)) {
         setConfirming(null);
-        if (buying) {
-          setExcludedIds(others);
-          onClose();
-          navigate("/checkout");
-        } else {
-          showToast("Added to cart", "success");
-          onClose();
-        }
+        showToast("Added to cart", "success");
+        onClose();
       }
     } finally {
       setConfirmBusy(false);

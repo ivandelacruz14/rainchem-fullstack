@@ -164,10 +164,12 @@ def create_order():
         user.address_zip = address.get("zip", user.address_zip)
         user.phone = customer.get("phone", user.phone)
 
-    CartItem.query.filter(
-        CartItem.user_id == current_user_id(),
-        CartItem.product_id.in_([line["product"].id for line in line_items]),
-    ).delete(synchronize_session=False)
+    # A Buy Now order (direct) is separate from the cart, so the cart is left exactly as it is.
+    if not data.get("direct"):
+        CartItem.query.filter(
+            CartItem.user_id == current_user_id(),
+            CartItem.product_id.in_([line["product"].id for line in line_items]),
+        ).delete(synchronize_session=False)
 
     db.session.commit()
 

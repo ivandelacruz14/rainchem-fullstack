@@ -5,7 +5,7 @@ import { peso } from "../utils/format";
 
 /** One item on the checkout page: photo, name (opens the product details), key facts, quantity, and line total. */
 export default function CheckoutItem({ line, onOpen }) {
-  const { setQty, removeItem } = useCart();
+  const { setQty, removeItem, isDirect, setDirectQty, clearDirect } = useCart();
   const p = line.product;
   const each = line.qty ? line.lineTotal / line.qty : 0;
   const packSize = Number(p.packSize) || 0;
@@ -29,8 +29,8 @@ export default function CheckoutItem({ line, onOpen }) {
           {discounted && <s className="checkout-item-was">{peso(p.price)}</s>}
         </div>
         <div className="checkout-item-controls">
-          <QtyInput value={line.qty} onCommit={(pcs) => setQty(p.id, pcs)} max={Number(p.stock) || null} packSize={p.packSize} />
-          <button type="button" className="checkout-item-remove" onClick={() => removeItem(p.id)}>Remove</button>
+          <QtyInput value={line.qty} onCommit={(pcs) => (isDirect ? setDirectQty(pcs) : setQty(p.id, pcs))} max={Number(p.stock) || null} packSize={p.packSize} />
+          <button type="button" className="checkout-item-remove" onClick={() => (isDirect ? clearDirect() : removeItem(p.id))}>Remove</button>
         </div>
       </div>
       <div className="checkout-item-total">{peso(line.lineTotal)}</div>

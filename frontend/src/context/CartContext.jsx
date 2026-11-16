@@ -121,8 +121,24 @@ export function CartProvider({ children }) {
 
   // Which lines are picked for ordering. Everything is picked unless it was unticked, so new items start picked.
   const [excluded, setExcluded] = useState([]);
+  // Buy Now is kept apart from the cart. It survives a page refresh within the same tab.
+  const [directItem, setDirectItem] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem("rainchem_direct") || "null"); } catch { return null; }
+  });
+  useEffect(() => {
+    if (directItem) sessionStorage.setItem("rainchem_direct", JSON.stringify(directItem));
+    else sessionStorage.removeItem("rainchem_direct");
+  }, [directItem]);
+  const startDirect = (product, pieces) => setDirectItem({ product, qty: Math.max(1, pieces) });
+  const setDirectQty = (pieces) => setDirectItem((d) => (d ? { ...d, qty: Math.max(1, pieces) } : d));
+  const clearDirect = () => setDirectItem(null);
   const isPicked = (productId) => !excluded.includes(productId);
-  const selectedLines = lines.filter((l) => isPicked(l.product.id));
+  const directLine = directItem ? (() => {
+    const priced = priceLine(directItem.product.price, directItem.qty, directItem.product.salePercent);
+    return { product: directItem.product, qty: directItem.qty, lineCents: priced.lineCents, lineTotal: priced.lineTotal,
+      originalTotal: priced.originalTotal, discountRate: priced.rate };
+  })() : null;
+  const selectedLines = directLine ? [directLine] : lines.filter((l) => isPicked(l.product.id));
   const selSubtotal = selectedLines.reduce((sum, l) => sum + l.lineCents, 0) / 100;
   const selQty = selectedLines.reduce((sum, l) => sum + l.qty, 0);
   const selSavings = selectedLines.reduce((sum, l) => sum + (l.originalTotal - l.lineTotal), 0);
@@ -145,7 +161,7 @@ export function CartProvider({ children }) {
       value={{
         items, lines, subtotal, totalQty, savings, shipping, total, addItem, changeQty, setQty, removeItem, clearCart,
         reloadCart, selectedLines, selSubtotal, selQty, selSavings, selShipping, selTotal, isPicked, toggleLine, setAllPicked, removeMany,
-        setExcludedIds: setExcluded,
+        setExcludedIds: setExcluded, startDirect, setDirectQty, clearDirect, isDirect: Boolean(directItem),
       }}
     >
       {children}

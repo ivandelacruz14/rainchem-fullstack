@@ -18,7 +18,7 @@ const PAYMENT_OPTIONS = [
 
 export default function Checkout() {
   const { user } = useAuth();
-  const { selectedLines: lines, selSubtotal: subtotal, selSavings: savings, selShipping: shipping, selTotal: total, reloadCart } = useCart();
+  const { selectedLines: lines, selSubtotal: subtotal, selSavings: savings, selShipping: shipping, selTotal: total, reloadCart, isDirect, clearDirect } = useCart();
   const showToast = useToast();
   const navigate = useNavigate();
 
@@ -127,8 +127,10 @@ export default function Checkout() {
         address: { line1: form.line1, city: form.city, province: form.province, region: form.region, zip: form.zip },
         paymentMethod: form.payment,
         confirmDuplicate,
+        direct: isDirect,
       });
       reloadCart();
+      if (isDirect) clearDirect();
 
       if (res.data.payPath) {
         // GCash / card: continue on our payment page (where the method can still be changed).
