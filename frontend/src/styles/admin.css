@@ -308,3 +308,12 @@ tr.row-flag td { background: var(--bad-bg); }
 .import-pick input[type="file"] { max-width: 100%; font-size: 13px; }
 .import-errors { margin: 0 0 8px; padding-left: 18px; font-size: 13px; color: var(--muted); max-height: 180px; overflow-y: auto; }
 .import-pill { margin-left: 6px; font-size: 10px; background: var(--info-bg); color: var(--info-fg); }
+
+/* Admin sidebar: named groups that collapse with an arrow */
+.admin-nav-group-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; background: none; border: 0; cursor: pointer; text-align: left; font: inherit; }
+.admin-nav-chevron { display: inline-block; transition: transform 0.2s ease; font-size: 12px; }
+.admin-nav-chevron:not(.open) { transform: rotate(-90deg); }
+.admin-nav-section + .admin-nav-section { margin-top: 6px; }
+/* New-order alert at the top of the console */
+.admin-alert { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 16px; padding: 12px 16px; border-radius: 10px; background: rgba(224, 49, 69, 0.14); border: 1px solid var(--red-700); color: var(--ink); }
+.admin-alert-link { margin-left: auto; color: var(--red-700); font-weight: 700; text-decoration: underline; }

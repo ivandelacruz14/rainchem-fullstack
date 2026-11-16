@@ -50,6 +50,7 @@ import MyAccount from "./admin/pages/MyAccount";
 import SalesRecords from "./admin/pages/SalesRecords";
 import RiderDeliveries from "./admin/pages/RiderDeliveries";
 import OverviewHub from "./admin/pages/OverviewHub";
+import RiderRoute from "./admin/RiderRoute";
 import InventoryAlerts from "./admin/pages/InventoryAlerts";
 import ProductKnowledge from "./admin/pages/ProductKnowledge";
 import LiveChat from "./admin/pages/LiveChat";
@@ -121,7 +122,7 @@ export default function App() {
                     <Route path="services" element={<PermissionRoute permission="services"><AdminServices /></PermissionRoute>} />
                     <Route path="account" element={<MyAccount />} />
                     <Route path="sales-records" element={<PermissionRoute permission="analytics"><SalesRecords /></PermissionRoute>} />
-                    <Route path="rider" element={<PermissionRoute permission="deliveries"><RiderDeliveries /></PermissionRoute>} />
+                    <Route path="rider" element={<RiderRoute><RiderDeliveries /></RiderRoute>} />
                     <Route path="inventory" element={<PermissionRoute permission="products"><InventoryAlerts /></PermissionRoute>} />
                     <Route path="product-knowledge" element={<PermissionRoute permission="chatbot"><ProductKnowledge /></PermissionRoute>} />
                     <Route path="live-chat" element={<PermissionRoute permission="livechat"><LiveChat /></PermissionRoute>} />

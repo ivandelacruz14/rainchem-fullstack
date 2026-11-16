@@ -29,7 +29,7 @@ export default function Overview() {
   }, []);
   const hasDashboard = admin?.isHead || ["orders", "manage_orders", "analytics", "products", "services", "customers", "chatbot", "livechat"].some((k) => can(k));
   if (admin && !hasDashboard) {
-    if (can("deliveries")) return <Navigate to="/admin/rider" replace />;
+    if (admin?.role === "Rider") return <Navigate to="/admin/rider" replace />;
     return <div className="alert alert-info">Your account has no dashboard. Ask the Head Admin for the permissions you need.</div>;
   }
 

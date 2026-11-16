@@ -14,7 +14,7 @@ const NAV_ITEMS = [
       { to: "/admin/approvals", label: "Approvals", permission: "products", badge: true },
       { to: "/admin/sales", label: "Sales & Discounts", permission: "products" },
       { to: "/admin/services", label: "Services", permission: "services" },
-      { to: "/admin/orders", label: "Orders", permission: "orders" },
+      { to: "/admin/orders", label: "Orders", permission: "orders", ordersBadge: true },
       { to: "/admin/users", label: "Users", permission: "customers" },
       { to: "/admin/sales-records", label: "Sales Records", permission: "analytics" },
       { to: "/admin/analytics", label: "Sales Analytics", permission: "analytics" },
@@ -48,6 +48,8 @@ export default function AdminLayout() {
   const [pending, setPending] = useState(0);
   const [liveUnread, setLiveUnread] = useState(0);
   const [alerts, setAlerts] = useState(0);
+  const [ordersWaiting, setOrdersWaiting] = useState(0);
+  const [openGroups, setOpenGroups] = useState({});
 
   useEffect(() => {
     if (!admin || !can("products")) return undefined;
@@ -73,6 +75,18 @@ export default function AdminLayout() {
     load();
     window.addEventListener("rainchem:approvals-changed", load);
     return () => window.removeEventListener("rainchem:approvals-changed", load);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [admin?.id, pathname]);
+
+  useEffect(() => {
+    if (!admin || !can("orders") || admin.role === "Rider") return undefined;
+    const load = () => {
+      if (document.visibilityState === "hidden") return;
+      client.get("/api/admin/orders/attention-count").then((res) => setOrdersWaiting(res.data.count)).catch(() => {});
+    };
+    load();
+    const timer = setInterval(load, 15000);
+    return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [admin?.id, pathname]);
 
@@ -106,15 +120,21 @@ export default function AdminLayout() {
         {NAV_ITEMS.map((section) => {
           const links = section.links.filter(allowed);
           if (links.length === 0) return null;
+          const open = openGroups[section.group] !== false;
           return (
-            <div key={section.group}>
-              <div className="admin-nav-group">{section.group}</div>
-              {links.map((link) => (
+            <div className="admin-nav-section" key={section.group}>
+              <button type="button" className="admin-nav-group admin-nav-group-btn" aria-expanded={open}
+                onClick={() => setOpenGroups((g) => ({ ...g, [section.group]: !open }))}>
+                <span>{section.group}</span>
+                <span className={`admin-nav-chevron ${open ? "open" : ""}`} aria-hidden="true">&#9662;</span>
+              </button>
+              {open && links.map((link) => (
                 <NavLink
                   key={link.to} to={link.to} end={link.end}
                   className={({ isActive }) => `admin-nav-link ${isActive ? "active" : ""}`}
                 >
                   {link.label}
+                  {link.ordersBadge && ordersWaiting > 0 && <span className="nav-badge">{ordersWaiting}</span>}
                   {link.badge && pending > 0 && <span className="nav-badge">{pending}</span>}
                   {link.liveBadge && liveUnread > 0 && <span className="nav-badge">{liveUnread}</span>}
                   {link.inventoryBadge && alerts > 0 && <span className="nav-badge">{alerts}</span>}
@@ -137,6 +157,12 @@ export default function AdminLayout() {
       </aside>
 
       <main className="admin-main">
+        {ordersWaiting > 0 && (
+          <div className="admin-alert" role="alert">
+            <strong>{ordersWaiting} new order{ordersWaiting === 1 ? "" : "s"} waiting for your confirmation.</strong>
+            <NavLink to="/admin/orders" className="admin-alert-link">Review now</NavLink>
+          </div>
+        )}
         <Outlet />
       </main>
 

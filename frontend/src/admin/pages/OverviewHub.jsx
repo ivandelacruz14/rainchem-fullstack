@@ -9,7 +9,7 @@ const DASHBOARD_PERMISSIONS = ["orders", "manage_orders", "analytics", "products
 export default function OverviewHub() {
   const { admin, can } = useAdminAuth();
   const hasDashboard = Boolean(admin?.isHead) || DASHBOARD_PERMISSIONS.some((k) => can(k));
-  const hasDeliveries = can("deliveries");
+  const hasDeliveries = admin?.role === "Rider" && can("deliveries");
   const tabs = [
     ...(hasDashboard ? [["dashboard", "Dashboard"]] : []),
     ...(hasDeliveries ? [["deliveries", "My Deliveries"]] : []),

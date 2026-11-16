@@ -297,3 +297,12 @@ def delivery_proof(order_id):
         "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "default-src 'none'; sandbox"})
 
+
+@admin_orders_bp.get("/attention-count")
+@require_permission("orders")
+def attention_count():
+    """Orders waiting for confirmation, and online payments waiting for verification. Used for the admin alert."""
+    waiting = Order.query.filter(Order.status == "pending_confirmation").count()
+    verifying = Order.query.filter(Order.payment_status == "verifying").count()
+    return jsonify({"count": waiting, "verifying": verifying})
+
