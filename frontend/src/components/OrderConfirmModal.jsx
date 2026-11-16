@@ -17,7 +17,6 @@ export default function OrderConfirmModal({ product, initialQty = 1, mode = "car
   const priced = priceLine(product.price, qty, product.salePercent);
   const isBuy = mode === "buy";
   const discounted = priced.rate > 0;
-  const unitLabel = perUnit === 1 ? "pcs" : shown === 1 ? "box" : "boxes";
 
   useEffect(() => {
     if (!isBuy) return;
@@ -63,7 +62,7 @@ export default function OrderConfirmModal({ product, initialQty = 1, mode = "car
             <span className="confirm-qty-label">Quantity{stock ? ` · ${stock} available` : ""}</span>
             <div className="qty-stepper">
               <button type="button" aria-label="Decrease" onClick={() => setShown(shown - 1)} disabled={shown <= 1}>−</button>
-              <span className="qty-stepper-value" aria-live="polite">{shown} {unitLabel}</span>
+              <span className="qty-stepper-value" aria-live="polite">{shown}</span>
               <button type="button" aria-label="Increase" onClick={() => setShown(shown + 1)} disabled={shown >= maxShown}>+</button>
             </div>
           </div>
@@ -73,7 +72,7 @@ export default function OrderConfirmModal({ product, initialQty = 1, mode = "car
                 <button type="button" className={unit === "pcs" ? "active" : ""} onClick={() => { setUnit("pcs"); setQty(shown); }}>Pieces</button>
                 <button type="button" className={unit === "boxes" ? "active" : ""} onClick={() => { setUnit("boxes"); setQty(shown * packSize); }}>Boxes</button>
               </div>
-              <span className="field-hint">1 box = {packSize} pcs · total {qty} pcs</span>
+              <span className="field-hint">1 box = {packSize} pcs</span>
             </div>
           )}
 

@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { resizeImage } from "../../utils/imageResize";
 import AccountTypeSection from "../../components/AccountTypeSection";
+import PasswordInput from "../../components/PasswordInput";
 
 /** Split the stored full name when the separate name fields are not filled in yet (accounts made before them). */
 function nameParts(user) {
@@ -97,6 +98,27 @@ export default function AccountProfile() {
   }
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const [pw, setPw] = useState({ currentPassword: "", newPassword: "", confirm: "" });
+  const [pwSaving, setPwSaving] = useState(false);
+
+  async function handleChangePassword(e) {
+    e.preventDefault();
+    if (pw.newPassword !== pw.confirm) {
+      showToast("New passwords do not match", "error");
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await client.put("/api/auth/me/password", { currentPassword: pw.currentPassword, newPassword: pw.newPassword });
+      showToast("Password updated", "success");
+      setPw({ currentPassword: "", newPassword: "", confirm: "" });
+    } catch (err) {
+      showToast(err.response?.data?.error || "Could not update password", "error");
+    } finally {
+      setPwSaving(false);
+    }
+  }
 
   return (
     <div className="acct-profile">
@@ -236,6 +258,28 @@ export default function AccountProfile() {
               <button type="button" className="link-btn" style={{ marginLeft: 12 }} onClick={() => setEmailStep("idle")}>Cancel</button>
             </form>
           )}
+        </section>
+
+        <section className="acct-card acct-password">
+          <h3>Change Password</h3>
+          <p className="acct-subtitle-small">At least 8 characters, with upper and lower case letters, a number, and a symbol.</p>
+          <form onSubmit={handleChangePassword}>
+            <div className="field">
+              <label>Current Password</label>
+              <PasswordInput value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} autoComplete="current-password" />
+            </div>
+            <div className="field">
+              <label>New Password</label>
+              <PasswordInput value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} autoComplete="new-password" />
+            </div>
+            <div className="field">
+              <label>Confirm New Password</label>
+              <PasswordInput value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} autoComplete="new-password" />
+            </div>
+            <button type="submit" className="btn btn-primary" disabled={pwSaving || !pw.currentPassword || !pw.newPassword}>
+              {pwSaving ? "Updating..." : "Update Password"}
+            </button>
+          </form>
         </section>
       </div>
     </div>
