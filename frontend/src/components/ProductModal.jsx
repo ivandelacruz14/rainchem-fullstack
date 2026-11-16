@@ -11,6 +11,7 @@ import { useUI } from "../context/UIContext";
 import ProductCard from "./ProductCard";
 import ReviewSection from "./reviews/ReviewSection";
 import PriceTag from "./PriceTag";
+import OrderConfirmModal from "./OrderConfirmModal";
 import { priceLine } from "../utils/pricing";
 import StarRating from "./reviews/StarRating";
 
@@ -21,6 +22,8 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
   const navigate = useNavigate();
   const { requireLogin } = useUI();
   const [qty, setQty] = useState(1);
+  const [confirming, setConfirming] = useState(null); // "cart" | "buy" | null
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
   if (!product) return null;
 
@@ -32,22 +35,43 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
 
   const returnTo = `/shop?product=${product.id}`;
 
-  async function handleAddToCart() {
-    if (await addItem(product, qty)) {
-      showToast("Added to cart", "success");
-      onClose();
-    }
+  function handleAddToCart() {
+    if (!user) { requireLogin("login"); return; }
+    setConfirming("cart");
   }
 
-  async function handleBuyNow() {
-    if (await addItem(product, qty)) {
-      onClose();
-      navigate("/checkout");
+  function handleBuyNow() {
+    if (!user) { requireLogin("login"); return; }
+    setConfirming("buy");
+  }
+
+  // Runs only after the customer confirms in the dialog. A second click while it runs is ignored.
+  async function confirmPurchase(pieces) {
+    if (confirmBusy) return;
+    setConfirmBusy(true);
+    try {
+      const buying = confirming === "buy";
+      if (await addItem(product, pieces)) {
+        setConfirming(null);
+        if (buying) {
+          onClose();
+          navigate("/checkout");
+        } else {
+          showToast("Added to cart", "success");
+          onClose();
+        }
+      }
+    } finally {
+      setConfirmBusy(false);
     }
   }
 
   return (
     <div className="overlay" onClick={onClose}>
+      {confirming && (
+        <OrderConfirmModal product={product} initialQty={qty} mode={confirming} busy={confirmBusy}
+          onCancel={() => setConfirming(null)} onConfirm={confirmPurchase} />
+      )}
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>Product Details</h3>

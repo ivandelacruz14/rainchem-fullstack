@@ -1015,3 +1015,17 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .pd-price { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 6px 0 10px; }
 .pd-price-now { font-size: 30px; font-weight: 800; color: var(--red-700); }
 .pd-price-was { font-size: 16px; color: var(--muted); text-decoration: line-through; }
+
+/* Confirm add to cart / Buy Now */
+.confirm-overlay { z-index: 3000; }
+.confirm-modal { max-width: 520px; width: calc(100% - 24px); }
+.confirm-item { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: start; margin-bottom: 12px; }
+.confirm-thumb { border-radius: 10px; overflow: hidden; background: var(--surface-2, #fff); aspect-ratio: 1 / 1; }
+.confirm-info { min-width: 0; overflow-wrap: anywhere; }
+.confirm-unit { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; font-size: 14px; color: var(--muted); }
+.confirm-unit-price { font-size: 20px; font-weight: 800; color: var(--red-700); }
+.confirm-discount { margin-top: 4px; font-size: 13px; color: var(--ok-text); font-weight: 600; }
+.confirm-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.confirm-row > span:last-child { text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.confirm-subtotal strong { font-size: 18px; color: var(--red-700); }
+@media (max-width: 480px) { .confirm-item { grid-template-columns: 72px 1fr; } }
