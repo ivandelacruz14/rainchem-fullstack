@@ -60,6 +60,16 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
                 <ProductVisual product={product} widthPercent={44} />
               </div>
               <ProductFacts product={product} />
+              <div className="pd-extra">
+                <h4 className="pd-extra-head">Bulk Pricing - Buy More, Save More</h4>
+                <div className="bulk-tiers">
+                  <div className="bulk-tier"><span>5-9 units</span><span>5% off</span></div>
+                  <div className="bulk-tier"><span>10-19 units</span><span>10% off</span></div>
+                  <div className="bulk-tier"><span>20+ units</span><span>15% off</span></div>
+                </div>
+                <p className="field-hint">Free shipping automatically applies on orders of &#8369;1,500+ or 10+ total items.</p>
+              </div>
+
             </div>
             <div>
               <span className="product-cat">{product.category}</span>
@@ -120,16 +130,6 @@ export default function ProductModal({ product, onClose, allProducts = [], onSel
                   </ol>
                 </div>
               )}
-
-              <div className="pd-extra">
-                <h4 className="pd-extra-head">Bulk Pricing - Buy More, Save More</h4>
-                <div className="bulk-tiers">
-                  <div className="bulk-tier"><span>5-9 units</span><span>5% off</span></div>
-                  <div className="bulk-tier"><span>10-19 units</span><span>10% off</span></div>
-                  <div className="bulk-tier"><span>20+ units</span><span>15% off</span></div>
-                </div>
-                <p className="field-hint">Free shipping automatically applies on orders of &#8369;1,500+ or 10+ total items.</p>
-              </div>
 
               <div className="pd-extra pd-shipping">
                 <div>Metro Manila: 1-2 business days &middot; Provincial: 3-5 business days</div>

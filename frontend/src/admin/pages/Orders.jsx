@@ -69,7 +69,6 @@ export default function Orders() {
       showToast("Order confirmed. The receipt is ready to print.", "success");
       loadOrders();
       setSelected(null);
-      setReceiptFor(orderId); // open the receipt right away so it can be printed
     } catch (err) {
       showToast(err.response?.data?.error || "Could not confirm this order", "error");
     }
@@ -282,7 +281,7 @@ export default function Orders() {
                 </button>
               )}
 
-              {(selected.hasReceipt || ["confirmed", "processing", "shipped", "delivered"].includes(selected.status)) && (
+              {selected.paymentStatus === "paid" && (
                 <button className="btn btn-outline btn-block" style={{ marginTop: 16 }} onClick={() => setReceiptFor(selected.id)}>
                   Print Receipt
                 </button>

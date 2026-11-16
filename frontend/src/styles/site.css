@@ -1006,3 +1006,7 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .cart-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 8px; font-size: 13px; }
 .cart-bar label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .cart-item > input[type="checkbox"] { margin-top: 36px; flex-shrink: 0; width: 18px; height: 18px; }
+
+/* Product modal: the photo and its facts stay in view while the details on the right scroll */
+.pd-grid > div:first-child { position: sticky; top: 0; align-self: start; }
+@media (max-width: 760px) { .pd-grid > div:first-child { position: static; } }

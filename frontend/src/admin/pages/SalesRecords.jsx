@@ -31,7 +31,6 @@ export default function SalesRecords() {
   const [openId, setOpenId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [confirmReconcile, setConfirmReconcile] = useState(false);
 
   const load = useCallback(() => {
     client.get("/api/admin/sales-records", { params: cleanParams(filters) })
@@ -55,18 +54,6 @@ export default function SalesRecords() {
     }
   }
 
-  async function reconcile() {
-    try {
-      const res = await client.post("/api/admin/sales-records/reconcile");
-      showToast(`Checked ${res.data.orders} orders. ${res.data.records} records.`, "success");
-      setConfirmReconcile(false);
-      load();
-    } catch (err) {
-      showToast(err.response?.data?.error || "Could not reconcile", "error");
-      setConfirmReconcile(false);
-    }
-  }
-
   const t = data?.totals;
   const filtered = JSON.stringify(cleanParams({ ...filters, sort: "", dir: "", page: "", per_page: "" })) !== "{}";
 
@@ -80,7 +67,6 @@ export default function SalesRecords() {
         <div className="row-actions">
           {tab === "records" && <button type="button" className="btn btn-primary" disabled={exporting || !data?.total} onClick={exportCsv}>{exporting ? "Preparing..." : "Export CSV"}</button>}
           {admin?.isHead && tab === "records" && <button type="button" className="btn btn-outline" onClick={() => setImporting(true)}>Import Excel</button>}
-          {admin?.isHead && <button type="button" className="btn btn-outline" onClick={() => setConfirmReconcile(true)}>Reconcile with orders</button>}
         </div>
       </div>
 
@@ -180,10 +166,6 @@ export default function SalesRecords() {
 
       {openId && <RecordDetail recordId={openId} isHead={Boolean(admin?.isHead)} onClose={() => setOpenId(null)} onChanged={load} />}
       {importing && <ImportSales onClose={() => setImporting(false)} onChanged={load} />}
-      {confirmReconcile && (
-        <ConfirmDialog title="Reconcile with orders?" confirmLabel="Reconcile" danger={false}
-          message="Every order record is rebuilt from its order. Imported rows are not changed. Descriptive corrections you made are kept. This is safe to repeat." onCancel={() => setConfirmReconcile(false)} onConfirm={reconcile} />
-      )}
     </div>
   );
 }

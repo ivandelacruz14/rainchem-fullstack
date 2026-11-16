@@ -49,6 +49,7 @@ import Approvals from "./admin/pages/Approvals";
 import MyAccount from "./admin/pages/MyAccount";
 import SalesRecords from "./admin/pages/SalesRecords";
 import RiderDeliveries from "./admin/pages/RiderDeliveries";
+import OverviewHub from "./admin/pages/OverviewHub";
 import InventoryAlerts from "./admin/pages/InventoryAlerts";
 import ProductKnowledge from "./admin/pages/ProductKnowledge";
 import LiveChat from "./admin/pages/LiveChat";
@@ -109,7 +110,7 @@ export default function App() {
 
                   <Route path="/admin/login" element={<AdminLogin />} />
                   <Route path="/admin" element={<AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>}>
-                    <Route index element={<Overview />} />
+                    <Route index element={<OverviewHub />} />
                     <Route path="products" element={<PermissionRoute permission="products"><Products /></PermissionRoute>} />
                     <Route path="orders" element={<OrdersRoute />} />
                     <Route path="users" element={<PermissionRoute permission="customers"><Users /></PermissionRoute>} />

@@ -6,7 +6,7 @@ import Brand from "../components/Brand";
 import ThemeToggle from "../components/ThemeToggle";
 
 const NAV_ITEMS = [
-  { group: "Overview", links: [{ to: "/admin", label: "Dashboard", end: true, permission: "orders" }, { to: "/admin/rider", label: "My Deliveries", permission: "deliveries" }] },
+  { group: "Overview", links: [{ to: "/admin", label: "Overview", end: true }] },
   {
     group: "Catalog & Sales",
     links: [

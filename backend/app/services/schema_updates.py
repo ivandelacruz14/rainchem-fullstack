@@ -170,11 +170,30 @@ def sales_import_columns(db, logger):
     db.session.commit()
 
 
+def enums_to_text(db, logger):
+    """Older databases were created with fixed ENUM lists for status columns, so new statuses such as
+    ready_for_delivery are refused. Each ENUM column becomes VARCHAR(40), keeping nullability and default. Safe to repeat."""
+    from sqlalchemy import text
+    if db.engine.dialect.name != "mysql":
+        return
+    rows = db.session.execute(text(
+        "SELECT TABLE_NAME, COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT FROM information_schema.columns "
+        "WHERE table_schema = DATABASE() AND DATA_TYPE = 'enum'"
+    )).fetchall()
+    for table, column, nullable, default in rows:
+        null_sql = "NULL" if nullable == "YES" else "NOT NULL"
+        default_sql = "" if default is None else " DEFAULT '" + str(default).replace("'", "''") + "'"
+        db.session.execute(text(f"ALTER TABLE `{table}` MODIFY `{column}` VARCHAR(40) {null_sql}{default_sql}"))
+        logger.info("Changed %s.%s from ENUM to text", table, column)
+    db.session.commit()
+
+
 def start_ledgers(db, logger):
     """Fills the sales records from existing orders and gives every product an opening stock entry.
     Both only add rows that are missing, so running them at every start is harmless."""
     try:
         from app.services import inventory, sales_ledger
+        enums_to_text(db, logger)
         sales_import_columns(db, logger)
         from app.services import locations
         loaded = locations.load_reference()
