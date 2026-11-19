@@ -41,7 +41,7 @@ export default function Home() {
               own product knowledge.
             </p>
             <div className="hero-cta">
-              <Link to="/shop" className="btn btn-primary">Shop Products</Link>
+              <Link to="/shop" className="btn btn-primary hero-btn">Shop Products <span aria-hidden="true">&rarr;</span></Link>
             </div>
             <div className="hero-stats">
               <div className="stat-card"><div className="value">30 Yrs</div><div className="label">Since 1995</div></div>
