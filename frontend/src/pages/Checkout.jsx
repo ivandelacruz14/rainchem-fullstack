@@ -11,9 +11,9 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import useOrderRules from "../hooks/useOrderRules";
 
 const PAYMENT_OPTIONS = [
-  { value: "Cash on Delivery", label: "Cash on Delivery", hint: "Pay in cash when your order arrives." },
-  { value: "GCash", label: "GCash", hint: "You'll see our GCash number and link next. Pay, then send your reference number." },
-  { value: "Credit / Debit Card", label: "Credit / Debit Card", hint: "You'll pay on a secure card page. We never see your card number." },
+  { value: "Cash on Delivery", tag: "Cash", label: "Cash on Delivery", hint: "Pay in cash when your order arrives." },
+  { value: "GCash", tag: "GCash", label: "GCash", hint: "You'll see our GCash number and link next. Pay, then send your reference number." },
+  { value: "Credit / Debit Card", tag: "Card", label: "Credit / Debit Card", hint: "You'll pay on a secure card page. We never see your card number." },
 ];
 
 export default function Checkout() {
@@ -182,11 +182,16 @@ export default function Checkout() {
 
           {savedAddresses.length > 0 && (
             <div className="field">
-              <label htmlFor="ck-address">Deliver to</label>
-              <select id="ck-address" value={addressChoice} onChange={(e) => chooseAddress(e.target.value)}>
-                {savedAddresses.map((a) => <option key={a.id} value={a.id}>{a.label}: {a.formatted}</option>)}
-                <option value="new">Use a new address</option>
-              </select>
+              <label>Deliver to</label>
+              <div className="seg" role="group" aria-label="Deliver to">
+                {savedAddresses.map((a) => (
+                  <button type="button" key={a.id} className={addressChoice === String(a.id) ? "active" : ""} onClick={() => chooseAddress(String(a.id))}>{a.label}</button>
+                ))}
+                <button type="button" className={addressChoice === "new" ? "active" : ""} onClick={() => chooseAddress("new")}>New address</button>
+              </div>
+              {addressChoice !== "new" && savedAddresses.find((a) => String(a.id) === addressChoice) && (
+                <div className="addr-box">{savedAddresses.find((a) => String(a.id) === addressChoice).formatted}</div>
+              )}
               <p className="field-hint">Manage your saved addresses in My Account &gt; Addresses.</p>
             </div>
           )}
@@ -235,7 +240,7 @@ export default function Checkout() {
                   />
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>
-                      {opt.label}{!available && <span className="pay-soon"> Not available yet</span>}
+                      {opt.label} <span className="pay-tag">{opt.tag}</span>{!available && <span className="pay-soon"> Not available yet</span>}
                     </div>
                     <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{opt.hint}</div>
                   </div>
