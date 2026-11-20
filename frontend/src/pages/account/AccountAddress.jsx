@@ -179,8 +179,6 @@ export default function AccountAddress() {
           </p></div>
         <div className="field"><label htmlFor="ad-house">House or building number</label><input id="ad-house" value={form.houseNumber} onChange={set("houseNumber")} /></div>
         <div className="field"><label htmlFor="ad-street">Street *</label><input id="ad-street" required value={form.street} onChange={set("street")} /></div>
-        <div className="field"><label htmlFor="ad-sub">Subdivision</label><input id="ad-sub" value={form.subdivision} onChange={set("subdivision")} /></div>
-        <div className="field"><label htmlFor="ad-village">Village</label><input id="ad-village" value={form.village} onChange={set("village")} /></div>
         <div className="field"><label htmlFor="ad-unit">Floor or unit</label><input id="ad-unit" value={form.unit} onChange={set("unit")} /></div>
         <div className="field"><label htmlFor="ad-landmark">Landmark</label><input id="ad-landmark" value={form.landmark} onChange={set("landmark")} /></div>
         <div className="field"><label htmlFor="ad-instr">Delivery instructions</label><textarea id="ad-instr" rows={2} value={form.instructions} onChange={set("instructions")} /></div>

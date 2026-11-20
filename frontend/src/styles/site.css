@@ -1205,3 +1205,10 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .step-badge { box-shadow: none; }
 .admin-alert { background: #2a1214; border-color: #7f1d1d; }
 .skeleton-block, .skeleton-line { animation: none; }
+
+/* Full-width account pages: no empty strip on the sides; the address cards match in height */
+.acct-shell { max-width: none; }
+.acct-main { max-width: none; }
+.acct-addr-page { width: 100%; }
+.acct-addr-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: stretch; }
+.acct-addr-list, .acct-addr-form { height: 100%; }
