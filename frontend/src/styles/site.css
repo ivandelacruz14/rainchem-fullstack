@@ -1212,3 +1212,15 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .acct-addr-page { width: 100%; }
 .acct-addr-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: stretch; }
 .acct-addr-list, .acct-addr-form { height: 100%; }
+
+/* ---------- Home hero: follows the light and dark theme; the logo stays still ---------- */
+.hero { background: var(--bg); }
+.hero h1 { color: var(--ink); }
+.hero .eyebrow { color: var(--muted); }
+.hero-copy p { color: var(--muted); }
+.hero .stat-card { background: var(--surface); border: 1px solid var(--line); }
+.hero .stat-card .value { color: var(--ink); }
+.hero .stat-card .label { color: var(--muted); }
+.hero-ring { background: var(--surface); border-color: var(--red-700); }
+.hero-logo { background: #ffffff; }
+.hero-visual *, .hero-logo, .hero-ring, .hero-ring::before { animation: none !important; transition: none !important; }
