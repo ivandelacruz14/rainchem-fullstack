@@ -44,7 +44,7 @@ export default function Checkout() {
     const line = [a.unit, [a.houseNumber, a.street].filter(Boolean).join(" "), a.subdivision, a.village, a.landmark]
       .filter(Boolean).join(", ");
     setForm((f) => ({
-      ...f, line1: line, city: a.city.name, province: (a.province && a.province.name) || a.region.name,
+      ...f, addressType: a.label, line1: line, city: a.city.name, province: (a.province && a.province.name) || a.region.name,
       region: a.region.name, zip: a.zipCode || "",
     }));
   }
@@ -52,7 +52,7 @@ export default function Checkout() {
   function chooseAddress(value) {
     if (value === "new") {
       setAddressChoice("new");
-      setForm((f) => ({ ...f, line1: "", city: "", province: "", region: "", zip: "" }));
+      setForm((f) => ({ ...f, addressType: "Home", line1: "", city: "", province: "", region: "", zip: "" }));
       return;
     }
     const found = savedAddresses.find((a) => String(a.id) === value);
@@ -196,42 +196,46 @@ export default function Checkout() {
             </div>
           )}
           <h4 style={{ margin: "18px 0 12px" }}><span className="step-badge">2</span> Delivery Address</h4>
-          <div className="field"><label htmlFor="ck-type">Address type</label>
-            <select id="ck-type" value={form.addressType || "Home"} onChange={(e) => update("addressType", e.target.value)}>
-              <option value="Home">Home</option><option value="Work">Work</option>
-              <option value="Temporary">Temporary</option><option value="Other">Other</option>
-            </select>
-          </div>
-          <div className="field"><label>Street Address</label><input required placeholder="House/Unit No., Street, Barangay" value={form.line1} onChange={(e) => update("line1", e.target.value)} /></div>
-          <div className="field-row">
-            <div className="field"><label>City / Municipality</label><input required value={form.city} onChange={(e) => update("city", e.target.value)} /></div>
-            <div className="field"><label>Province</label><input required value={form.province} onChange={(e) => update("province", e.target.value)} /></div>
-          </div>
-          <div className="field-row">
-            <div className="field"><label>Region</label><input required value={form.region} onChange={(e) => update("region", e.target.value)} /></div>
-            <div className="field"><label>ZIP Code</label><input required value={form.zip} onChange={(e) => update("zip", e.target.value)} /></div>
-          </div>
+          {(savedAddresses.length === 0 || addressChoice === "new") && (
+            <>
+            <div className="field"><label htmlFor="ck-type">Address type</label>
+              <select id="ck-type" value={form.addressType || "Home"} onChange={(e) => update("addressType", e.target.value)}>
+                <option value="Home">Home</option><option value="Work">Work</option>
+                <option value="Temporary">Temporary</option><option value="Other">Other</option>
+              </select>
+            </div>
+            <div className="field"><label>Street Address</label><input required placeholder="House/Unit No., Street, Barangay" value={form.line1} onChange={(e) => update("line1", e.target.value)} /></div>
+            <div className="field-row">
+              <div className="field"><label>City / Municipality</label><input required value={form.city} onChange={(e) => update("city", e.target.value)} /></div>
+              <div className="field"><label>Province</label><input required value={form.province} onChange={(e) => update("province", e.target.value)} /></div>
+            </div>
+            <div className="field-row">
+              <div className="field"><label>Region</label><input required value={form.region} onChange={(e) => update("region", e.target.value)} /></div>
+              <div className="field"><label>ZIP Code</label><input required value={form.zip} onChange={(e) => update("zip", e.target.value)} /></div>
+            </div>
 
-          {anyBoxed && (
-            <p className="field-hint" style={{ marginBottom: 10 }}>
-              Your order: {totalBoxes} box{totalBoxes === 1 ? "" : "es"}.
-              {isBusiness
-                ? ` Business accounts can order up to ${boxLimit} boxes per order. Orders of ${rules.reviewBoxes} boxes or more are bulk orders, paid in advance by card or GCash.`
-                : ` Personal accounts can order up to ${boxLimit} boxes per order. For bigger orders, register a business account.`}
-            </p>
-          )}
-          {bulk && (
-            <p className="field-hint" style={{ marginBottom: 10, color: "var(--warn-fg)" }}>
-              This is a bulk order ({totalBoxes} boxes). Cash on delivery is not available for bulk orders.
-            </p>
-          )}
-          {duplicateOrder && (
-            <ConfirmDialog
-              title="Is this a new order?" confirmLabel="Place a new order" danger={false}
-              message={`You placed the same order a few minutes ago (${duplicateOrder}). Place another one?`}
-              onCancel={() => setDuplicateOrder(null)}
-              onConfirm={() => { setDuplicateOrder(null); placeOrder(true); }}
-            />
+            {anyBoxed && (
+              <p className="field-hint" style={{ marginBottom: 10 }}>
+                Your order: {totalBoxes} box{totalBoxes === 1 ? "" : "es"}.
+                {isBusiness
+                  ? ` Business accounts can order up to ${boxLimit} boxes per order. Orders of ${rules.reviewBoxes} boxes or more are bulk orders, paid in advance by card or GCash.`
+                  : ` Personal accounts can order up to ${boxLimit} boxes per order. For bigger orders, register a business account.`}
+              </p>
+            )}
+            {bulk && (
+              <p className="field-hint" style={{ marginBottom: 10, color: "var(--warn-fg)" }}>
+                This is a bulk order ({totalBoxes} boxes). Cash on delivery is not available for bulk orders.
+              </p>
+            )}
+            {duplicateOrder && (
+              <ConfirmDialog
+                title="Is this a new order?" confirmLabel="Place a new order" danger={false}
+                message={`You placed the same order a few minutes ago (${duplicateOrder}). Place another one?`}
+                onCancel={() => setDuplicateOrder(null)}
+                onConfirm={() => { setDuplicateOrder(null); placeOrder(true); }}
+              />
+            )}
+            </>
           )}
           <h4 style={{ margin: "18px 0 12px" }}><span className="step-badge">3</span> Payment Method</h4>
           <div className="pay-options">

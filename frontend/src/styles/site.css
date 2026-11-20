@@ -1224,3 +1224,7 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .hero-ring { background: var(--surface); border-color: var(--red-700); }
 .hero-logo { background: #ffffff; }
 .hero-visual *, .hero-logo, .hero-ring, .hero-ring::before { animation: none !important; transition: none !important; }
+
+/* Order summary on the dark card: readable text in both light and dark mode */
+.checkout-summary { --ink: #f2eee9; --muted: #b8b2aa; color: var(--ink); }
+.checkout-summary .field-hint { color: #a1a1aa; }
