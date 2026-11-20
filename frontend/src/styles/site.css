@@ -1178,3 +1178,9 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .pay-option { border-radius: 12px; }
 .pay-option.selected { border-color: var(--red-700); box-shadow: 0 0 0 1px var(--red-700), 0 0 24px -10px rgba(214, 40, 56, 0.8); background: rgba(214, 40, 56, 0.08); }
 .pay-tag { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; background: #1f1f23; color: #d4d4d8; border: 1px solid rgba(255,255,255,0.1); }
+
+/* My Addresses: saved list on the left, the form on the right */
+.acct-addr-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.acct-addr-list, .acct-addr-form { min-width: 0; }
+.acct-addr-list h3, .acct-addr-form h3 { margin: 0 0 14px; font-size: 17px; }
+@media (max-width: 900px) { .acct-addr-grid { grid-template-columns: 1fr; } }

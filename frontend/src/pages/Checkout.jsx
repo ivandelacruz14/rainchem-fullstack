@@ -124,7 +124,7 @@ export default function Checkout() {
       const res = await client.post("/api/orders", {
         items: lines.map((l) => ({ productId: l.product.id, qty: l.qty })),
         customer: { name: form.name, phone: form.phone, email: form.email },
-        address: { line1: form.line1, city: form.city, province: form.province, region: form.region, zip: form.zip },
+        address: { line1: form.addressType ? `${form.addressType}: ${form.line1}` : form.line1, city: form.city, province: form.province, region: form.region, zip: form.zip },
         paymentMethod: form.payment,
         confirmDuplicate,
         direct: isDirect,
@@ -196,6 +196,12 @@ export default function Checkout() {
             </div>
           )}
           <h4 style={{ margin: "18px 0 12px" }}><span className="step-badge">2</span> Delivery Address</h4>
+          <div className="field"><label htmlFor="ck-type">Address type</label>
+            <select id="ck-type" value={form.addressType || "Home"} onChange={(e) => update("addressType", e.target.value)}>
+              <option value="Home">Home</option><option value="Work">Work</option>
+              <option value="Temporary">Temporary</option><option value="Other">Other</option>
+            </select>
+          </div>
           <div className="field"><label>Street Address</label><input required placeholder="House/Unit No., Street, Barangay" value={form.line1} onChange={(e) => update("line1", e.target.value)} /></div>
           <div className="field-row">
             <div className="field"><label>City / Municipality</label><input required value={form.city} onChange={(e) => update("city", e.target.value)} /></div>

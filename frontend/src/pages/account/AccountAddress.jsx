@@ -124,8 +124,12 @@ export default function AccountAddress() {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   return (
-    <div>
-      <h2>My Addresses</h2>
+    <div className="acct-addr-page">
+      <h2 className="acct-title">My Addresses</h2>
+      <p className="acct-subtitle">Your delivery addresses. The default one is used at checkout.</p>
+      <div className="acct-addr-grid">
+        <section className="acct-card acct-addr-list">
+          <h3>Saved addresses</h3>
       {list === null && <p className="field-hint">Loading...</p>}
       {list && list.length === 0 && <p className="field-hint">No saved addresses yet. Add one below.</p>}
       {list && list.map((a) => (
@@ -140,7 +144,9 @@ export default function AccountAddress() {
         </div>
       ))}
 
-      <h3 style={{ marginTop: 24 }}>{editingId ? "Edit address" : "Add an address"}</h3>
+        </section>
+        <section className="acct-card acct-addr-form">
+      <h3>{editingId ? "Edit address" : "Add an address"}</h3>
       {error && <div className="alert alert-error" role="alert">{error}</div>}
       <form onSubmit={save} style={{ maxWidth: 560 }}>
         <div className="field"><label htmlFor="ad-label">Address type</label>
@@ -189,6 +195,8 @@ export default function AccountAddress() {
           </button>
         </div>
       </form>
+        </section>
+      </div>
     </div>
   );
 }
