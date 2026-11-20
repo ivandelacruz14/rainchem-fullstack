@@ -1184,3 +1184,24 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .acct-addr-list, .acct-addr-form { min-width: 0; }
 .acct-addr-list h3, .acct-addr-form h3 { margin: 0 0 14px; font-size: 17px; }
 @media (max-width: 900px) { .acct-addr-grid { grid-template-columns: 1fr; } }
+
+/* ---------- Clean, professional finish: no glows, no moving logo ---------- */
+.hero { background: #111113; padding: 64px 0 72px; }
+.hero::after { display: none; }
+.hero h1 { text-shadow: none; }
+.hero h1 em { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--red-700); }
+.hero-ring { background: #1c1c20; box-shadow: none; padding: 12px; border: 2px solid var(--red-700); }
+.hero-ring::before { display: none; animation: none; }
+.hero-logo { background: #ffffff; padding: 28px; }
+.hero-btn, .hero-btn:hover { box-shadow: none; transform: none; }
+.hero-btn:hover span { transform: none; }
+.hero .stat-card { background: #1a1a1d; border: 1px solid #2a2a2f; backdrop-filter: none; }
+.hero .stat-card::before { display: none; }
+.checkout-page { background: #0f0f11; }
+.checkout-summary { border: 1px solid #2a2a2f; box-shadow: none; background: #17171a; }
+.checkout-summary .btn-primary { box-shadow: none; }
+.seg button.active { box-shadow: none; }
+.pay-option.selected { box-shadow: none; background: rgba(214, 40, 56, 0.06); }
+.step-badge { box-shadow: none; }
+.admin-alert { background: #2a1214; border-color: #7f1d1d; }
+.skeleton-block, .skeleton-line { animation: none; }
