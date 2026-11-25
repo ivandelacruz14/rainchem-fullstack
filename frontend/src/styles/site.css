@@ -1533,3 +1533,193 @@ main, .container { max-width: 100%; box-sizing: border-box; }
   body.printing-sticker .print-root { display: block !important; position: absolute; left: 0; top: 0; }
   body.printing-sticker .print-root * { visibility: visible !important; }
 }
+
+/* ---------- Package sticker, fixed sections for a clean print (100 mm x 75 mm) ---------- */
+:root { --sticker-w: 100mm; --sticker-h: 75mm; --red-print: #b91c1c; }
+.sticker { width: var(--sticker-w); height: var(--sticker-h); box-sizing: border-box; padding: 2.5mm; border: 0.35mm solid #7f1d1d;
+  display: flex; flex-direction: column; gap: 1.6mm; background: #fff; color: #111; font-family: Arial, Helvetica, sans-serif; overflow: hidden; }
+.sticker-band { flex: 0 0 7.5mm; background: var(--red-print); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 2.5mm; }
+.sticker-brand { font-weight: 800; font-size: 9pt; letter-spacing: 0.08em; }
+.sticker-order { font-weight: 800; font-size: 10pt; white-space: nowrap; }
+.sticker-cust { flex: 0 0 15mm; display: flex; flex-direction: column; justify-content: center; gap: 0.6mm; min-width: 0; border-bottom: 0.25mm solid #cbd5e1; padding-bottom: 1mm; }
+.sticker-name { font-size: 9.5pt; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sticker-phone { font-size: 8.5pt; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sticker-addr { font-size: 7.2pt; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sticker-pay { flex: 0 0 6.5mm; display: flex; align-items: center; justify-content: center; font-size: 8pt; font-weight: 800; letter-spacing: 0.03em; border-radius: 1.2mm; padding: 0 2mm; white-space: nowrap; overflow: hidden; }
+.sticker-pay.cod { background: #111; color: #fff; }
+.sticker-pay.paid { background: #15803d; color: #fff; }
+.sticker-row { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.8mm; }
+.sticker-box { border: 0.3mm solid #111; border-radius: 1mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 1.2mm; min-width: 0; overflow: hidden; }
+.sticker-box span { font-size: 6pt; color: #333; text-align: center; line-height: 1.1; }
+.sticker-qrbox img, .sticker-qr-empty { width: 24mm; height: 24mm; display: block; }
+.sticker-qr-empty { display: flex; align-items: center; justify-content: center; border: 0.3mm solid #111; font-weight: 800; }
+.sticker-barbox svg { width: 100%; height: 15mm; display: block; }
+.sticker-barbox span { font-size: 6.5pt; font-weight: 700; color: #111; word-break: break-all; }
+.sticker-signbox { justify-content: flex-end; }
+.sticker-signbox span { border-top: 0.25mm solid #111; width: 100%; padding-top: 0.8mm; }
+@media print {
+  body.printing-sticker #root { display: none !important; }
+  body.printing-sticker .print-root { display: block !important; position: absolute; left: 0; top: 0; width: var(--sticker-w); height: var(--sticker-h); }
+  body.printing-sticker .print-root * { visibility: visible !important; }
+  body.printing-sticker .sticker { border: 0; page-break-inside: avoid; }
+  @page { size: var(--sticker-w) var(--sticker-h); margin: 0; }
+}
+
+/* ---------- Sticker: prints correctly even with "Background graphics" off ---------- */
+.sticker, .sticker * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.sticker-band { background: none !important; color: #111 !important; border-bottom: 0.9mm solid #111; padding: 0 1mm; }
+.sticker-brand, .sticker-order { color: #111 !important; }
+.sticker-pay.cod { background: none !important; color: #111 !important; border: 0.6mm solid #111; }
+.sticker-pay.paid { background: none !important; color: #15803d !important; border: 0.6mm solid #15803d; }
+
+/* ==========================================================================
+   Delivery receipt redesign (matches the approved mock-up).
+   CSS only: it restyles the existing .receipt-* classes and adds nothing to
+   the markup. Colors are fixed (not theme variables) so the receipt looks the
+   same in light mode, dark mode, and on paper.
+   ========================================================================== */
+.receipt-doc {
+  --rc-red: #c8141b; --rc-red-dark: #9e0f15; --rc-line: #d4d4d8; --rc-pad: 26px;
+  position: relative; overflow: hidden; padding: var(--rc-pad);
+  border: 1px solid var(--rc-line); border-radius: 12px; background: #fff; color: #18140f;
+  font-family: var(--ff-body); font-size: 13px; line-height: 1.4;
+}
+
+/* --- Header: brand on the left, slanted red "Delivery Receipt" band on the right --- */
+.receipt-doc .receipt-head {
+  display: flex; flex-wrap: nowrap; align-items: stretch; justify-content: space-between; gap: 20px;
+  padding: 0 0 14px; border-bottom: 2px solid var(--rc-red);
+}
+.receipt-doc .receipt-head > :first-child { align-self: center; }
+.receipt-doc .receipt-brand { font-size: 19px; font-weight: 800; font-style: italic; text-transform: uppercase; letter-spacing: -0.005em; line-height: 1.1; color: var(--rc-red); }
+.receipt-doc .receipt-tag { margin-top: 4px; font-size: 12px; font-style: italic; font-weight: 600; color: #18140f; }
+.receipt-doc .receipt-title {
+  flex: 0 0 auto; min-width: 285px; display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 14px;
+  margin: calc(var(--rc-pad) * -1) calc(var(--rc-pad) * -1) 0 0; padding: 22px var(--rc-pad) 22px 54px;
+  text-align: left; color: #fff;
+  background: linear-gradient(100deg, var(--rc-red-dark), var(--rc-red));
+  clip-path: polygon(9% 0, 100% 0, 100% 100%, 0 100%);
+}
+.receipt-doc .receipt-title strong { display: block; font-size: 22px; font-weight: 800; letter-spacing: 0.02em; line-height: 1.1; text-transform: uppercase; color: #fff; }
+.receipt-doc .receipt-title span { font-size: 12.5px; font-style: italic; letter-spacing: 0.05em; text-transform: uppercase; color: #ffe3e4; }
+.receipt-doc .receipt-title::after {
+  content: ""; grid-column: 2; grid-row: 1 / span 2; width: 74px; height: 56px;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 60' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><circle cx='16' cy='47' r='8'/><circle cx='64' cy='47' r='8'/><path d='M24 47h28'/><path d='M52 47l6-22h6'/><path d='M30 38h16l6 9'/><circle cx='42' cy='9' r='5' fill='white' stroke='none'/><path d='M40 16l-6 14h10l8-6'/><path d='M50 24l8 1'/><rect x='6' y='22' width='18' height='14' rx='2' fill='white' stroke='none'/></svg>") no-repeat center / contain;
+}
+
+/* --- Meta strip: order number | order date | delivery date | payment pill --- */
+.receipt-doc .receipt-meta { display: grid; grid-template-columns: 1.15fr 1.25fr 1.25fr auto; gap: 0; align-items: center; margin: 16px 0 14px; }
+.receipt-doc .receipt-meta > div { background: none; border: 0; border-left: 1px solid var(--rc-line); border-radius: 0; padding: 2px 14px; }
+.receipt-doc .receipt-meta > div:first-child { border-left: 0; padding-left: 0; }
+.receipt-doc .receipt-meta span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #3f3f46; }
+.receipt-doc .receipt-meta strong { display: block; font-size: 13px; font-weight: 600; color: #18140f; }
+.receipt-doc .receipt-meta > div:first-child strong { font-size: 17px; font-weight: 800; }
+.receipt-doc .receipt-meta > div:last-child {
+  display: flex; align-items: center; justify-content: center; min-width: 112px; padding: 8px 20px;
+  border: 0; border-radius: 999px; background: #16a34a;
+}
+.receipt-doc .receipt-meta > div:last-child span { display: none; }
+.receipt-doc .receipt-meta > div:last-child strong { font-size: 15px; font-weight: 800; letter-spacing: 0.02em; color: #fff; }
+.receipt-doc .receipt-meta > div:last-child strong::before { content: "\2714\00a0"; }
+
+/* --- Section bars (Customer Information, Item Information, Acknowledgment) --- */
+.receipt-doc .receipt-block { margin-top: 14px; }
+.receipt-doc .receipt-block h4 {
+  margin: 0 0 10px; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; color: #fff;
+  background: linear-gradient(90deg, var(--rc-red), var(--rc-red-dark));
+}
+.receipt-doc .receipt-block p { margin: 8px 0 10px; font-style: italic; }
+
+/* --- "Label : value" rows --- */
+.receipt-doc .receipt-dl { grid-template-columns: 140px 1fr; gap: 8px 0; font-size: 13.5px; }
+.receipt-doc .receipt-dl dt { color: #18140f; font-weight: 500; }
+.receipt-doc .receipt-dl dd { display: flex; gap: 12px; font-weight: 700; }
+.receipt-doc .receipt-dl dd::before { content: ":"; flex: 0 0 auto; font-weight: 500; }
+
+/* --- Item table: grey header, rounded outline, centered number columns --- */
+.receipt-doc .receipt-table { border-collapse: separate; border-spacing: 0; border: 1px solid var(--rc-line); border-radius: 8px; overflow: hidden; }
+.receipt-doc .receipt-table th { background: #efefef; font-size: 13px; font-weight: 700; color: #18140f; padding: 10px 12px; }
+.receipt-doc .receipt-table td { padding: 10px 12px; vertical-align: middle; }
+.receipt-doc .receipt-table th, .receipt-doc .receipt-table td { text-align: center; border-bottom: 1px solid var(--rc-line); border-right: 1px solid var(--rc-line); }
+.receipt-doc .receipt-table th:first-child, .receipt-doc .receipt-table td:first-child { text-align: left; }
+.receipt-doc .receipt-table th:last-child, .receipt-doc .receipt-table td:last-child { border-right: 0; }
+.receipt-doc .receipt-table tr:last-child td { border-bottom: 0; }
+.receipt-doc .receipt-table .num { text-align: center; }
+.receipt-doc .receipt-table img { max-width: 44px; max-height: 52px; vertical-align: middle; margin-right: 10px; }
+
+/* --- Total: grey label box + red amount box --- */
+.receipt-doc .receipt-totals { width: min(420px, 100%); margin: 14px 0 0 auto; }
+.receipt-doc .receipt-totals > div { padding: 4px 0; }
+.receipt-doc .receipt-grand {
+  display: flex; align-items: stretch; justify-content: space-between; overflow: hidden; border: 0; border-radius: 8px;
+  margin-top: 6px; padding: 0 !important; background: #ececec; font-size: 17px; font-weight: 800; text-transform: uppercase; color: #18140f;
+}
+.receipt-doc .receipt-grand > * { display: block; padding: 10px 18px; }
+.receipt-doc .receipt-grand > :last-child { margin-left: auto; min-width: 46%; text-align: center; text-transform: none; font-size: 22px; background: var(--rc-red); color: #fff; }
+
+/* --- Payment line --- */
+.receipt-doc .receipt-pay { margin-top: 14px; padding: 4px 0 14px; border: 0; border-bottom: 2px solid var(--rc-red); border-radius: 0; font-size: 13px; }
+.receipt-doc .receipt-pay span { display: inline; margin-right: 6px; font-size: 13px; color: #18140f; }
+.receipt-doc .receipt-pay strong { font-size: 13px; font-weight: 600; color: #18140f; }
+.receipt-doc .receipt-cod { text-align: right; }
+.receipt-doc .receipt-cod strong { font-size: 15px; font-weight: 800; color: #18140f; }
+.receipt-doc .receipt-cod-paid strong { color: #15803d; }
+
+/* --- QR and barcode boxes with red label tabs --- */
+.receipt-doc .receipt-codes { grid-template-columns: 215px 1fr; gap: 14px; margin-top: 16px; align-items: stretch; }
+.receipt-doc .receipt-code-box, .receipt-doc .receipt-barcode {
+  overflow: hidden; border: 1px solid var(--rc-line); border-radius: 8px; padding: 10px; text-align: center; background: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+}
+.receipt-doc .receipt-code-box::before, .receipt-doc .receipt-barcode::before {
+  align-self: stretch; margin: -10px -10px 10px; padding: 7px 14px; text-align: left; border-radius: 0;
+  background: linear-gradient(90deg, var(--rc-red), var(--rc-red-dark)); color: #fff; font-size: 13px; font-weight: 800; letter-spacing: 0.04em;
+}
+.receipt-doc .receipt-code-box::before { content: "QR CODE"; }
+.receipt-doc .receipt-barcode::before { content: "BARCODE"; }
+.receipt-doc .receipt-code-box img { width: 150px; height: 150px; }
+.receipt-doc .receipt-code-box span { margin-top: 6px; font-size: 11px; font-weight: 600; color: #18140f; }
+.receipt-doc .receipt-barcode svg { width: 100%; max-width: 380px; height: auto; margin: auto 0; }
+.receipt-doc .receipt-code-box img { margin: auto 0 0; }
+
+/* --- Acknowledgment: signature box + printed name / received by / date --- */
+.receipt-doc .receipt-sign-row { grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: stretch; margin-top: 10px; }
+.receipt-doc .receipt-sign-box {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-height: 110px;
+  padding: 10px 16px 8px; border: 1px solid var(--rc-line); border-radius: 10px; background: #fff;
+}
+.receipt-doc .receipt-sign-box img { max-width: 100%; max-height: 78px; }
+.receipt-doc .receipt-sign-box span { align-self: stretch; margin-top: 6px; padding-top: 4px; border-top: 1px solid #18140f; text-align: center; font-size: 12.5px; color: #18140f; }
+.receipt-doc .receipt-sign-row .receipt-dl { align-self: center; grid-template-columns: 120px 1fr; }
+
+/* --- Footer: full-width red band with a slanted white stripe --- */
+.receipt-doc .receipt-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin: 18px calc(var(--rc-pad) * -1) calc(var(--rc-pad) * -1); padding: 16px var(--rc-pad);
+  background: linear-gradient(115deg, var(--rc-red-dark) 0 58%, #fff 58% 59.2%, var(--rc-red) 59.2% 100%);
+  color: #fff; font-size: 17px; font-weight: 700; font-style: italic; text-align: left;
+}
+.receipt-doc .receipt-foot::after { content: "Rainchem International, Inc. \2014  Your Trusted Automotive Care Partner"; max-width: 36%; font-size: 11px; font-weight: 600; text-align: right; line-height: 1.3; }
+
+/* --- Small screens --- */
+@media (max-width: 760px) {
+  .receipt-doc .receipt-head { flex-wrap: wrap; }
+  .receipt-doc .receipt-title { min-width: 0; flex: 1 1 100%; margin: 0 calc(var(--rc-pad) * -1); padding: 14px var(--rc-pad); clip-path: none; }
+  .receipt-doc .receipt-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
+  .receipt-doc .receipt-meta > div:nth-child(odd) { border-left: 0; padding-left: 0; }
+  .receipt-doc .receipt-meta > div:last-child { grid-column: 1 / -1; justify-self: start; }
+  .receipt-doc .receipt-dl { grid-template-columns: 110px 1fr; }
+  .receipt-doc .receipt-table { font-size: 11.5px; }
+  .receipt-doc .receipt-table th, .receipt-doc .receipt-table td { padding: 8px 5px; font-size: 11.5px; }
+  .receipt-doc .receipt-table img { display: none; }
+  .receipt-doc .receipt-table .num { white-space: normal; }
+  .receipt-doc .receipt-codes, .receipt-doc .receipt-sign-row { grid-template-columns: 1fr; }
+  .receipt-doc .receipt-foot { flex-direction: column; align-items: flex-start; background: linear-gradient(115deg, var(--rc-red-dark), var(--rc-red)); }
+  .receipt-doc .receipt-foot::after { max-width: none; text-align: left; }
+}
+
+/* --- Print: keep the red bands even if the browser would drop backgrounds --- */
+@media print {
+  .receipt-doc, .receipt-doc * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .receipt-doc { border: 0; border-radius: 0; box-shadow: none; break-inside: avoid; }
+}
