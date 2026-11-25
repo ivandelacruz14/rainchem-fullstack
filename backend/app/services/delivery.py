@@ -19,9 +19,13 @@ def required(order):
 
 
 def accepted(order):
-    rows = (db.session.query(OrderScan.product_id, func.count(OrderScan.id))
-            .filter(OrderScan.order_id == order.id, OrderScan.result == "accepted")
-            .group_by(OrderScan.product_id).all())
+    """Accepted scans for the current delivery attempt. After a reschedule the units leave the warehouse again,
+    so only scans made after the admin confirmed the reschedule count. Older scans stay in the history."""
+    query = (db.session.query(OrderScan.product_id, func.count(OrderScan.id))
+             .filter(OrderScan.order_id == order.id, OrderScan.result == "accepted"))
+    if order.failed_confirmed_at:
+        query = query.filter(OrderScan.scanned_at >= order.failed_confirmed_at)
+    rows = query.group_by(OrderScan.product_id).all()
     return {pid: int(n) for pid, n in rows}
 
 

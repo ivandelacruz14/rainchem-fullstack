@@ -33,6 +33,7 @@ export default function RiderDeliveries() {
   const [photoError, setPhotoError] = useState("");
   const [failing, setFailing] = useState(false);
   const [failReason, setFailReason] = useState("");
+  const [deliveryNote, setDeliveryNote] = useState("");
   const detailRef = useRef(null);
 
   function loadList() {
@@ -60,6 +61,7 @@ export default function RiderDeliveries() {
     setScanning(false);
     setFailing(false);
     setPhoto(null);
+    setDeliveryNote("");
     client.get(`/api/rider/${id}`)
       .then((r) => { setDetail(r.data.order); setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); })
       .catch((err) => showToast(err.response?.data?.error || "This order could not be opened.", "error"));
@@ -232,16 +234,14 @@ export default function RiderDeliveries() {
                 </div>
               </div>
 
-              {status === "ready_for_delivery" && (
+              {(status === "ready_for_delivery" || status === "rescheduled") && (
                 <div className="rd-action">
-                  <p>When you leave the warehouse with the package, start the delivery.</p>
-                  <button type="button" className="btn btn-primary btn-block rd-big" disabled={busy} onClick={() => run("start", {}, "Delivery started")}>Start delivery</button>
-                </div>
-              )}
-
-              {status === "rescheduled" && (
-                <div className="rd-action">
-                  <p>This delivery was rescheduled{detail.rescheduledFor ? ` for ${detail.rescheduledFor}` : ""}. Start it on that day.</p>
+                  <p>Scan the order sticker to confirm this is the right order, then start the delivery when you leave.</p>
+                  {scanning ? (
+                    <ScanConfirm onDetected={(code) => { setScanning(false); scanUnit(code); }} onClose={() => setScanning(false)} />
+                  ) : (
+                    <button type="button" className="btn btn-outline btn-block rd-big" onClick={() => setScanning(true)} disabled={busy}>Scan order sticker</button>
+                  )}
                   <button type="button" className="btn btn-primary btn-block rd-big" disabled={busy} onClick={() => run("start", {}, "Delivery started")}>Start delivery</button>
                 </div>
               )}
@@ -284,8 +284,10 @@ export default function RiderDeliveries() {
 
                   <div className="rd-step">
                     <h3><span>3</span> Confirm the result</h3>
+                    <label htmlFor="rd-note" className="rd-hint">Optional note, for example: left with the guard</label>
+                    <input id="rd-note" maxLength={300} value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} placeholder="Optional" />
                     <button type="button" className="btn btn-primary btn-block rd-big rd-delivered" disabled={!canDeliver}
-                      onClick={() => run("deliver", {}, "Marked as delivered")}>
+                      onClick={async () => { const ok = await run("deliver", { note: deliveryNote.trim() }, "Marked as delivered"); if (ok) setDeliveryNote(""); }}>
                       Delivered
                     </button>
                     {!canDeliver && <p className="rd-hint">Scan every item and save the photo first.</p>}

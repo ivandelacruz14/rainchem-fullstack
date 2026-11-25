@@ -4,6 +4,7 @@ from datetime import datetime
 from flask import Blueprint, Response, current_app, jsonify, request
 
 from app.extensions import db
+from app.services.pod import matches_order
 from app.models import Order, OrderStatusHistory
 from app.models.delivery import DeliveryProof
 from app.services import audit, delivery as svc, live_chat as chat
@@ -142,9 +143,14 @@ def scan(order_id):
     order = _mine(order_id)
     if not order:
         return _err("Order not found", 404)
+    code = (request.get_json() or {}).get("code")
+    if matches_order(order, code):
+        # The order sticker identifies the order. It is not a unit, so nothing is counted here.
+        return jsonify({"accepted": True, "orderConfirmed": True,
+                        "message": f"Order {order.order_number} confirmed", "order": _detail(order)})
     if order.status != "shipped":
-        return _err("Start the delivery before scanning")
-    ok, message, _ = svc.record_scan(order, current_admin(), (request.get_json() or {}).get("code"))
+        return _err("Scan the order sticker to confirm the order. Start the delivery before scanning the items.")
+    ok, message, _ = svc.record_scan(order, current_admin(), code)
     return jsonify({"accepted": ok, "message": message, "order": _detail(order)}), (200 if ok else 422)
 
 
@@ -189,6 +195,7 @@ def deliver(order_id):
     order = _mine(order_id)
     if not order:
         return _err("Order not found", 404)
+    note = str((request.get_json(silent=True) or {}).get("note") or "").strip()[:300]
     if order.status != "shipped":
         return _err("Only an order that is out for delivery can be marked delivered")
     gaps = svc.missing(order)
@@ -206,6 +213,7 @@ def deliver(order_id):
     if order.payment_status != "paid":
         mark_paid(order)  # cash on delivery: collected at the door, recorded the same way as the admin path
     order.status = "delivered"
+    order.delivery_note = note or None
     db.session.add(OrderStatusHistory(order_id=order.id, status="delivered"))
     audit.record("delivered", "order", order.id, {"status": "shipped"}, {"status": "delivered"}, None, current_admin())
     db.session.commit()

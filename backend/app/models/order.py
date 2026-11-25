@@ -102,6 +102,7 @@ class Order(db.Model):
     failed_confirmed_at = db.Column(db.DateTime, nullable=True)
     failed_confirmed_by = db.Column(db.Integer, nullable=True)
     rescheduled_for = db.Column(db.Date, nullable=True)
+    delivery_note = db.Column(db.String(300), nullable=True)
 
     items = db.relationship("OrderItem", backref="order", cascade="all, delete-orphan")
     history = db.relationship(
@@ -165,6 +166,7 @@ class Order(db.Model):
             "statusLabel": STATUS_LABELS.get(self.status, self.status),
             "failedReason": self.failed_reason,
             "deliveredAt": self.delivered_at.isoformat() if self.delivered_at else None,
+            "deliveryNote": self.delivery_note,
             "failedAt": self.failed_at.isoformat() if self.failed_at else None,
             "rescheduledFor": self.rescheduled_for.isoformat() if self.rescheduled_for else None,
             "trackingNumber": self.tracking_number,

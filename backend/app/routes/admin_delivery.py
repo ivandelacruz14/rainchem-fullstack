@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 
 from app.extensions import db
 from app.models import Admin, Order, OrderStatusHistory
+from app.models.delivery import DeliveryProof
 from app.services import audit
 from app.services.pod import receipt_payload
 from app.utils.auth_decorators import current_admin, require_permission
@@ -73,3 +74,21 @@ def sticker(order_id):
         "customer": data["customer"], "payment": data["payment"], "itemCount": sum(i["quantity"] for i in data["items"]),
         "orderDate": data["orderDate"],
     }})
+
+
+@admin_delivery_bp.get("/delivered-orders")
+@require_permission("orders")
+def delivered_orders():
+    rows = Order.query.filter_by(status="delivered").order_by(Order.id.desc()).limit(200).all()
+    items = []
+    for o in rows:
+        rider = db.session.get(Admin, o.rider_id) if o.rider_id else None
+        items.append({
+            "id": o.id, "orderNumber": o.order_number, "customerName": o.customer_name,
+            "riderName": rider.name if rider else None, "total": float(o.total),
+            "paymentMethod": o.payment_method,
+            "deliveredAt": o.delivered_at.isoformat() if o.delivered_at else None,
+            "deliveryNote": o.delivery_note,
+            "hasPhoto": DeliveryProof.query.filter_by(order_id=o.id).first() is not None,
+        })
+    return jsonify({"orders": items})

@@ -31,7 +31,7 @@ export default function DeliveryManagement() {
     const request = tab === "awaiting" || tab === "rescheduled"
       ? client.get("/api/admin/failed-deliveries", { params: { tab } }).then((r) => r.data.items)
       : tab === "delivered"
-        ? client.get("/api/admin/orders", { params: { status: "delivered" } }).then((r) => r.data.orders)
+        ? client.get("/api/admin/delivered-orders").then((r) => r.data.orders)
         : client.get("/api/admin/orders").then((r) => r.data.orders.filter((o) => STICKER_STATUSES.includes(o.status)));
     Promise.resolve(request)
       .then((list) => { if (active) setItems(list); })
@@ -96,16 +96,17 @@ export default function DeliveryManagement() {
       )}
 
       {items && items.length > 0 && tab === "delivered" && (
-        <Table headers={["Order", "Customer", "Rider", "Total", "Payment", "Delivered", "Photo"]}>
+        <Table headers={["Order", "Customer", "Rider", "Total", "Payment", "Delivered", "Note", "Photo"]}>
           {items.map((o) => (
             <tr key={o.id}>
               <td className="dm-strong">{o.orderNumber}</td>
-              <td>{o.customer?.name || "-"}</td>
-              <td>{o.rider?.name || o.riderName || "-"}</td>
+              <td>{o.customerName || "-"}</td>
+              <td>{o.riderName || "-"}</td>
               <td>{peso(o.total)}</td>
               <td>{o.paymentMethod}</td>
-              <td>{o.deliveredAt ? formatDate(o.deliveredAt) : (o.updatedAt ? formatDate(o.updatedAt) : "-")}</td>
-              <td><ProofButton orderId={o.id} /></td>
+              <td>{o.deliveredAt ? formatDate(o.deliveredAt) : "-"}</td>
+              <td className="dm-reason">{o.deliveryNote || "-"}</td>
+              <td>{o.hasPhoto ? <ProofButton orderId={o.id} /> : <span className="dm-muted">No photo</span>}</td>
             </tr>
           ))}
         </Table>
