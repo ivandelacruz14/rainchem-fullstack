@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 
 from app.extensions import db
 from app.models import Admin, Order, OrderStatusHistory
+from app.models.order import STATUS_LABELS
 from app.models.delivery import DeliveryProof
 from app.services import audit
 from app.services.pod import receipt_payload
@@ -90,5 +91,26 @@ def delivered_orders():
             "deliveredAt": o.delivered_at.isoformat() if o.delivered_at else None,
             "deliveryNote": o.delivery_note,
             "hasPhoto": DeliveryProof.query.filter_by(order_id=o.id).first() is not None,
+        })
+    return jsonify({"orders": items})
+
+
+DISPATCH_STATUSES = ("confirmed", "processing", "ready_for_delivery", "rescheduled", "shipped")
+
+
+@admin_delivery_bp.get("/dispatch")
+@require_permission("orders")
+def dispatch():
+    """Every order that still needs the office: confirmed orders to send, and orders already with a rider."""
+    rows = Order.query.filter(Order.status.in_(DISPATCH_STATUSES)).order_by(Order.id.desc()).limit(300).all()
+    items = []
+    for o in rows:
+        rider = db.session.get(Admin, o.rider_id) if o.rider_id else None
+        items.append({
+            "id": o.id, "orderNumber": o.order_number, "customerName": o.customer_name,
+            "customerPhone": o.customer_phone, "address": o.address_line1,
+            "status": o.status, "statusLabel": STATUS_LABELS.get(o.status, o.status),
+            "riderId": o.rider_id, "riderName": rider.name if rider else None,
+            "paymentMethod": o.payment_method, "codAmount": receipt_payload(o)["payment"]["codAmountToCollect"],
         })
     return jsonify({"orders": items})

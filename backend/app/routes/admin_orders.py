@@ -248,14 +248,18 @@ def mark_refunded(order_id):
 @require_permission("manage_orders")
 def assign_rider(order_id):
     order = Order.query.get_or_404(order_id)
-    if order.status not in ("ready_for_delivery", "rescheduled"):
-        return jsonify({"error": "Only orders that are ready for delivery can be assigned"}), 400
+    if order.status not in ("confirmed", "processing", "ready_for_delivery", "rescheduled"):
+        return jsonify({"error": "Confirm the order first, then send it to a rider"}), 400
     data = request.get_json() or {}
     rider = db.session.get(Admin, data.get("riderId")) if data.get("riderId") else None
     if rider is None or rider.role != RIDER or not rider.is_active:
         return jsonify({"error": "Choose an active rider"}), 400
     order.rider_id = rider.id
     order.rider_assigned_at = datetime.utcnow()
+    if order.status in ("confirmed", "processing"):
+        # Sending to a rider means the order is ready to leave; no separate "ready" click is needed.
+        order.status = "ready_for_delivery"
+        db.session.add(OrderStatusHistory(order_id=order.id, status="ready_for_delivery"))
     audit.record("rider_assigned", "order", order.id, None, {"rider": rider.name}, None, current_admin())
     db.session.commit()
     return jsonify({"order": order.to_dict()})

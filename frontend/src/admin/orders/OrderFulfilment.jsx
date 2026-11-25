@@ -1,3 +1,4 @@
+import PrintStickerButton from "../../components/PrintStickerButton";
 import { useEffect, useState } from "react";
 import client from "../../api/client";
 import { useAdminAuth } from "../../context/AdminAuthContext";
@@ -44,28 +45,36 @@ export default function OrderFulfilment({ order, onChanged }) {
   return (
     <div className="field" style={{ marginTop: 16 }}>
       <label>Fulfilment</label>
-      {s === "confirmed" && (
-        <button className="btn btn-outline btn-block" disabled={busy} onClick={() => run("status", { status: "processing" }, "Order is being processed")}>
-          Start processing
-        </button>
-      )}
-      {s === "processing" && (
-        <button className="btn btn-outline btn-block" disabled={busy} onClick={() => run("status", { status: "ready_for_delivery" }, "Marked ready for delivery")}>
-          Mark ready for delivery
-        </button>
-      )}
-      {s === "ready_for_delivery" && (
-        <>
-          <select value={riderId} onChange={(e) => setRiderId(e.target.value)} aria-label="Rider">
-            <option value="">Choose a rider</option>
-            {riders.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-          </select>
-          <button className="btn btn-primary btn-block" style={{ marginTop: 8 }} disabled={busy || !riderId}
-            onClick={() => run("assign-rider", { riderId: Number(riderId) }, "Rider assigned")}>
-            Assign rider
-          </button>
-          {riders.length === 0 && <p className="field-hint">No active rider yet. Add one in Admin Accounts with the Rider role.</p>}
-        </>
+      {s === "pending_confirmation" && <p className="field-hint">Confirm the order first. Then print the sticker and send it to a rider.</p>}
+      {(s === "confirmed" || s === "processing" || s === "ready_for_delivery") && (
+        <div className="send-steps">
+          <div className="send-step done"><span>1</span><div>Order confirmed</div></div>
+          <div className="send-step">
+            <span>2</span>
+            <div>
+              <strong>Print the sticker</strong>
+              <p className="field-hint">Put it on the package. It has the QR code, the barcode, and the customer's details.</p>
+              <PrintStickerButton orderId={order.id} />
+            </div>
+          </div>
+          <div className="send-step">
+            <span>3</span>
+            <div>
+              <strong>Send to the rider</strong>
+              <div className="send-row">
+                <select value={riderId} onChange={(e) => setRiderId(e.target.value)} aria-label="Rider">
+                  <option value="">Choose a rider</option>
+                  {riders.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <button className="btn btn-primary" disabled={busy || !riderId}
+                  onClick={() => run("assign-rider", { riderId: Number(riderId) }, "Sent to the rider")}>
+                  Send to rider
+                </button>
+              </div>
+              {riders.length === 0 && <p className="field-hint">No active rider yet. Add one in Admin Accounts with the Rider role.</p>}
+            </div>
+          </div>
+        </div>
       )}
       {s === "shipped" && <p className="field-hint">Out for delivery. The rider completes it with scanning and proof.</p>}
       {s === "delivered" && (

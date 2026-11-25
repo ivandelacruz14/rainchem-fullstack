@@ -1303,7 +1303,6 @@ main, .container { max-width: 100%; box-sizing: border-box; }
   .receipt-dl { grid-template-columns: 120px 1fr; }
 }
 @media print {
-  body * { visibility: hidden !important; }
   .print-area, .print-area * { visibility: visible !important; }
   .print-area { position: absolute; left: 0; top: 0; width: 100%; border: 0; border-radius: 0; padding: 12mm; box-shadow: none; }
   @page { size: A4; margin: 0; }
@@ -1480,7 +1479,6 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .sticker-pay.paid { border-color: #15803d; color: #15803d; }
 .sticker-foot { font-size: 6.5pt; color: #555; }
 @media print {
-  body * { visibility: hidden !important; }
   .dm-print-only, .dm-print-only * { visibility: visible !important; }
   .dm-print-only { display: block !important; position: absolute; left: 0; top: 0; }
   @page { size: 100mm 60mm; margin: 0; }
@@ -1520,4 +1518,18 @@ main, .container { max-width: 100%; box-sizing: border-box; }
   #root { display: none !important; }
   .print-root { display: block !important; position: absolute; left: 0; top: 0; width: var(--sticker-w); height: var(--sticker-h); }
   .sticker { border: 0; page-break-inside: avoid; }
+}
+
+/* ---------- Sending to a rider and printing the sticker ---------- */
+.send-steps { display: grid; gap: 14px; margin-top: 12px; }
+.send-step { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+.send-step > span { width: 28px; height: 28px; border-radius: 50%; background: var(--line); color: var(--muted); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+.send-step.done > span { background: #16a34a; color: #fff; }
+.send-step p { margin: 4px 0 8px; }
+.send-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.send-row select { flex: 1 1 200px; }
+@media print {
+  body.printing-sticker #root { display: none !important; }
+  body.printing-sticker .print-root { display: block !important; position: absolute; left: 0; top: 0; }
+  body.printing-sticker .print-root * { visibility: visible !important; }
 }

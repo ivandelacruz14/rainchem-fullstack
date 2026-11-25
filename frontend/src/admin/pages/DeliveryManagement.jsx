@@ -1,44 +1,52 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import client from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import { useAdminAuth } from "../../context/AdminAuthContext";
-import StickerDocument from "../../components/StickerDocument";
+import PrintStickerButton from "../../components/PrintStickerButton";
 import { peso, formatDate } from "../../utils/format";
 
+/** The order path, in order: confirmed -> print the sticker -> send to a rider -> delivered (or failed and rescheduled). */
 const TABS = [
-  { key: "awaiting", label: "Failed deliveries", help: "Riders reported these as failed. Confirm each one and set the new delivery date." },
-  { key: "rescheduled", label: "Rescheduled", help: "Confirmed failed deliveries with their new delivery date." },
-  { key: "delivered", label: "Delivered", help: "Completed deliveries. Open the photo the rider took." },
-  { key: "stickers", label: "Print stickers", help: "Print the QR code and barcode sticker for each order before it goes out." },
+  { key: "send", label: "1. To send to rider", help: "Confirmed orders. Print the sticker, choose the rider, then send it." },
+  { key: "riders", label: "2. With riders", help: "Orders already with a rider and out for delivery." },
+  { key: "awaiting", label: "Failed, to confirm", help: "Riders reported these as failed. Confirm each one and set the new delivery date." },
+  { key: "rescheduled", label: "Rescheduled", help: "Failed deliveries with their new delivery date." },
+  { key: "delivered", label: "Delivered", help: "Completed deliveries, with the rider, time, note, and photo." },
 ];
 
-const STICKER_STATUSES = ["confirmed", "processing", "ready_for_delivery", "rescheduled", "shipped"];
-
-/** Delivery Management: failed deliveries, rescheduling, delivered proof, and package stickers. */
 export default function DeliveryManagement() {
   const { can } = useAdminAuth();
-  const [tab, setTab] = useState("awaiting");
+  const canManage = can("manage_orders");
+  const [tab, setTab] = useState("send");
   const [items, setItems] = useState(null);
+  const [riders, setRiders] = useState([]);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const activeTab = TABS.find((t) => t.key === tab);
-  const canManage = can("manage_orders");
+
+  useEffect(() => {
+    client.get("/api/admin/orders/riders").then((r) => setRiders(r.data.riders)).catch(() => setRiders([]));
+  }, []);
 
   useEffect(() => {
     let active = true;
     setError("");
     setItems(null);
-    const request = tab === "awaiting" || tab === "rescheduled"
-      ? client.get("/api/admin/failed-deliveries", { params: { tab } }).then((r) => r.data.items)
-      : tab === "delivered"
-        ? client.get("/api/admin/delivered-orders").then((r) => r.data.orders)
-        : client.get("/api/admin/orders").then((r) => r.data.orders.filter((o) => STICKER_STATUSES.includes(o.status)));
+    let request;
+    if (tab === "send" || tab === "riders") {
+      request = client.get("/api/admin/dispatch").then((r) => r.data.orders.filter((o) => (tab === "send" ? !o.riderId : !!o.riderId)));
+    } else if (tab === "delivered") {
+      request = client.get("/api/admin/delivered-orders").then((r) => r.data.orders);
+    } else {
+      request = client.get("/api/admin/failed-deliveries", { params: { tab } }).then((r) => r.data.items);
+    }
     Promise.resolve(request)
       .then((list) => { if (active) setItems(list); })
       .catch((err) => { if (active) { setItems([]); setError(err.response?.data?.error || "The list could not be loaded. Check your connection and refresh."); } });
     return () => { active = false; };
   }, [tab, refresh]);
+
+  const reload = () => setRefresh((n) => n + 1);
 
   return (
     <div className="dm-page">
@@ -58,13 +66,44 @@ export default function DeliveryManagement() {
       </nav>
 
       <div className="dm-toolbar">
-        <button type="button" className="btn btn-outline btn-sm" onClick={() => setRefresh((n) => n + 1)}>Refresh</button>
+        <button type="button" className="btn btn-outline btn-sm" onClick={reload}>Refresh</button>
       </div>
 
       {error && <div className="alert alert-error" role="alert">{error}</div>}
       {items === null && <div className="loading-state" role="status"><span className="spinner" /> Loading...</div>}
       {items && items.length === 0 && !error && (
-        <div className="empty-state"><strong>Nothing here</strong><span>{tab === "awaiting" ? "No failed deliveries are waiting for confirmation." : "There is nothing to show in this tab yet."}</span></div>
+        <div className="empty-state"><strong>Nothing here</strong><span>{emptyText(tab)}</span></div>
+      )}
+
+      {items && items.length > 0 && tab === "send" && (
+        <Table headers={["Order", "Customer", "Status", "Payment", "Cash to collect", "Sticker", "Rider"]}>
+          {items.map((o) => (
+            <tr key={o.id}>
+              <td className="dm-strong">{o.orderNumber}</td>
+              <td>{o.customerName}<div className="dm-muted">{o.customerPhone}</div></td>
+              <td>{o.statusLabel}</td>
+              <td>{o.paymentMethod}</td>
+              <td className="num">{o.codAmount > 0 ? peso(o.codAmount) : "Paid"}</td>
+              <td><PrintStickerButton orderId={o.id} /></td>
+              <td className="dm-act">{canManage ? <SendToRider order={o} riders={riders} onDone={reload} /> : <span className="dm-muted">View only</span>}</td>
+            </tr>
+          ))}
+        </Table>
+      )}
+
+      {items && items.length > 0 && tab === "riders" && (
+        <Table headers={["Order", "Customer", "Rider", "Status", "Cash to collect", "Sticker"]}>
+          {items.map((o) => (
+            <tr key={o.id}>
+              <td className="dm-strong">{o.orderNumber}</td>
+              <td>{o.customerName}</td>
+              <td>{o.riderName || "-"}</td>
+              <td>{o.statusLabel}</td>
+              <td className="num">{o.codAmount > 0 ? peso(o.codAmount) : "Paid"}</td>
+              <td><PrintStickerButton orderId={o.id} /></td>
+            </tr>
+          ))}
+        </Table>
       )}
 
       {items && items.length > 0 && tab === "awaiting" && (
@@ -76,7 +115,7 @@ export default function DeliveryManagement() {
               <td>{i.rider || "-"}</td>
               <td className="dm-reason">{i.failedReason}</td>
               <td>{i.failedAt ? formatDate(i.failedAt) : "-"}</td>
-              <td className="dm-act">{canManage ? <ConfirmFailed item={i} onDone={() => setRefresh((n) => n + 1)} /> : <span className="dm-muted">View only</span>}</td>
+              <td className="dm-act">{canManage ? <ConfirmFailed item={i} onDone={reload} /> : <span className="dm-muted">View only</span>}</td>
             </tr>
           ))}
         </Table>
@@ -112,22 +151,15 @@ export default function DeliveryManagement() {
           ))}
         </Table>
       )}
-
-      {items && items.length > 0 && tab === "stickers" && (
-        <Table headers={["Order", "Customer", "Status", "Payment", "Sticker"]}>
-          {items.map((o) => (
-            <tr key={o.id}>
-              <td className="dm-strong">{o.orderNumber}</td>
-              <td>{o.customer?.name || "-"}</td>
-              <td>{o.statusLabel}</td>
-              <td>{o.paymentMethod}</td>
-              <td className="dm-act"><PrintStickerButton orderId={o.id} /></td>
-            </tr>
-          ))}
-        </Table>
-      )}
     </div>
   );
+}
+
+function emptyText(tab) {
+  if (tab === "send") return "No confirmed orders are waiting to be sent to a rider.";
+  if (tab === "riders") return "No orders are with a rider right now.";
+  if (tab === "awaiting") return "No failed deliveries are waiting for confirmation.";
+  return "There is nothing to show in this tab yet.";
 }
 
 function Table({ headers, children }) {
@@ -137,6 +169,35 @@ function Table({ headers, children }) {
         <thead><tr>{headers.map((h) => <th key={h}>{h}</th>)}</tr></thead>
         <tbody>{children}</tbody>
       </table>
+    </div>
+  );
+}
+
+function SendToRider({ order, riders, onDone }) {
+  const showToast = useToast();
+  const [riderId, setRiderId] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function send() {
+    setBusy(true);
+    try {
+      await client.post(`/api/admin/orders/${order.id}/assign-rider`, { riderId: Number(riderId) });
+      showToast(`${order.orderNumber} sent to the rider.`, "success");
+      onDone();
+    } catch (err) {
+      showToast(err.response?.data?.error || "The order could not be sent.", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="dm-inline">
+      <select value={riderId} onChange={(e) => setRiderId(e.target.value)} aria-label={`Rider for ${order.orderNumber}`}>
+        <option value="">Choose a rider</option>
+        {riders.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+      </select>
+      <button type="button" className="btn btn-primary btn-sm" disabled={!riderId || busy} onClick={send}>Send to rider</button>
     </div>
   );
 }
@@ -201,48 +262,4 @@ function ProofButton({ orderId }) {
     );
   }
   return <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={open}>{busy ? "Opening..." : "View photo"}</button>;
-}
-
-function PrintStickerButton({ orderId }) {
-  const showToast = useToast();
-  const [sticker, setSticker] = useState(null);
-  const [qrUrl, setQrUrl] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  async function prepare() {
-    setBusy(true);
-    try {
-      const [s, q] = await Promise.all([
-        client.get(`/api/admin/orders/${orderId}/sticker`),
-        client.get(`/api/admin/orders/${orderId}/receipt/qr.png`, { responseType: "blob" }),
-      ]);
-      setQrUrl(URL.createObjectURL(q.data));
-      setSticker(s.data.sticker);
-    } catch (err) {
-      showToast(err.response?.data?.error || "The sticker could not be prepared.", "error");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Print once the sticker is on the page. Only clear it after the print dialog closes.
-  useEffect(() => {
-    if (!sticker || !qrUrl) return undefined;
-    const t = setTimeout(() => window.print(), 250);
-    const clear = () => { setSticker(null); };
-    window.addEventListener("afterprint", clear);
-    return () => { clearTimeout(t); window.removeEventListener("afterprint", clear); };
-  }, [sticker, qrUrl]);
-
-  useEffect(() => {
-    if (sticker) return;
-    if (qrUrl) { URL.revokeObjectURL(qrUrl); setQrUrl(null); }
-  }, [sticker, qrUrl]);
-
-  return (
-    <>
-      <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={prepare}>{busy ? "Preparing..." : "Print sticker"}</button>
-      {sticker && qrUrl && createPortal(<div className="print-root"><StickerDocument sticker={sticker} qrUrl={qrUrl} /></div>, document.body)}
-    </>
-  );
 }
