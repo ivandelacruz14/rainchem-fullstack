@@ -1564,3 +1564,10 @@ main, .container { max-width: 100%; box-sizing: border-box; }
   body.printing-sticker .sticker { border: 0; page-break-inside: avoid; }
   @page { size: var(--sticker-w) var(--sticker-h); margin: 0; }
 }
+
+/* ---------- Sticker: prints correctly even with "Background graphics" off ---------- */
+.sticker, .sticker * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.sticker-band { background: none !important; color: #111 !important; border-bottom: 0.9mm solid #111; padding: 0 1mm; }
+.sticker-brand, .sticker-order { color: #111 !important; }
+.sticker-pay.cod { background: none !important; color: #111 !important; border: 0.6mm solid #111; }
+.sticker-pay.paid { background: none !important; color: #15803d !important; border: 0.6mm solid #15803d; }
