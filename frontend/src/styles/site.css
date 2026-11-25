@@ -1488,3 +1488,5 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 @media (max-width: 760px) {
   .dm-title { font-size: 22px; }
 }
+.oc-note { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.oc-note-alert { color: #b91c1c; font-weight: 600; }

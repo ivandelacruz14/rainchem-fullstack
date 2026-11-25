@@ -111,3 +111,17 @@ def test_the_sticker_is_for_admins_and_shows_cod_or_paid(client, make_order, mak
     assert s["orderNumber"] == order.order_number and s["qrText"].startswith("RCPT|") and s["barcodeValue"] == order.order_number
     assert s["customer"]["name"] == order.customer_name and s["payment"]["method"]
     assert client.get(f"/api/admin/orders/{order.id}/sticker", headers=rider).status_code == 403
+
+
+def test_the_customer_gets_the_delivered_time(client, make_order, make_user, make_product, make_admin, admin_login, user_login):
+    from test_delivery_round4 import scan
+    order, head, rider, other = setup_order(make_order, make_user, make_product, make_admin, admin_login, client)
+    start(client, rider, order)
+    for code in ("RC-OIL-1", "RC-OIL-1", "RC-FIL-1"):
+        scan(client, rider, order, code)
+    upload(client, rider, order)
+    assert client.post(f"/api/rider/{order.id}/deliver", headers=rider).status_code == 200
+    cust = user_login("customer@example.com")
+    mine = next(o for o in client.get("/api/orders", headers=cust).get_json()["orders"] if o["id"] == order.id)
+    assert mine["statusLabel"] == "Delivered" and mine["deliveredAt"]
+

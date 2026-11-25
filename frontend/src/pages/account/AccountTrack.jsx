@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import useLiveOrders from "../../hooks/useLiveOrders";
 import { Link, useSearchParams } from "react-router-dom";
 import client from "../../api/client";
 import OrderJourney from "../../components/journey/OrderJourney";
@@ -32,9 +33,7 @@ export default function AccountTrack() {
     }
   }, []);
 
-  useEffect(() => {
-    client.get("/api/orders").then((res) => setOrders(res.data.orders)).catch(() => {});
-  }, []);
+  useLiveOrders({ onLoad: (list) => { if (list) setOrders(list); } });
 
   useEffect(() => {
     const fromLink = params.get("order");

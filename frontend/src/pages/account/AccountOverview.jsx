@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import useLiveOrders from "../../hooks/useLiveOrders";
 import client from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { formatDate } from "../../utils/format";
@@ -7,9 +8,7 @@ export default function AccountOverview() {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
 
-  useEffect(() => {
-    client.get("/api/orders").then((res) => setOrders(res.data.orders));
-  }, []);
+  useLiveOrders({ onLoad: (list) => { if (list) setOrders(list); } });
 
   const inTransit = orders.filter((o) => ["confirmed", "processing", "shipped"].includes(o.status)).length;
   const delivered = orders.filter((o) => o.status === "delivered").length;

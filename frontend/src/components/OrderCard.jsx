@@ -29,6 +29,13 @@ export default function OrderCard({ order, onCancel, onPay, onReceive, onReview,
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-start" }}>
           <span className={`pay-pill pay-${order.paymentStatus}`}>{order.paymentStatusLabel}</span>
           <span className={`status-pill status-${order.status}`}>{order.statusLabel}</span>
+          {order.status === "delivered" && order.deliveredAt && (
+            <p className="oc-note">Delivered on {new Date(order.deliveredAt).toLocaleString("en-PH")}</p>
+          )}
+          {order.status === "delivery_failed" && <p className="oc-note oc-note-alert">Delivery failed: {order.failedReason}. The office will confirm a new date.</p>}
+          {order.status === "rescheduled" && (
+            <p className="oc-note oc-note-alert">Failed delivery{order.failedReason ? `: ${order.failedReason}` : ""}. New delivery date: {order.rescheduledFor || "to be confirmed"}</p>
+          )}
         </div>
       </div>
 

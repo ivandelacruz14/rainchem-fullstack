@@ -164,6 +164,7 @@ class Order(db.Model):
             "status": self.status,
             "statusLabel": STATUS_LABELS.get(self.status, self.status),
             "failedReason": self.failed_reason,
+            "deliveredAt": self.delivered_at.isoformat() if self.delivered_at else None,
             "failedAt": self.failed_at.isoformat() if self.failed_at else None,
             "rescheduledFor": self.rescheduled_for.isoformat() if self.rescheduled_for else None,
             "trackingNumber": self.tracking_number,

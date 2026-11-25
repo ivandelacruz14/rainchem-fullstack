@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import useLiveOrders from "../../hooks/useLiveOrders";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import client from "../../api/client";
 import OrderCard from "../../components/OrderCard";
@@ -34,12 +35,12 @@ export default function AccountOrders() {
 
   const tab = TABS.some((t) => t.key === params.get("tab")) ? params.get("tab") : "all";
 
-  function loadOrders() {
-    client.get("/api/orders")
-      .then((res) => setOrders(res.data.orders))
-      .finally(() => setLoading(false));
-  }
-  useEffect(loadOrders, []);
+  const loadOrders = useLiveOrders({
+    onLoad: (list) => { if (list) setOrders(list); setLoading(false); },
+    onStatusChange: (o) => {
+      if (["delivered", "delivery_failed", "rescheduled"].includes(o.status)) showToast(`${o.orderNumber}: ${o.statusLabel}`, "success");
+    },
+  });
 
   const counts = {};
   TABS.forEach((t) => {
