@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import client from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import { useAdminAuth } from "../../context/AdminAuthContext";
@@ -234,7 +235,7 @@ function PrintStickerButton({ orderId }) {
   return (
     <>
       <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={prepare}>{busy ? "Preparing..." : "Print sticker"}</button>
-      {sticker && <div className="dm-print-only"><StickerDocument sticker={sticker} qrUrl={qrUrl} /></div>}
+      {sticker && createPortal(<div className="print-root"><StickerDocument sticker={sticker} qrUrl={qrUrl} /></div>, document.body)}
     </>
   );
 }

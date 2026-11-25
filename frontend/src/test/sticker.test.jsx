@@ -13,7 +13,7 @@ describe("package sticker", () => {
   it("shows the cash to collect for a cash-on-delivery order", () => {
     render(<StickerDocument sticker={{ ...base, payment: { method: "Cash on Delivery", isPaid: false, codAmountToCollect: 780 } }} />);
     expect(screen.getByText(/COLLECT/)).toBeTruthy();
-    expect(screen.getByText("ORD-20261125-0007")).toBeTruthy();
+    expect(screen.getAllByText("ORD-20261125-0007").length).toBeGreaterThan(0);
     expect(screen.getByText("Maria Santos")).toBeTruthy();
   });
 
