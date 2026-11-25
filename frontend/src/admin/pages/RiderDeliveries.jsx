@@ -1,3 +1,4 @@
+import RiderReceiptModal from "../../components/RiderReceiptModal";
 import { useEffect, useState } from "react";
 import client from "../../api/client";
 import { useToast } from "../../context/ToastContext";
@@ -5,6 +6,7 @@ import { peso } from "../../utils/format";
 
 /** The rider's own deliveries: start, scan every unit, upload proof, then deliver. The server checks each step. */
 export default function RiderDeliveries() {
+  const [receiptFor, setReceiptFor] = useState(null);
   const showToast = useToast();
   const [orders, setOrders] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -69,6 +71,7 @@ export default function RiderDeliveries() {
           <div className="panel" key={o.id} style={{ marginBottom: 16 }}>
             <strong>{o.orderNumber}</strong> <span className={`status-pill status-${o.status}`}>{o.statusLabel}</span>
             <p style={{ margin: "8px 0" }}>{o.customer.name} · {o.customer.phone}<br />{o.address}</p>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setReceiptFor(o)}>Receipt and signature</button>
             {o.amountToCollect > 0 && <p><strong>Collect cash: {peso(o.amountToCollect)}</strong></p>}
             <ul style={{ paddingLeft: 18 }}>
               {o.items.map((i) => (
@@ -109,6 +112,7 @@ export default function RiderDeliveries() {
           </div>
         );
       })}
+    {receiptFor && <RiderReceiptModal order={receiptFor} onClose={() => setReceiptFor(null)} onChanged={() => load()} />}
     </div>
   );
 }

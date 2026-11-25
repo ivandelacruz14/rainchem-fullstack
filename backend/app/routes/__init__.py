@@ -20,6 +20,7 @@ from app.routes.addresses import addresses_bp
 from app.routes.admin_diagnostics import admin_diagnostics_bp
 from app.routes.rider import rider_bp
 from app.routes.payment_receipts import payment_receipts_bp
+from app.routes.delivery_receipts import delivery_receipts_bp
 from app.routes.admin_product_docs import admin_product_docs_bp
 from app.routes.admin_inventory import admin_inventory_bp
 from app.routes.admin_sales_records import admin_sales_records_bp
@@ -50,6 +51,7 @@ def register_routes(app):
     app.register_blueprint(admin_diagnostics_bp)
     app.register_blueprint(rider_bp)
     app.register_blueprint(payment_receipts_bp)
+    app.register_blueprint(delivery_receipts_bp)
     app.register_blueprint(admin_product_docs_bp)
     app.register_blueprint(admin_inventory_bp)
     app.register_blueprint(admin_sales_records_bp)

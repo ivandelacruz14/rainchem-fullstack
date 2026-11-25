@@ -17,7 +17,7 @@ from app.models.inventory import InventoryMovement, InventoryAlert
 from app.models.sales_record import SalesRecord
 from app.models.product_document import ProductDocument, RecommendationLog
 from app.models.location import PhLocation, UserAddress
-from app.models.delivery import OrderScan, DeliveryProof
+from app.models.delivery import OrderScan, DeliveryProof, DeliveryReceiptUpload
 
 __all__ = [
     "User",
@@ -57,4 +57,5 @@ __all__ = [
     "UserAddress",
     "OrderScan",
     "DeliveryProof",
+    "DeliveryReceiptUpload",
 ]

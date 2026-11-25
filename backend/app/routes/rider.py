@@ -1,7 +1,7 @@
 import hashlib
 from datetime import datetime
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 
 from app.extensions import db
 from app.models import Order, OrderStatusHistory
@@ -131,6 +131,11 @@ def deliver(order_id):
         return jsonify({"error": "Scan every unit before delivering", "missing": gaps}), 400
     if not DeliveryProof.query.filter_by(order_id=order.id).first():
         return _err("Upload the delivery proof before delivering")
+    if current_app.config.get("POD_REQUIRE_VERIFIED_RECEIPT"):
+        from app.services.pod import latest_upload
+        receipt = latest_upload(order)
+        if receipt is None or receipt.status != "verified":
+            return _err("The customer\u2019s delivery receipt must be verified by an admin before delivery is recorded")
     if order.is_online_payment and order.payment_status != "paid":
         return _err("This order has not been paid yet")
     if order.payment_status != "paid":
