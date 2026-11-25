@@ -96,6 +96,8 @@ def update_status(order_id):
     if order.status in allowed_next and new_status != order.status and new_status not in allowed_next[order.status]:
         return jsonify({"error": f"An order cannot move from {order.status} to {new_status}"}), 400
 
+    if new_status in ("delivery_failed", "rescheduled"):
+        return jsonify({"error": "Failed deliveries are reported by the rider and confirmed in Delivery Confirmation"}), 400
     if new_status not in ORDER_STATUSES:
         return jsonify({"error": "Invalid status"}), 400
     if order.status == "cancelled":
@@ -246,7 +248,7 @@ def mark_refunded(order_id):
 @require_permission("manage_orders")
 def assign_rider(order_id):
     order = Order.query.get_or_404(order_id)
-    if order.status != "ready_for_delivery":
+    if order.status not in ("ready_for_delivery", "rescheduled"):
         return jsonify({"error": "Only orders that are ready for delivery can be assigned"}), 400
     data = request.get_json() or {}
     rider = db.session.get(Admin, data.get("riderId")) if data.get("riderId") else None

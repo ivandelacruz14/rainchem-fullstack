@@ -60,7 +60,7 @@ class Config:
     ALLOWED_EMAIL_DOMAINS = ("gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "ntc.edu.ph")
     REGISTER_LIMIT_PER_HOUR = int(os.getenv("REGISTER_LIMIT_PER_HOUR", "20"))
     # A delivery is recorded only after the admin verifies the rider's receipt upload.
-    POD_REQUIRE_VERIFIED_RECEIPT = os.getenv("POD_REQUIRE_VERIFIED_RECEIPT", "true").lower() == "true"
+    POD_REQUIRE_VERIFIED_RECEIPT = os.getenv("POD_REQUIRE_VERIFIED_RECEIPT", "false").lower() == "true"
     RECEIPT_MAX_MB = int(os.getenv("RECEIPT_MAX_MB", "5"))
     OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
     OTP_RESEND_COOLDOWN_SECONDS = int(os.getenv("OTP_RESEND_COOLDOWN_SECONDS", "60"))

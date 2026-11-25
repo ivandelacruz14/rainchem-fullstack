@@ -31,6 +31,8 @@ ORDER_STATUSES = [
     "ready_for_delivery",
     "shipped",
     "delivered",
+    "delivery_failed",
+    "rescheduled",
     "cancelled",
 ]
 
@@ -41,6 +43,8 @@ STATUS_LABELS = {
     "processing": "Processing",
     "shipped": "Shipped",
     "delivered": "Delivered",
+    "delivery_failed": "Delivery failed",
+    "rescheduled": "Rescheduled",
     "cancelled": "Cancelled",
 }
 
@@ -93,6 +97,11 @@ class Order(db.Model):
     cancelled_at = db.Column(db.DateTime, nullable=True)
     rider_id = db.Column(db.Integer, db.ForeignKey("admins.id", ondelete="SET NULL"), nullable=True, index=True)
     rider_assigned_at = db.Column(db.DateTime, nullable=True)
+    failed_reason = db.Column(db.String(500), nullable=True)
+    failed_at = db.Column(db.DateTime, nullable=True)
+    failed_confirmed_at = db.Column(db.DateTime, nullable=True)
+    failed_confirmed_by = db.Column(db.Integer, nullable=True)
+    rescheduled_for = db.Column(db.Date, nullable=True)
 
     items = db.relationship("OrderItem", backref="order", cascade="all, delete-orphan")
     history = db.relationship(
@@ -154,6 +163,9 @@ class Order(db.Model):
             "userId": self.user_id,
             "status": self.status,
             "statusLabel": STATUS_LABELS.get(self.status, self.status),
+            "failedReason": self.failed_reason,
+            "failedAt": self.failed_at.isoformat() if self.failed_at else None,
+            "rescheduledFor": self.rescheduled_for.isoformat() if self.rescheduled_for else None,
             "trackingNumber": self.tracking_number,
             "customer": {
                 "name": self.customer_name,

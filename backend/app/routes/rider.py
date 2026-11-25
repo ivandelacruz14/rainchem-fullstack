@@ -12,6 +12,7 @@ from app.utils.auth_decorators import current_admin, require_permission
 
 rider_bp = Blueprint("rider", __name__, url_prefix="/api/rider")
 ACTIVE = ("ready_for_delivery", "shipped")
+DASHBOARD_STATES = ("ready_for_delivery", "shipped", "delivery_failed", "rescheduled", "delivered")
 
 
 def _err(message, status=400):
@@ -44,8 +45,72 @@ def _detail(order):
 @rider_bp.get("")
 @require_permission("deliveries")
 def my_deliveries():
-    rows = Order.query.filter(Order.rider_id == current_admin().id, Order.status.in_(ACTIVE)).order_by(Order.id).all()
+    rows = Order.query.filter(Order.rider_id == current_admin().id,
+                              Order.status.in_(ACTIVE + ("delivery_failed", "rescheduled"))).order_by(Order.id).all()
     return jsonify({"orders": [_detail(o) for o in rows]})
+
+
+@rider_bp.get("/summary")
+@require_permission("deliveries")
+def summary():
+    rows = Order.query.filter(Order.rider_id == current_admin().id, Order.status.in_(DASHBOARD_STATES)).all()
+
+    def count(*states):
+        return sum(1 for o in rows if o.status in states)
+
+    return jsonify({"summary": {
+        "total": len(rows),
+        "pending": count("ready_for_delivery"),
+        "outForDelivery": count("shipped"),
+        "delivered": count("delivered"),
+        "failed": count("delivery_failed", "rescheduled"),
+    }})
+
+
+def _digits(value):
+    return "".join(ch for ch in (value or "") if ch.isdigit())
+
+
+@rider_bp.get("/search")
+@require_permission("deliveries")
+def search():
+    """Finds the rider's own orders by customer name, order number, or phone number."""
+    q = (request.args.get("q") or "").strip()[:80]
+    if len(q) < 2:
+        return jsonify({"orders": [], "message": "Type at least 2 characters"})
+    q_lower, q_digits = q.lower(), _digits(q)
+    rows = Order.query.filter(Order.rider_id == current_admin().id, Order.status.in_(DASHBOARD_STATES)).order_by(Order.id.desc()).all()
+    found = []
+    for o in rows:
+        hit = (q_lower in (o.customer_name or "").lower()
+               or q_lower in (o.order_number or "").lower()
+               or (len(q_digits) >= 4 and q_digits in _digits(o.customer_phone)))
+        if hit:
+            found.append({"id": o.id, "orderNumber": o.order_number, "customerName": o.customer_name,
+                          "customerPhone": o.customer_phone, "status": o.status,
+                          "statusLabel": o.to_dict()["statusLabel"], "address": o.address_line1})
+    return jsonify({"orders": found[:50]})
+
+
+@rider_bp.post("/<int:order_id>/fail")
+@require_permission("deliveries")
+def report_failed(order_id):
+    """The delivery did not happen today. The reason is required, and the admin confirms it and sets a new date."""
+    order = _mine(order_id)
+    if not order:
+        return _err("Order not found", 404)
+    if order.status != "shipped":
+        return _err("Only an order that is out for delivery can be reported as failed")
+    reason = str((request.get_json() or {}).get("reason") or "").strip()[:500]
+    if len(reason) < 5:
+        return _err("Write the reason the delivery failed (at least 5 characters)")
+    order.status = "delivery_failed"
+    order.failed_reason = reason
+    order.failed_at = datetime.utcnow()
+    db.session.add(OrderStatusHistory(order_id=order.id, status="delivery_failed"))
+    audit.record("delivery_failed", "order", order.id, {"status": "shipped"}, {"status": "delivery_failed"}, reason, current_admin())
+    db.session.commit()
+    return jsonify({"order": _detail(order)})
 
 
 @rider_bp.get("/<int:order_id>")
@@ -63,7 +128,7 @@ def start(order_id):
     order = _mine(order_id)
     if not order:
         return _err("Order not found", 404)
-    if order.status != "ready_for_delivery":
+    if order.status not in ("ready_for_delivery", "rescheduled"):
         return _err("This order is not ready to leave the warehouse")
     order.status = "shipped"
     db.session.add(OrderStatusHistory(order_id=order.id, status="shipped"))
