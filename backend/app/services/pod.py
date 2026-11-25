@@ -126,6 +126,7 @@ def receipt_payload(order):
             "codAmountToCollect": float(order.total) if cod and order.payment_status != "paid" else 0.0,
         },
         "rider": Admin.query.get(order.rider_id).name if order.rider_id and Admin.query.get(order.rider_id) else None,
+        "upload": upload_payload(upload) if upload else None,
     }
 
 
@@ -137,3 +138,13 @@ def upload_payload(row):
         "reviewedAt": row.reviewed_at.isoformat() if row.reviewed_at else None,
         "rejectReason": row.reject_reason,
     }
+
+
+def matches_order(order, code):
+    """The rider confirms the order by scanning its QR code or barcode. The barcode holds the order number."""
+    code = (code or "").strip()
+    if not code:
+        return False
+    if code.startswith("RCPT|"):
+        return order_from_qr(code) is not None and order_from_qr(code).id == order.id
+    return code == order.order_number

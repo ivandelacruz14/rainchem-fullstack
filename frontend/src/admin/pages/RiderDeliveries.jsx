@@ -1,4 +1,4 @@
-import RiderReceiptModal from "../../components/RiderReceiptModal";
+import RiderConfirmDelivery from "../../components/RiderConfirmDelivery";
 import { useEffect, useState } from "react";
 import client from "../../api/client";
 import { useToast } from "../../context/ToastContext";
@@ -64,14 +64,15 @@ export default function RiderDeliveries() {
 
   return (
     <div>
-      <div className="admin-topbar"><div><h1>My Deliveries</h1><p>Scan every unit, upload the proof photo, then mark it delivered.</p></div></div>
+      <div className="admin-topbar"><div><h1>My Deliveries</h1><p>Open an order, confirm it by scanning the receipt, then upload the photo of the signed receipt.</p></div></div>
       {orders.map((o) => {
         const ready = o.missing.length === 0 && o.hasProof;
         return (
           <div className="panel" key={o.id} style={{ marginBottom: 16 }}>
-            <strong>{o.orderNumber}</strong> <span className={`status-pill status-${o.status}`}>{o.statusLabel}</span>
+            <div className="rd-head"><h3 className="rd-name">{o.customer.name}</h3><span className={`status-pill status-${o.status}`}>{o.statusLabel}</span></div>
+            <div className="rd-order">Order <strong>{o.orderNumber}</strong></div>
             <p style={{ margin: "8px 0" }}>{o.customer.name} · {o.customer.phone}<br />{o.address}</p>
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => setReceiptFor(o)}>Receipt and signature</button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setReceiptFor(o)}>Confirm delivery</button>
             {o.amountToCollect > 0 && <p><strong>Collect cash: {peso(o.amountToCollect)}</strong></p>}
             <ul style={{ paddingLeft: 18 }}>
               {o.items.map((i) => (
@@ -112,7 +113,7 @@ export default function RiderDeliveries() {
           </div>
         );
       })}
-    {receiptFor && <RiderReceiptModal order={receiptFor} onClose={() => setReceiptFor(null)} onChanged={() => load()} />}
+    {receiptFor && <RiderConfirmDelivery order={receiptFor} onClose={() => setReceiptFor(null)} onChanged={() => load()} />}
     </div>
   );
 }

@@ -9,7 +9,7 @@ from app.extensions import db
 from app.models import Order, OrderStatusHistory
 from app.models.delivery import DeliveryReceiptUpload
 from app.services import audit
-from app.services.pod import (clean_printed_name, delivery_stage, detect_receipt_file, latest_upload,
+from app.services.pod import (clean_printed_name, delivery_stage, detect_receipt_file, latest_upload, matches_order,
                               order_from_qr, parse_signature, receipt_payload, upload_payload, qr_text)
 from app.utils.auth_decorators import current_admin, require_permission
 
@@ -72,6 +72,19 @@ def admin_receipt_qr(order_id):
     return _qr_png(qr_text(order))
 
 
+@delivery_receipts_bp.post("/rider/orders/<int:order_id>/confirm-scan")
+@require_permission("deliveries")
+def rider_confirm_scan(order_id):
+    """Step 1 for the rider: the scanned code must belong to this order before the receipt can be photographed."""
+    order = _my_order(order_id)
+    if not order:
+        return _err("Order not found", 404)
+    code = (request.get_json() or {}).get("code")
+    if not matches_order(order, code):
+        return _err("This code does not belong to this order. Check the receipt and scan again.", 400)
+    return jsonify({"confirmed": True, "orderNumber": order.order_number})
+
+
 @delivery_receipts_bp.post("/receipts/verify")
 @require_permission("orders")
 def verify_receipt_code():
@@ -108,9 +121,9 @@ def rider_upload_receipt(order_id):
     if mime is None:
         return _err("Only JPG, PNG, WEBP, or PDF files are accepted")
 
-    signature = parse_signature(request.form.get("signature"))
-    if signature is None:
-        return _err("The customer's signature is required (draw it on the signature pad)")
+    if not matches_order(order, request.form.get("scanCode")):
+        return _err("Scan this order's QR code or barcode first, then upload the receipt")
+    signature = parse_signature(request.form.get("signature")) or b""  # optional: the signature is on the printed paper
     printed_name = clean_printed_name(request.form.get("printedName"))
     if printed_name is None:
         return _err("Enter the customer's printed name")
@@ -181,8 +194,8 @@ def receipt_file(upload_id):
 @require_permission("orders")
 def receipt_signature(upload_id):
     row = db.session.get(DeliveryReceiptUpload, upload_id)
-    if not row:
-        return _err("Receipt not found", 404)
+    if not row or not row.signature:
+        return _err("No digital signature for this receipt", 404)
     return Response(row.signature, mimetype="image/png", headers=SAFE_FILE_HEADERS)
 
 

@@ -18,8 +18,11 @@ def shipped(client, make_order, make_user, make_product, make_admin, admin_login
     return order, head, rider, other
 
 
-def send_receipt(client, h, order, data=JPEG, name="receipt.jpg", signature=SIG, printed="Juan Dela Cruz", ack="yes"):
-    body = {"file": (io.BytesIO(data), name), "signature": signature, "printedName": printed, "acknowledged": ack}
+def send_receipt(client, h, order, data=JPEG, name="receipt.jpg", signature=None, printed="Juan Dela Cruz", ack="yes", scan=None):
+    scan = order.order_number if scan is None else scan
+    body = {"file": (io.BytesIO(data), name), "printedName": printed, "acknowledged": ack, "scanCode": scan}
+    if signature is not None:
+        body["signature"] = signature
     return client.post(f"/api/rider/orders/{order.id}/receipt-upload", headers=h, data=body, content_type="multipart/form-data")
 
 
@@ -49,11 +52,13 @@ def test_qr_image_is_a_png_and_only_for_the_assigned_rider(client, make_order, m
     assert client.get(f"/api/rider/orders/{order.id}/receipt/qr.png", headers=other).status_code == 404
 
 
-def test_upload_needs_the_signature_the_name_and_acknowledgement(client, make_order, make_user, make_product, make_admin, admin_login):
+def test_upload_needs_the_scan_the_name_and_acknowledgement(client, make_order, make_user, make_product, make_admin, admin_login):
     order, head, rider, other = shipped(client, make_order, make_user, make_product, make_admin, admin_login)
-    assert send_receipt(client, rider, order, signature=None).status_code == 400
+    assert send_receipt(client, rider, order, scan="").status_code == 400                     # not scanned yet
+    assert send_receipt(client, rider, order, scan="RC-WRONG-0001").status_code == 400         # another order's code
     assert send_receipt(client, rider, order, printed="").status_code == 400
     assert send_receipt(client, rider, order, ack="no").status_code == 400
+    assert send_receipt(client, rider, order).status_code == 201                               # signature is not required
 
 
 def test_upload_rejects_fake_files_and_oversize_files(client, make_order, make_user, make_product, make_admin, admin_login):
@@ -103,7 +108,7 @@ def test_the_file_and_signature_are_only_for_staff_who_can_see_orders(client, ma
     row = send_receipt(client, rider, order).get_json()["upload"]
     f = client.get(f"/api/admin/delivery-confirmations/{row['id']}/file", headers=head)
     assert f.status_code == 200 and f.data == JPEG and "sandbox" in f.headers["Content-Security-Policy"]
-    assert client.get(f"/api/admin/delivery-confirmations/{row['id']}/signature.png", headers=head).data == PNG
+    assert client.get(f"/api/admin/delivery-confirmations/{row['id']}/signature.png", headers=head).status_code == 404
     assert client.get(f"/api/admin/delivery-confirmations/{row['id']}/file", headers=rider).status_code == 403
 
 
@@ -130,3 +135,18 @@ def test_every_receipt_action_is_audited(client, make_order, make_user, make_pro
     client.post(f"/api/admin/delivery-confirmations/{row['id']}/verify", headers=head)
     actions = {e.action for e in AuditLog.query.all()}
     assert {"receipt_uploaded", "receipt_verified"} <= actions
+
+
+def test_scan_confirms_the_order_by_barcode_or_qr_only(client, make_order, make_user, make_product, make_admin, admin_login):
+    order, head, rider, other = shipped(client, make_order, make_user, make_product, make_admin, admin_login)
+    qr = client.get(f"/api/rider/orders/{order.id}/receipt", headers=rider).get_json()["receipt"]["qrText"]
+    assert client.post(f"/api/rider/orders/{order.id}/confirm-scan", headers=rider, json={"code": order.order_number}).status_code == 200
+    assert client.post(f"/api/rider/orders/{order.id}/confirm-scan", headers=rider, json={"code": qr}).status_code == 200
+    assert client.post(f"/api/rider/orders/{order.id}/confirm-scan", headers=rider, json={"code": "RC-NOPE-0002"}).status_code == 400
+    assert client.post(f"/api/rider/orders/{order.id}/confirm-scan", headers=other, json={"code": order.order_number}).status_code == 404
+
+
+def test_the_signature_is_kept_only_when_it_is_sent(client, make_order, make_user, make_product, make_admin, admin_login):
+    order, head, rider, other = shipped(client, make_order, make_user, make_product, make_admin, admin_login)
+    row = send_receipt(client, rider, order).get_json()["upload"]
+    assert client.get(f"/api/admin/delivery-confirmations/{row['id']}/signature.png", headers=head).status_code == 404
