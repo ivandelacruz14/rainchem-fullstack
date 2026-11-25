@@ -2,6 +2,11 @@ import { useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
 import { peso } from "../utils/format";
 
+/**
+ * Package sticker: QR code and barcode for the order, the customer, cash to collect or PAID,
+ * and a box for the customer's signature. Separate from the official receipt.
+ * The size is set in the stylesheet (--sticker-w and --sticker-h). Use the same label size in the printer.
+ */
 export default function StickerDocument({ sticker, qrUrl }) {
   const barcodeRef = useRef(null);
 

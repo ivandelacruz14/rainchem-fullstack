@@ -218,7 +218,6 @@ function PrintStickerButton({ orderId }) {
       ]);
       setQrUrl(URL.createObjectURL(q.data));
       setSticker(s.data.sticker);
-      setTimeout(() => { window.print(); }, 300);
     } catch (err) {
       showToast(err.response?.data?.error || "The sticker could not be prepared.", "error");
     } finally {
@@ -226,16 +225,24 @@ function PrintStickerButton({ orderId }) {
     }
   }
 
+  // Print once the sticker is on the page. Only clear it after the print dialog closes.
   useEffect(() => {
-    if (!sticker) return undefined;
-    const t = setTimeout(() => { setSticker(null); if (qrUrl) URL.revokeObjectURL(qrUrl); setQrUrl(null); }, 1500);
-    return () => clearTimeout(t);
+    if (!sticker || !qrUrl) return undefined;
+    const t = setTimeout(() => window.print(), 250);
+    const clear = () => { setSticker(null); };
+    window.addEventListener("afterprint", clear);
+    return () => { clearTimeout(t); window.removeEventListener("afterprint", clear); };
+  }, [sticker, qrUrl]);
+
+  useEffect(() => {
+    if (sticker) return;
+    if (qrUrl) { URL.revokeObjectURL(qrUrl); setQrUrl(null); }
   }, [sticker, qrUrl]);
 
   return (
     <>
       <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={prepare}>{busy ? "Preparing..." : "Print sticker"}</button>
-      {sticker && createPortal(<div className="print-root"><StickerDocument sticker={sticker} qrUrl={qrUrl} /></div>, document.body)}
+      {sticker && qrUrl && createPortal(<div className="print-root"><StickerDocument sticker={sticker} qrUrl={qrUrl} /></div>, document.body)}
     </>
   );
 }
