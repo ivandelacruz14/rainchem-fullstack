@@ -3,9 +3,9 @@ import JsBarcode from "jsbarcode";
 import { peso } from "../utils/format";
 
 /**
- * Package sticker, 100 mm x 75 mm: red header with the order number, the customer, a COD or PAID bar,
- * then three boxes: QR code, barcode, and the customer's signature. Every section has a fixed height so
- * nothing overlaps when printed. Separate from the official receipt.
+ * Package sticker, 100 mm x 75 mm. Each part sits at a fixed position in millimetres, so it prints the same
+ * everywhere. Only borders and dark text are used, so it looks right with or without background graphics.
+ * Separate from the official receipt.
  */
 export default function StickerDocument({ sticker, qrUrl }) {
   const barcodeRef = useRef(null);
@@ -21,34 +21,31 @@ export default function StickerDocument({ sticker, qrUrl }) {
   const cod = sticker.payment.codAmountToCollect > 0;
 
   return (
-    <div className="sticker" aria-label={`Sticker for ${sticker.orderNumber}`}>
-      <div className="sticker-band">
-        <span className="sticker-brand">RAINCHEM</span>
-        <span className="sticker-order">{sticker.orderNumber}</span>
-      </div>
+    <div className="stk" aria-label={`Sticker for ${sticker.orderNumber}`}>
+      <div className="stk-brand">RAINCHEM</div>
+      <div className="stk-order">{sticker.orderNumber}</div>
+      <div className="stk-rule" />
 
-      <div className="sticker-cust">
-        <div className="sticker-name">{sticker.customer.name}</div>
-        <div className="sticker-phone">{sticker.customer.phone} · {sticker.itemCount} item(s)</div>
-        <div className="sticker-addr">{sticker.customer.address}</div>
-      </div>
+      <div className="stk-name">{sticker.customer.name}</div>
+      <div className="stk-phone">{sticker.customer.phone} · {sticker.itemCount} item(s)</div>
+      <div className="stk-addr">{sticker.customer.address}</div>
 
-      <div className={`sticker-pay ${cod ? "cod" : "paid"}`}>
+      <div className={`stk-pay ${cod ? "cod" : "paid"}`}>
         {cod ? `CASH ON DELIVERY · COLLECT ${peso(sticker.payment.codAmountToCollect)}` : "PAID"}
       </div>
 
-      <div className="sticker-row">
-        <div className="sticker-box sticker-qrbox">
-          {qrUrl ? <img src={qrUrl} alt={`QR code for ${sticker.orderNumber}`} /> : <div className="sticker-qr-empty">QR</div>}
-          <span>Scan to verify</span>
-        </div>
-        <div className="sticker-box sticker-barbox">
-          <svg ref={barcodeRef} role="img" aria-label={`Barcode ${sticker.barcodeValue}`} />
-          <span>{sticker.barcodeValue}</span>
-        </div>
-        <div className="sticker-box sticker-signbox">
-          <span>Customer signature</span>
-        </div>
+      <div className="stk-box stk-qr">
+        {qrUrl ? <img src={qrUrl} alt={`QR code for ${sticker.orderNumber}`} /> : <div className="stk-qr-empty">QR</div>}
+        <span>Scan to verify</span>
+      </div>
+
+      <div className="stk-box stk-bar">
+        <svg ref={barcodeRef} role="img" aria-label={`Barcode ${sticker.barcodeValue}`} />
+        <span className="stk-bar-text">{sticker.barcodeValue}</span>
+      </div>
+
+      <div className="stk-box stk-sign">
+        <span>Customer signature</span>
       </div>
     </div>
   );

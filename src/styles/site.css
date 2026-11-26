@@ -1571,3 +1571,29 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .sticker-brand, .sticker-order { color: #111 !important; }
 .sticker-pay.cod { background: none !important; color: #111 !important; border: 0.6mm solid #111; }
 .sticker-pay.paid { background: none !important; color: #15803d !important; border: 0.6mm solid #15803d; }
+
+/* ---------- Package sticker: fixed positions in mm (100 mm x 75 mm) ---------- */
+.stk { position: relative; width: 100mm; height: 75mm; box-sizing: border-box; overflow: hidden; background: #fff; color: #111;
+  font-family: Arial, Helvetica, sans-serif; border: 0.5mm solid #111; }
+.stk > * { position: absolute; box-sizing: border-box; }
+.stk-brand { left: 3mm; top: 2.5mm; width: 40mm; height: 6mm; font-size: 10pt; font-weight: 800; letter-spacing: 0.06em; line-height: 6mm; }
+.stk-order { right: 3mm; top: 2.5mm; width: 50mm; height: 6mm; font-size: 11pt; font-weight: 800; line-height: 6mm; text-align: right; white-space: nowrap; }
+.stk-rule { left: 3mm; top: 10mm; width: 94mm; height: 0; border-top: 0.6mm solid #111; }
+.stk-name { left: 3mm; top: 12mm; width: 94mm; height: 4.5mm; font-size: 9.5pt; font-weight: 800; line-height: 4.5mm; white-space: nowrap; overflow: hidden; }
+.stk-phone { left: 3mm; top: 16.5mm; width: 94mm; height: 4mm; font-size: 8.5pt; font-weight: 700; line-height: 4mm; white-space: nowrap; overflow: hidden; }
+.stk-addr { left: 3mm; top: 20.5mm; width: 94mm; height: 6.5mm; font-size: 7pt; line-height: 3.2mm; overflow: hidden; }
+.stk-pay { left: 3mm; top: 27.5mm; width: 94mm; height: 6.5mm; border: 0.6mm solid #111; font-size: 8pt; font-weight: 800; line-height: 5.3mm; text-align: center; white-space: nowrap; overflow: hidden; }
+.stk-pay.paid { border-color: #15803d; color: #15803d; }
+.stk-box { top: 36.5mm; height: 34mm; border: 0.35mm solid #111; border-radius: 1mm; }
+.stk-qr { left: 3mm; width: 29mm; }
+.stk-qr img, .stk-qr-empty { position: absolute; left: 2.5mm; top: 2.5mm; width: 24mm; height: 24mm; }
+.stk-qr-empty { border: 0.3mm solid #111; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+.stk-qr span, .stk-sign span { position: absolute; left: 0; right: 0; bottom: 2mm; text-align: center; font-size: 6pt; color: #333; line-height: 3mm; }
+.stk-bar { left: 35.5mm; width: 29mm; }
+.stk-bar svg { position: absolute; left: 2mm; top: 4mm; width: 25mm; height: auto; }
+.stk-bar-text { position: absolute; left: 0; right: 0; top: 24mm; text-align: center; font-size: 7pt; font-weight: 800; line-height: 3mm; word-break: break-all; color: #111; }
+.stk-sign { left: 68mm; width: 29mm; }
+.stk-sign span { border-top: 0.3mm solid #111; left: 2mm; right: 2mm; bottom: 3mm; padding-top: 1mm; }
+@media print {
+  body.printing-sticker .stk { border: 0; }
+}
