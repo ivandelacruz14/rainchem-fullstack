@@ -40,7 +40,9 @@ def missing(order):
     for pid, qty in need.items():
         if got.get(pid, 0) < qty:
             name = next((i.product_name for i in order.items if i.product_id == pid), "")
-            out.append({"productId": pid, "name": name, "required": qty, "scanned": got.get(pid, 0)})
+            product = db.session.get(Product, pid)
+            out.append({"productId": pid, "name": name, "required": qty, "scanned": got.get(pid, 0),
+                        "barcodeSet": bool(product and product.barcode)})
     return out
 
 

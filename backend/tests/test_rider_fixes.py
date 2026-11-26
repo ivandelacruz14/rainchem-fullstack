@@ -1,3 +1,4 @@
+from app.extensions import db
 from datetime import date, timedelta
 
 from app.models import Order
@@ -42,3 +43,17 @@ def test_the_delivery_note_is_saved_and_shown_to_the_admin(client, make_order, m
     row = next(o for o in client.get("/api/admin/delivered-orders", headers=head).get_json()["orders"] if o["id"] == order.id)
     assert row["deliveryNote"] == "Left with the guard" and row["hasPhoto"] is True
     assert row["riderName"] and row["deliveredAt"]
+
+
+def test_a_product_without_a_barcode_is_flagged_for_the_office(client, make_order, make_user, make_product, make_admin, admin_login):
+    from app.models import Product
+    order, head, rider, other = setup_order(make_order, make_user, make_product, make_admin, admin_login, client)
+    start(client, rider, order)
+    pid = order.items[0].product_id
+    Product.query.get(pid).barcode = None
+    db.session.commit()
+    detail = client.get(f"/api/rider/{order.id}", headers=rider).get_json()["order"]
+    flagged = [m for m in detail["missing"] if m["productId"] == pid]
+    assert flagged and flagged[0]["barcodeSet"] is False
+    assert client.post(f"/api/rider/{order.id}/deliver", headers=rider).status_code == 400
+
