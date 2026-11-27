@@ -57,3 +57,19 @@ def test_a_product_without_a_barcode_is_flagged_for_the_office(client, make_orde
     assert flagged and flagged[0]["barcodeSet"] is False
     assert client.post(f"/api/rider/{order.id}/deliver", headers=rider).status_code == 400
 
+
+def test_scanning_the_order_sticker_confirms_all_items_so_the_photo_and_delivery_can_follow(client, make_order, make_user, make_product, make_admin, admin_login):
+    from app.extensions import db as _db
+    from app.models import Product
+    order, head, rider, other = setup_order(make_order, make_user, make_product, make_admin, admin_login, client)
+    start(client, rider, order)
+    pid = order.items[0].product_id
+    Product.query.get(pid).barcode = None          # no item barcode at all
+    _db.session.commit()
+    qr = client.get(f"/api/admin/orders/{order.id}/sticker", headers=head).get_json()["sticker"]["qrText"]
+    assert client.post(f"/api/rider/{order.id}/scan", headers=rider, json={"code": qr}).status_code == 200
+    detail = client.get(f"/api/rider/{order.id}", headers=rider).get_json()["order"]
+    assert detail["missing"] == []                 # every unit is confirmed
+    upload(client, rider, order)
+    assert client.post(f"/api/rider/{order.id}/deliver", headers=rider).status_code == 200
+

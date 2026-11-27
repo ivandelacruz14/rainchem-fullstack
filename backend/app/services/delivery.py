@@ -61,3 +61,16 @@ def record_scan(order, rider, code):
                              result=result, reason=reason, scanned_at=datetime.utcnow()))
     db.session.commit()
     return result == "accepted", reason or f"{product.name} verified", product
+
+
+def confirm_package_scan(order, rider, code):
+    """The order sticker is the QR code of the whole package. Scanning it confirms every unit that is still
+    missing, so the rider does not need a separate barcode for each item. Each unit is still recorded."""
+    got = accepted(order)
+    now = datetime.utcnow()
+    for pid, qty in required(order).items():
+        for _ in range(max(0, qty - got.get(pid, 0))):
+            db.session.add(OrderScan(order_id=order.id, product_id=pid, rider_id=rider.id, code=(code or "")[:64],
+                                     result="accepted", reason="Confirmed by the order sticker", scanned_at=now))
+    db.session.commit()
+

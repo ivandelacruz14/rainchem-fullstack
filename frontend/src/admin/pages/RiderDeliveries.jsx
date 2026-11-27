@@ -16,14 +16,6 @@ const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
 const unlockKey = (id) => `rider-unlocked-${id}`;
 
-/**
- * Rider dashboard, in this order:
- *   1. Scan the order sticker (or an item). Only then are the customer and order details shown.
- *   2. Scan every item.
- *   3. Take the delivery photo (only after every item is scanned).
- *   4. Mark Delivered (or Failed with a reason).
- * The server checks each step too. These screens only guide the rider.
- */
 export default function RiderDeliveries() {
   const showToast = useToast();
   const [summary, setSummary] = useState(null);
@@ -275,6 +267,7 @@ export default function RiderDeliveries() {
                 <>
                   <div className="rd-step">
                     <h3><span>1</span> Scan every item</h3>
+                    <p className="rd-hint">Scanning the order sticker confirms every item. You can also scan each item barcode.</p>
                     {detail.missing && detail.missing.length > 0 ? (
                       <ul className="rd-missing">
                         {detail.missing.map((m) => (

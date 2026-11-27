@@ -145,9 +145,12 @@ def scan(order_id):
         return _err("Order not found", 404)
     code = (request.get_json() or {}).get("code")
     if matches_order(order, code):
-        # The order sticker identifies the order. It is not a unit, so nothing is counted here.
+        # The order sticker is the package's QR code: scanning it confirms the order and every unit in it.
+        if order.status in ("ready_for_delivery", "rescheduled", "shipped"):
+            svc.confirm_package_scan(order, current_admin(), code)
         return jsonify({"accepted": True, "orderConfirmed": True,
-                        "message": f"Order {order.order_number} confirmed", "order": _detail(order)})
+                        "message": f"Order {order.order_number} confirmed. All items are confirmed.",
+                        "order": _detail(order)})
     if order.status != "shipped":
         return _err("Scan the order sticker to confirm the order. Start the delivery before scanning the items.")
     ok, message, _ = svc.record_scan(order, current_admin(), code)
