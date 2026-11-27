@@ -4,7 +4,8 @@ import client from "../api/client";
 import { useToast } from "../context/ToastContext";
 import StickerDocument from "./StickerDocument";
 
-/** Loads the order's sticker and prints only that sticker. The app page is hidden while printing. */
+/** Loads the order's sticker and shows it in a preview first, like the receipt. The admin checks it,
+ *  then taps Print sticker. While the preview is open, printing shows only the sticker (see site.css). */
 export default function PrintStickerButton({ orderId, label = "Print sticker" }) {
   const showToast = useToast();
   const [sticker, setSticker] = useState(null);
@@ -27,33 +28,39 @@ export default function PrintStickerButton({ orderId, label = "Print sticker" })
     }
   }
 
-  // Print when the sticker is on the page. Keep it there until the print dialog closes.
-  useEffect(() => {
-    if (!sticker || !qrUrl) return undefined;
-    document.body.classList.add("printing-sticker");
-    const t = setTimeout(() => window.print(), 250);
-    const clear = () => setSticker(null);
-    window.addEventListener("afterprint", clear);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener("afterprint", clear);
-      document.body.classList.remove("printing-sticker");
-    };
-  }, [sticker, qrUrl]);
-
-  useEffect(() => {
-    if (sticker || !qrUrl) return;
-    URL.revokeObjectURL(qrUrl);
+  function close() {
+    setSticker(null);
+    if (qrUrl) URL.revokeObjectURL(qrUrl);
     setQrUrl(null);
-  }, [sticker, qrUrl]);
+  }
+
+  // While the preview is open, printing shows only the sticker.
+  const open = Boolean(sticker && qrUrl);
+  useEffect(() => {
+    if (!open) return undefined;
+    document.body.classList.add("printing-sticker");
+    return () => document.body.classList.remove("printing-sticker");
+  }, [open]);
 
   return (
     <>
       <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={prepare}>
         {busy ? "Preparing..." : label}
       </button>
-      {sticker && qrUrl && createPortal(
-        <div className="print-root"><StickerDocument sticker={sticker} qrUrl={qrUrl} /></div>,
+      {open && createPortal(
+        <div className="sticker-overlay" role="dialog" aria-label={`Sticker preview for ${sticker.orderNumber}`}>
+          <div className="sticker-sheet">
+            <div className="no-print receipt-toolbar">
+              <strong>Sticker preview</strong>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button type="button" className="btn btn-outline btn-sm" onClick={close}>Close</button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => window.print()}>Print sticker</button>
+              </div>
+            </div>
+            <p className="no-print sticker-tip">Check the details first. In the print window, choose paper size 4 x 6 in, Margins: None, and turn off Headers and footers.</p>
+            <div className="sticker-stage"><StickerDocument sticker={sticker} qrUrl={qrUrl} /></div>
+          </div>
+        </div>,
         document.body
       )}
     </>

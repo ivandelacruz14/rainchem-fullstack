@@ -73,7 +73,8 @@ def sticker(order_id):
     return jsonify({"sticker": {
         "orderNumber": data["orderNumber"], "qrText": data["qrText"], "barcodeValue": data["barcodeValue"],
         "customer": data["customer"], "payment": data["payment"], "itemCount": sum(i["quantity"] for i in data["items"]),
-        "orderDate": data["orderDate"],
+        "orderDate": data["orderDate"], "deliveryDate": data["deliveryDate"],
+        "items": data["items"], "total": data["total"], "company": data["company"],
     }})
 
 
