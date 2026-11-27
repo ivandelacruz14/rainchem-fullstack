@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import client from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import { peso } from "../../utils/format";
@@ -16,6 +16,14 @@ const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
 const unlockKey = (id) => `rider-unlocked-${id}`;
 
+/**
+ * Rider dashboard, in this order:
+ *   1. Scan the order sticker (or an item). Only then are the customer and order details shown.
+ *   2. Scan every item.
+ *   3. Take the delivery photo (only after every item is scanned).
+ *   4. Mark Delivered (or Failed with a reason).
+ * The server checks each step too. These screens only guide the rider.
+ */
 export default function RiderDeliveries() {
   const showToast = useToast();
   const [summary, setSummary] = useState(null);
@@ -35,6 +43,8 @@ export default function RiderDeliveries() {
   const [failReason, setFailReason] = useState("");
   const [deliveryNote, setDeliveryNote] = useState("");
   const detailRef = useRef(null);
+  const previewUrl = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo]);
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
   function loadList() {
     Promise.resolve()
@@ -291,16 +301,16 @@ export default function RiderDeliveries() {
                   </div>
 
                   <div className="rd-step">
-                    <h3><span>2</span> Take the delivery photo</h3>
-                    {!allScanned && <p className="rd-hint">Scan every item first. The photo step opens after that.</p>}
-                    {allScanned && detail.hasProof && <p className="rd-ok">The photo is saved.</p>}
-                    {allScanned && !detail.hasProof && (
+                    <h3><span>2</span> Take and send the delivery photo</h3>
+                    {!allScanned && <p className="rd-hint">Scan the order sticker first. The photo step opens after the scan.</p>}
+                    {allScanned && detail.hasProof && <p className="rd-ok">A photo is saved for this delivery. Take a new one below to replace it.</p>}
+                    {allScanned && (
                       <>
                         <p className="rd-hint">Take a clear photo of the item at the delivery location, with the customer's signature visible.</p>
                         <input id="rd-photo" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={pickPhoto} />
                         {photoError && <p className="field-error" role="alert">{photoError}</p>}
-                        {photo && <img className="rd-preview" alt="Preview of the delivery photo" src={URL.createObjectURL(photo)} />}
-                        <button type="button" className="btn btn-primary btn-block rd-big" disabled={!photo || busy} onClick={uploadPhoto}>Save photo</button>
+                        {previewUrl && <img className="rd-preview" alt="Preview of the photo to send" src={previewUrl} />}
+                        <button type="button" className="btn btn-primary btn-block rd-big" disabled={!photo || busy} onClick={uploadPhoto}>Send photo</button>
                       </>
                     )}
                   </div>

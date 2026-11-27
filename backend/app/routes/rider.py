@@ -165,8 +165,7 @@ def upload_proof(order_id):
         return _err("Order not found", 404)
     if order.status != "shipped":
         return _err("Start the delivery before uploading proof")
-    if DeliveryProof.query.filter_by(order_id=order.id).first():
-        return _err("The proof for this order is already uploaded and cannot be replaced", 409)
+    existing = DeliveryProof.query.filter_by(order_id=order.id).first()
     upload = request.files.get("image")
     if upload is None or upload.filename == "":
         return _err("Choose a photo")
@@ -174,6 +173,12 @@ def upload_proof(order_id):
         data, mime = chat.read_upload(upload)
     except chat.LiveChatError as error:
         return _err(str(error), error.status)
+    if existing:
+        # While the order is still out for delivery the rider may take a better photo and send it again.
+        existing.data, existing.mime, existing.size = data, mime, len(data)
+        existing.sha256, existing.rider_id = hashlib.sha256(data).hexdigest(), current_admin().id
+        db.session.commit()
+        return jsonify({"order": _detail(order)}), 200
     db.session.add(DeliveryProof(order_id=order.id, rider_id=current_admin().id, data=data, mime=mime,
                                  size=len(data), sha256=hashlib.sha256(data).hexdigest()))
     db.session.commit()

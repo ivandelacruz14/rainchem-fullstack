@@ -108,7 +108,7 @@ def test_proof_must_be_a_real_image_and_cannot_be_replaced(client, make_order, m
     client.post(f"/api/rider/{order.id}/start", headers=rider)
     assert upload(client, rider, order, data=PNG_AS_JPG, name="proof.jpg").status_code in (400, 415, 422)
     assert upload(client, rider, order).status_code == 201
-    assert upload(client, rider, order).status_code == 409
+    assert upload(client, rider, order).status_code == 200      # a better photo can replace it while on the way
 
 
 def test_a_full_delivery_completes_and_then_cannot_be_changed(client, make_order, make_user, make_product, make_admin, admin_login):
