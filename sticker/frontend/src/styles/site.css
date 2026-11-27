@@ -1486,8 +1486,6 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .send-row select { flex: 1 1 200px; }
 @media print {
   body.printing-sticker #root { display: none !important; }
-  body.printing-sticker .print-root { display: block !important; position: absolute; left: 0; top: 0; }
-  body.printing-sticker .print-root * { visibility: visible !important; }
 }
 
 /* Rider delivery photo step */
@@ -1498,7 +1496,6 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 
 /* ---------- Package sticker: 4 x 6 in label, laid out like the Delivery Receipt ---------- */
 :root { --sticker-w: 101.6mm; --sticker-h: 152.4mm; --st-red: #c4161c; --st-dark: #8f0f14; }
-.print-root { display: none; }
 .sticker { width: var(--sticker-w); height: var(--sticker-h); box-sizing: border-box; padding: 3mm 3.5mm; display: flex; flex-direction: column; gap: 1.6mm;
   color: #111; background: #fff; font-family: Arial, Helvetica, sans-serif; overflow: hidden; line-height: 1.2;
   -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1552,12 +1549,24 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .st-foot strong { font-size: 8pt; font-style: italic; }
 .st-foot span { font-size: 6pt; }
 @media print {
-  html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  body.printing-sticker { margin: 0 !important; padding: 0 !important; background: #fff !important; }
   body.printing-sticker #root { display: none !important; }
-  body.printing-sticker .print-root { display: block !important; position: absolute; left: 0; top: 0; width: var(--sticker-w); height: var(--sticker-h); }
-  body.printing-sticker .print-root * { visibility: visible !important; }
   .sticker { page-break-inside: avoid; }
 }
 /* A named page, so only the sticker prints at 4 x 6 in and the A4 receipts are not affected. var() does not work inside @page. */
 @page sticker { size: 101.6mm 152.4mm; margin: 0; }
-@media print { .print-root { page: sticker; } }
+
+/* Sticker preview (opens before printing, like the receipt) */
+.sticker-overlay { position: fixed; inset: 0; z-index: 700; background: rgba(24, 20, 15, 0.7); overflow-y: auto; padding: 24px 12px; }
+.sticker-sheet { max-width: 440px; margin: 0 auto; }
+.sticker-tip { margin: 0 0 10px; font-size: 13px; color: #e5e1db; }
+.sticker-stage { display: flex; justify-content: center; background: #fff; border-radius: 10px; padding: 12px; overflow-x: auto; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); }
+.sticker-stage .sticker { flex: 0 0 auto; outline: 0.3mm dashed #bbb; }
+@media print {
+  .no-print { display: none !important; }
+  body.printing-sticker #root { display: none !important; }
+  body.printing-sticker .sticker-overlay { position: static; inset: auto; background: none; padding: 0; overflow: visible; page: sticker; }
+  body.printing-sticker .sticker-sheet { max-width: none; margin: 0; }
+  body.printing-sticker .sticker-stage { display: block; padding: 0; border-radius: 0; box-shadow: none; overflow: visible; background: none; }
+  body.printing-sticker .sticker-stage .sticker { outline: 0; }
+}
