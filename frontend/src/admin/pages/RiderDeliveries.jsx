@@ -3,6 +3,7 @@ import client from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import { peso } from "../../utils/format";
 import ScanConfirm from "../../components/ScanConfirm";
+import { compressPhoto } from "../../utils/imageResize";
 
 const CARD_KEYS = [
   { key: "total", label: "Assigned to me" },
@@ -14,16 +15,9 @@ const CARD_KEYS = [
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
-const unlockKey = (id) => `rider-unlocked-${id}`;
 
-/**
- * Rider dashboard, in this order:
- *   1. Scan the order sticker (or an item). Only then are the customer and order details shown.
- *   2. Scan every item.
- *   3. Take the delivery photo (only after every item is scanned).
- *   4. Mark Delivered (or Failed with a reason).
- * The server checks each step too. These screens only guide the rider.
- */
+/** Rider dashboard: find an order, check its details, scan the units, take the delivery photo, then mark it
+ *  Delivered or Failed. The server checks every step, so the buttons only help; they do not decide. */
 export default function RiderDeliveries() {
   const showToast = useToast();
   const [summary, setSummary] = useState(null);
@@ -33,7 +27,6 @@ export default function RiderDeliveries() {
   const [results, setResults] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [unlocked, setUnlocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [scanCode, setScanCode] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -43,7 +36,8 @@ export default function RiderDeliveries() {
   const [failReason, setFailReason] = useState("");
   const [deliveryNote, setDeliveryNote] = useState("");
   const detailRef = useRef(null);
-  const previewUrl = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo]);
+  const photoInputRef = useRef(null);
+  const previewUrl = useMemo(() => (photo ? URL.createObjectURL(photo) : ""), [photo]);
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
   function loadList() {
@@ -65,41 +59,16 @@ export default function RiderDeliveries() {
     return () => clearTimeout(t);
   }, [query]);
 
-  function openOrder(id) {
+  function loadDetail(id) {
     setSelectedId(id);
     setDetail(null);
     setScanning(false);
     setFailing(false);
     setPhoto(null);
     setDeliveryNote("");
-    setUnlocked(sessionStorage.getItem(unlockKey(id)) === "1");
     client.get(`/api/rider/${id}`)
       .then((r) => { setDetail(r.data.order); setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); })
       .catch((err) => showToast(err.response?.data?.error || "This order could not be opened.", "error"));
-  }
-
-  function unlock(id) {
-    sessionStorage.setItem(unlockKey(id), "1");
-    setUnlocked(true);
-  }
-
-  async function scanCodeFor(code) {
-    const value = String(code || "").trim();
-    if (!value || !selectedId) return;
-    setBusy(true);
-    try {
-      const r = await client.post(`/api/rider/${selectedId}/scan`, { code: value });
-      setDetail(r.data.order);
-      setScanCode("");
-      if (r.data.orderConfirmed || r.data.accepted) unlock(selectedId);
-      showToast(r.data.message, r.data.accepted || r.data.orderConfirmed ? "success" : "error");
-    } catch (err) {
-      const data = err.response?.data;
-      if (data?.order) setDetail(data.order);
-      showToast(data?.message || data?.error || "This code could not be scanned.", "error");
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function run(path, body, message) {
@@ -118,41 +87,76 @@ export default function RiderDeliveries() {
     }
   }
 
-  function pickPhoto(e) {
-    const f = e.target.files?.[0] || null;
+  async function scanUnit(code) {
+    const value = String(code || "").trim();
+    if (!value) return;
+    setBusy(true);
+    try {
+      const r = await client.post(`/api/rider/${selectedId}/scan`, { code: value });
+      setDetail(r.data.order);
+      setScanCode("");
+      showToast(r.data.message, r.data.accepted ? "success" : "error");
+    } catch (err) {
+      const data = err.response?.data;
+      if (data?.order) setDetail(data.order);
+      showToast(data?.message || data?.error || "This code could not be scanned.", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pickPhoto(e) {
+    const input = e.target;
+    const f = input.files?.[0] || null;
+    input.value = ""; // so choosing the same file again (Retake) still fires onChange
     setPhotoError("");
-    if (f && !ACCEPTED.includes(f.type)) { setPhotoError("Use a JPG, PNG, or WEBP photo."); setPhoto(null); return; }
-    if (f && f.size > MAX_BYTES) { setPhotoError("The photo is larger than 5 MB. Take it again, or use a lower resolution."); setPhoto(null); return; }
-    setPhoto(f);
+    if (!f) return;
+    if (!ACCEPTED.includes(f.type) && !f.type.startsWith("image/")) { setPhotoError("Use a JPG, PNG, or WEBP photo."); setPhoto(null); return; }
+    try {
+      const small = await compressPhoto(f); // phone cameras make huge files; keep it under the server limit
+      if (small.size > MAX_BYTES) { setPhotoError("The photo is too large. Take it again."); setPhoto(null); return; }
+      setPhoto(small);
+    } catch {
+      setPhotoError("This photo could not be read. Take it again.");
+      setPhoto(null);
+    }
+  }
+
+  function retakePhoto() {
+    setPhoto(null);
+    setPhotoError("");
+    photoInputRef.current?.click();
   }
 
   async function uploadPhoto() {
     if (!photo) return;
     const form = new FormData();
-    form.append("image", photo);
+    form.append("image", photo, "delivery.jpg");
     setBusy(true);
     try {
       const r = await client.post(`/api/rider/${selectedId}/proof`, form);
       setDetail(r.data.order);
       setPhoto(null);
-      showToast("Photo saved. You can now mark the order as Delivered.", "success");
+      showToast("Photo sent. You can now mark the order as Delivered.", "success");
       loadList();
     } catch (err) {
-      showToast(err.response?.data?.error || "The photo could not be uploaded.", "error");
+      showToast(err.response?.data?.error || "The photo could not be sent. Check your connection and tap Send photo again.", "error");
     } finally {
       setBusy(false);
     }
   }
 
   const status = detail?.status;
-  const allScanned = !!detail && (!detail.missing || detail.missing.length === 0);
+  const allScanned = detail && (!detail.missing || detail.missing.length === 0);
   const canDeliver = status === "shipped" && allScanned && detail?.hasProof && !busy;
 
   return (
     <div className="rd-page">
       <header className="rd-top">
-        <h1 className="rd-title">My Deliveries</h1>
-        <p className="rd-sub">Find an order, scan it to open it, scan the items, take the photo, then mark it Delivered or Failed.</p>
+        <div>
+          <h1 className="rd-title">My Deliveries</h1>
+          <p className="rd-sub">Find an order, confirm the items, take the delivery photo, then mark it Delivered or Failed.</p>
+        </div>
       </header>
 
       <section className="rd-search" aria-label="Find an order">
@@ -165,7 +169,7 @@ export default function RiderDeliveries() {
           <ul className="rd-results">
             {results.map((o) => (
               <li key={o.id}>
-                <button type="button" onClick={() => openOrder(o.id)}>
+                <button type="button" onClick={() => loadDetail(o.id)}>
                   <strong>{o.customerName}</strong>
                   <span>{o.orderNumber} · {o.customerPhone}</span>
                   <em className={`rd-badge s-${o.status}`}>{o.statusLabel}</em>
@@ -198,10 +202,11 @@ export default function RiderDeliveries() {
           <ul className="rd-list">
             {orders.map((o) => (
               <li key={o.id} className={selectedId === o.id ? "selected" : ""}>
-                <button type="button" className="rd-row" onClick={() => openOrder(o.id)}>
+                <button type="button" className="rd-row" onClick={() => loadDetail(o.id)}>
                   <span className="rd-row-main">
-                    <strong>{o.orderNumber}</strong>
-                    <span>{o.statusLabel}</span>
+                    <strong>{o.customer.name}</strong>
+                    <span>{o.orderNumber} · {o.customer.phone}</span>
+                    <span className="rd-row-addr">{o.address}</span>
                   </span>
                   <em className={`rd-badge s-${o.status}`}>{o.statusLabel}</em>
                 </button>
@@ -214,25 +219,7 @@ export default function RiderDeliveries() {
       {selectedId && (
         <section className="rd-detail" ref={detailRef} aria-label="Delivery details">
           {!detail && <div className="loading-state" role="status"><span className="spinner" /> Opening the order...</div>}
-
-          {detail && !unlocked && (
-            <div className="rd-gate">
-              <h2>Scan to open this order</h2>
-              <p className="rd-hint">Scan the QR code or barcode on the package sticker. The customer and order details will show after the scan.</p>
-              {scanning ? (
-                <ScanConfirm onDetected={(code) => { setScanning(false); scanCodeFor(code); }} onClose={() => setScanning(false)} />
-              ) : (
-                <button type="button" className="btn btn-primary btn-block rd-big" disabled={busy} onClick={() => setScanning(true)}>Scan QR or barcode</button>
-              )}
-              <form className="rd-scan-form" onSubmit={(e) => { e.preventDefault(); scanCodeFor(scanCode); }}>
-                <input aria-label="Scanned or typed code" autoComplete="off" value={scanCode} placeholder="Or type the order number"
-                  onChange={(e) => setScanCode(e.target.value)} />
-                <button type="submit" className="btn btn-outline" disabled={busy || !scanCode.trim()}>Open</button>
-              </form>
-            </div>
-          )}
-
-          {detail && unlocked && (
+          {detail && (
             <>
               <div className="rd-detail-head">
                 <div>
@@ -268,7 +255,12 @@ export default function RiderDeliveries() {
 
               {(status === "ready_for_delivery" || status === "rescheduled") && (
                 <div className="rd-action">
-                  <p>Start the delivery when you leave the warehouse with the package.</p>
+                  <p>Scan the order sticker to confirm this is the right order, then start the delivery when you leave.</p>
+                  {scanning ? (
+                    <ScanConfirm onDetected={(code) => { setScanning(false); scanUnit(code); }} onClose={() => setScanning(false)} />
+                  ) : (
+                    <button type="button" className="btn btn-outline btn-block rd-big" onClick={() => setScanning(true)} disabled={busy}>Scan order sticker</button>
+                  )}
                   <button type="button" className="btn btn-primary btn-block rd-big" disabled={busy} onClick={() => run("start", {}, "Delivery started")}>Start delivery</button>
                 </div>
               )}
@@ -277,57 +269,62 @@ export default function RiderDeliveries() {
                 <>
                   <div className="rd-step">
                     <h3><span>1</span> Scan every item</h3>
-                    <p className="rd-hint">Scanning the order sticker confirms every item. You can also scan each item barcode.</p>
                     {detail.missing && detail.missing.length > 0 ? (
                       <ul className="rd-missing">
-                        {detail.missing.map((m) => (
-                          <li key={m.name}>
-                            {m.name}: {m.scanned} of {m.required} scanned
-                            {m.barcodeSet === false && <div className="rd-warn">This product has no barcode yet. Ask the office to add it before you can deliver this order.</div>}
-                          </li>
-                        ))}
+                        {detail.missing.map((m) => <li key={m.name}>{m.name}: {m.scanned} of {m.required} scanned</li>)}
                       </ul>
                     ) : <p className="rd-ok">All items are scanned.</p>}
                     {scanning ? (
-                      <ScanConfirm onDetected={(code) => { setScanning(false); scanCodeFor(code); }} onClose={() => setScanning(false)} />
+                      <ScanConfirm onDetected={(code) => { setScanning(false); scanUnit(code); }} onClose={() => setScanning(false)} />
                     ) : (
-                      <button type="button" className="btn btn-outline btn-block rd-big" onClick={() => setScanning(true)} disabled={busy}>Scan item barcode</button>
+                      <button type="button" className="btn btn-outline btn-block rd-big" onClick={() => setScanning(true)} disabled={busy}>Scan QR or barcode</button>
                     )}
-                    <form className="rd-scan-form" onSubmit={(e) => { e.preventDefault(); scanCodeFor(scanCode); }}>
-                      <input aria-label="Scanned item code" autoComplete="off" value={scanCode} placeholder="Or type the item code"
+                    <form className="rd-scan-form" onSubmit={(e) => { e.preventDefault(); scanUnit(scanCode); }}>
+                      <input aria-label="Scanned code" autoComplete="off" value={scanCode} placeholder="Or type the code, or use a barcode scanner"
                         onChange={(e) => setScanCode(e.target.value)} />
                       <button type="submit" className="btn btn-outline" disabled={busy || !scanCode.trim()}>Add</button>
                     </form>
                   </div>
 
                   <div className="rd-step">
-                    <h3><span>2</span> Take and send the delivery photo</h3>
-                    {!allScanned && <p className="rd-hint">Scan the order sticker first. The photo step opens after the scan.</p>}
-                    {allScanned && detail.hasProof && <p className="rd-ok">A photo is saved for this delivery. Take a new one below to replace it.</p>}
-                    {allScanned && (
+                    <h3><span>2</span> Take the delivery photo</h3>
+                    {detail.hasProof ? (
+                      <p className="rd-ok">The photo is sent and saved.</p>
+                    ) : !allScanned ? (
+                      <p className="rd-hint rd-locked">Scan every item first. The photo button appears here when all items are scanned.</p>
+                    ) : (
                       <>
                         <p className="rd-hint">Take a clear photo of the item at the delivery location, with the customer's signature visible.</p>
-                        <input id="rd-photo" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={pickPhoto} />
+                        <input ref={photoInputRef} id="rd-photo" className="rd-file" type="file" accept="image/*" capture="environment"
+                          onChange={pickPhoto} aria-label="Delivery photo" />
                         {photoError && <p className="field-error" role="alert">{photoError}</p>}
-                        {previewUrl && <img className="rd-preview" alt="Preview of the photo to send" src={previewUrl} />}
-                        <button type="button" className="btn btn-primary btn-block rd-big" disabled={!photo || busy} onClick={uploadPhoto}>Send photo</button>
+                        {!photo ? (
+                          <button type="button" className="btn btn-primary btn-block rd-big" disabled={busy} onClick={() => photoInputRef.current?.click()}>
+                            Take photo
+                          </button>
+                        ) : (
+                          <>
+                            <img className="rd-preview" alt="Preview of the delivery photo" src={previewUrl} />
+                            <p className="rd-hint">Is the photo clear? If not, tap Retake. It is only sent when you tap Send photo.</p>
+                            <div className="rd-photo-actions">
+                              <button type="button" className="btn btn-outline rd-big" disabled={busy} onClick={retakePhoto}>Retake</button>
+                              <button type="button" className="btn btn-primary rd-big" disabled={busy} onClick={uploadPhoto}>{busy ? "Sending..." : "Send photo"}</button>
+                            </div>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
 
                   <div className="rd-step">
                     <h3><span>3</span> Confirm the result</h3>
-                    {allScanned && detail.hasProof && (
-                      <>
-                        <label htmlFor="rd-note" className="rd-hint">Optional note, for example: left with the guard</label>
-                        <input id="rd-note" maxLength={300} value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} placeholder="Optional" />
-                      </>
-                    )}
+                    <label htmlFor="rd-note" className="rd-hint">Optional note, for example: left with the guard</label>
+                    <input id="rd-note" maxLength={300} value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} placeholder="Optional" />
                     <button type="button" className="btn btn-primary btn-block rd-big rd-delivered" disabled={!canDeliver}
                       onClick={async () => { const ok = await run("deliver", { note: deliveryNote.trim() }, "Marked as delivered"); if (ok) setDeliveryNote(""); }}>
                       Delivered
                     </button>
-                    {!canDeliver && <p className="rd-hint">Delivered opens after every item is scanned and the photo is saved.</p>}
+                    {!canDeliver && <p className="rd-hint">Scan every item and send the photo first.</p>}
                     {!failing ? (
                       <button type="button" className="btn btn-outline btn-block rd-big rd-failed" disabled={busy} onClick={() => setFailing(true)}>
                         Failed, could not deliver today
@@ -354,8 +351,11 @@ export default function RiderDeliveries() {
               )}
 
               {status === "delivery_failed" && (
-                <div className="rd-action"><p>You reported this delivery as failed. The admin will confirm it and set a new date.</p></div>
+                <div className="rd-action">
+                  <p>You reported this delivery as failed. The admin will confirm it and set a new date.</p>
+                </div>
               )}
+
               {status === "delivered" && (
                 <div className="rd-action"><p className="rd-ok">This order was delivered.</p></div>
               )}

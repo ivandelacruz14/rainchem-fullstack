@@ -1534,71 +1534,8 @@ main, .container { max-width: 100%; box-sizing: border-box; }
   body.printing-sticker .print-root * { visibility: visible !important; }
 }
 
-/* ---------- Package sticker, fixed sections for a clean print (100 mm x 75 mm) ---------- */
-:root { --sticker-w: 100mm; --sticker-h: 75mm; --red-print: #b91c1c; }
-.sticker { width: var(--sticker-w); height: var(--sticker-h); box-sizing: border-box; padding: 2.5mm; border: 0.35mm solid #7f1d1d;
-  display: flex; flex-direction: column; gap: 1.6mm; background: #fff; color: #111; font-family: Arial, Helvetica, sans-serif; overflow: hidden; }
-.sticker-band { flex: 0 0 7.5mm; background: var(--red-print); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 2.5mm; }
-.sticker-brand { font-weight: 800; font-size: 9pt; letter-spacing: 0.08em; }
-.sticker-order { font-weight: 800; font-size: 10pt; white-space: nowrap; }
-.sticker-cust { flex: 0 0 15mm; display: flex; flex-direction: column; justify-content: center; gap: 0.6mm; min-width: 0; border-bottom: 0.25mm solid #cbd5e1; padding-bottom: 1mm; }
-.sticker-name { font-size: 9.5pt; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sticker-phone { font-size: 8.5pt; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sticker-addr { font-size: 7.2pt; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.sticker-pay { flex: 0 0 6.5mm; display: flex; align-items: center; justify-content: center; font-size: 8pt; font-weight: 800; letter-spacing: 0.03em; border-radius: 1.2mm; padding: 0 2mm; white-space: nowrap; overflow: hidden; }
-.sticker-pay.cod { background: #111; color: #fff; }
-.sticker-pay.paid { background: #15803d; color: #fff; }
-.sticker-row { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.8mm; }
-.sticker-box { border: 0.3mm solid #111; border-radius: 1mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 1.2mm; min-width: 0; overflow: hidden; }
-.sticker-box span { font-size: 6pt; color: #333; text-align: center; line-height: 1.1; }
-.sticker-qrbox img, .sticker-qr-empty { width: 24mm; height: 24mm; display: block; }
-.sticker-qr-empty { display: flex; align-items: center; justify-content: center; border: 0.3mm solid #111; font-weight: 800; }
-.sticker-barbox svg { width: 100%; height: 15mm; display: block; }
-.sticker-barbox span { font-size: 6.5pt; font-weight: 700; color: #111; word-break: break-all; }
-.sticker-signbox { justify-content: flex-end; }
-.sticker-signbox span { border-top: 0.25mm solid #111; width: 100%; padding-top: 0.8mm; }
-@media print {
-  body.printing-sticker #root { display: none !important; }
-  body.printing-sticker .print-root { display: block !important; position: absolute; left: 0; top: 0; width: var(--sticker-w); height: var(--sticker-h); }
-  body.printing-sticker .print-root * { visibility: visible !important; }
-  body.printing-sticker .sticker { border: 0; page-break-inside: avoid; }
-  @page { size: var(--sticker-w) var(--sticker-h); margin: 0; }
-}
-
-/* ---------- Sticker: prints correctly even with "Background graphics" off ---------- */
-.sticker, .sticker * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.sticker-band { background: none !important; color: #111 !important; border-bottom: 0.9mm solid #111; padding: 0 1mm; }
-.sticker-brand, .sticker-order { color: #111 !important; }
-.sticker-pay.cod { background: none !important; color: #111 !important; border: 0.6mm solid #111; }
-.sticker-pay.paid { background: none !important; color: #15803d !important; border: 0.6mm solid #15803d; }
-
-/* ---------- Package sticker: fixed positions in mm (100 mm x 75 mm) ---------- */
-.stk { position: relative; width: 100mm; height: 75mm; box-sizing: border-box; overflow: hidden; background: #fff; color: #111;
-  font-family: Arial, Helvetica, sans-serif; border: 0.5mm solid #111; }
-.stk > * { position: absolute; box-sizing: border-box; }
-.stk-brand { left: 3mm; top: 2.5mm; width: 40mm; height: 6mm; font-size: 10pt; font-weight: 800; letter-spacing: 0.06em; line-height: 6mm; }
-.stk-order { right: 3mm; top: 2.5mm; width: 50mm; height: 6mm; font-size: 11pt; font-weight: 800; line-height: 6mm; text-align: right; white-space: nowrap; }
-.stk-rule { left: 3mm; top: 10mm; width: 94mm; height: 0; border-top: 0.6mm solid #111; }
-.stk-name { left: 3mm; top: 12mm; width: 94mm; height: 4.5mm; font-size: 9.5pt; font-weight: 800; line-height: 4.5mm; white-space: nowrap; overflow: hidden; }
-.stk-phone { left: 3mm; top: 16.5mm; width: 94mm; height: 4mm; font-size: 8.5pt; font-weight: 700; line-height: 4mm; white-space: nowrap; overflow: hidden; }
-.stk-addr { left: 3mm; top: 20.5mm; width: 94mm; height: 6.5mm; font-size: 7pt; line-height: 3.2mm; overflow: hidden; }
-.stk-pay { left: 3mm; top: 27.5mm; width: 94mm; height: 6.5mm; border: 0.6mm solid #111; font-size: 8pt; font-weight: 800; line-height: 5.3mm; text-align: center; white-space: nowrap; overflow: hidden; }
-.stk-pay.paid { border-color: #15803d; color: #15803d; }
-.stk-box { top: 36.5mm; height: 34mm; border: 0.35mm solid #111; border-radius: 1mm; }
-.stk-qr { left: 3mm; width: 29mm; }
-.stk-qr img, .stk-qr-empty { position: absolute; left: 2.5mm; top: 2.5mm; width: 24mm; height: 24mm; }
-.stk-qr-empty { border: 0.3mm solid #111; display: flex; align-items: center; justify-content: center; font-weight: 800; }
-.stk-qr span, .stk-sign span { position: absolute; left: 0; right: 0; bottom: 2mm; text-align: center; font-size: 6pt; color: #333; line-height: 3mm; }
-.stk-bar { left: 35.5mm; width: 29mm; }
-.stk-bar svg { position: absolute; left: 2mm; top: 4mm; width: 25mm; height: auto; }
-.stk-bar-text { position: absolute; left: 0; right: 0; top: 24mm; text-align: center; font-size: 7pt; font-weight: 800; line-height: 3mm; word-break: break-all; color: #111; }
-.stk-sign { left: 68mm; width: 29mm; }
-.stk-sign span { border-top: 0.3mm solid #111; left: 2mm; right: 2mm; bottom: 3mm; padding-top: 1mm; }
-@media print {
-  body.printing-sticker .stk { border: 0; }
-}
-
-/* ---------- Rider: scan-first gate and item warnings ---------- */
-.rd-gate { display: grid; gap: 12px; }
-.rd-gate h2 { margin: 0; font-size: 20px; }
-.rd-warn { margin-top: 4px; color: #b91c1c; font-size: 13px; font-weight: 600; }
+/* Rider delivery photo step */
+.rd-file { display: none; }
+.rd-locked { padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; }
+.rd-preview { width: 100%; max-height: 320px; object-fit: contain; border-radius: 12px; background: #000; }
+.rd-photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
