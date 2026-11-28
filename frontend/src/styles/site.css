@@ -1579,3 +1579,23 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .rider-info-phone { font-weight: 700; color: var(--red-700); text-decoration: underline; }
 .rider-info-confirm { margin: 0; font-size: 13px; font-weight: 600; color: var(--ok-text); }
 .dm-inline input[type="date"] { min-height: 32px; }
+
+/* Delivery pin */
+.pin-location { display: grid; gap: 6px; margin: 4px 0 14px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--neutral-bg); color: var(--ink); }
+.pin-location p { margin: 0; }
+.pin-ok { color: var(--ok-text); font-weight: 600; font-size: 14px; }
+.pin-ok a { color: var(--red-700); text-decoration: underline; }
+.pin-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Notification bell */
+.notif { position: relative; }
+.notif-btn { position: relative; }
+.notif-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(360px, 92vw); max-height: 70vh; overflow-y: auto; z-index: 600; background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: var(--shadow-md); }
+.notif-head { padding: 12px 14px; font-weight: 700; border-bottom: 1px solid var(--line); }
+.notif-empty { margin: 0; padding: 16px 14px; color: var(--muted); font-size: 14px; }
+.notif-list { list-style: none; margin: 0; padding: 0; }
+.notif-item { display: grid; gap: 2px; width: 100%; text-align: left; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font: inherit; }
+.notif-item:hover { background: var(--neutral-bg); }
+.notif-item.unread { border-left: 3px solid var(--red-700); }
+.notif-item span { color: var(--muted); font-size: 13px; }
+.notif-item em { color: var(--soft); font-size: 11.5px; font-style: normal; }

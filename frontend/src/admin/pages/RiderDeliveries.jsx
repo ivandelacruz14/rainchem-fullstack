@@ -21,6 +21,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 export default function RiderDeliveries() {
   const showToast = useToast();
   const [summary, setSummary] = useState(null);
+  const [cash, setCash] = useState(null);
   const [orders, setOrders] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [query, setQuery] = useState("");
@@ -47,6 +48,7 @@ export default function RiderDeliveries() {
       .catch((err) => { setOrders([]); setLoadError(err.response?.data?.error || "Your deliveries could not be loaded. Check your connection and refresh."); });
   }
   useEffect(() => { loadList(); }, []);
+  useEffect(() => { client.get("/api/rider/cash").then((r) => setCash(r.data)).catch(() => setCash(null)); }, [orders]);
 
   useEffect(() => {
     const q = query.trim();
@@ -156,6 +158,7 @@ export default function RiderDeliveries() {
         <div>
           <h1 className="rd-title">My Deliveries</h1>
           <p className="rd-sub">Find an order, confirm the items, take the delivery photo, then mark it Delivered or Failed.</p>
+          {cash && cash.total > 0 && <p className="rd-hint" role="status"><strong>Cash to hand over to the office: {peso(cash.total)}</strong> ({cash.orders.length} order{cash.orders.length === 1 ? "" : "s"})</p>}
         </div>
       </header>
 
@@ -235,6 +238,9 @@ export default function RiderDeliveries() {
                   <p className="rd-strong">{detail.customer.name}</p>
                   <p><a href={`tel:${detail.customer.phone}`}>{detail.customer.phone}</a></p>
                   <p>{detail.address}</p>
+                  {detail.instructions && <p className="rd-hint"><strong>Customer note:</strong> {detail.instructions}</p>}
+                  <a className="btn btn-outline btn-sm" href={detail.mapUrl} target="_blank" rel="noreferrer">Open in Maps</a>
+                  <p className="rd-hint">{detail.hasPin ? "The customer pinned the exact location." : "The customer did not pin a location. Maps searches the written address, so check it with the customer."}</p>
                 </div>
                 <div className="rd-box">
                   <h3>Order</h3>

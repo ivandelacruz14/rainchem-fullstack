@@ -16,6 +16,7 @@ const NAV_ITEMS = [
       { to: "/admin/services", label: "Services", permission: "services" },
       { to: "/admin/orders", label: "Orders", permission: "orders", ordersBadge: true },
       { to: "/admin/delivery-management", label: "Delivery Management", permission: "orders" },
+      { to: "/admin/cod-remittance", label: "Cash on Delivery", permission: "orders" },
       { to: "/admin/users", label: "Users", permission: "customers" },
       { to: "/admin/sales-records", label: "Sales Records", permission: "analytics" },
       { to: "/admin/analytics", label: "Sales Analytics", permission: "analytics" },

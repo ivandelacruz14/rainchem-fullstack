@@ -27,6 +27,19 @@ COLUMNS = [
     ("admins", "phone", "VARCHAR(30) NULL"),
     ("orders", "estimated_delivery_date", "DATE NULL"),
     ("orders", "received_confirmed_at", "DATETIME NULL"),
+    ("orders", "delivery_lat", "DOUBLE NULL"),
+    ("orders", "delivery_lng", "DOUBLE NULL"),
+    ("orders", "customer_instructions", "VARCHAR(500) NULL"),
+    ("orders", "cod_amount", "DECIMAL(10,2) NULL"),
+    ("orders", "cod_remitted_at", "DATETIME NULL"),
+    ("orders", "cod_remitted_by", "INT NULL"),
+    ("orders", "auto_confirmed", "TINYINT(1) NOT NULL DEFAULT 0"),
+    ("orders", "received_reminder_at", "DATETIME NULL"),
+    ("user_addresses", "latitude", "DOUBLE NULL"),
+    ("user_addresses", "longitude", "DOUBLE NULL"),
+    ("notifications", "order_id", "INT NULL"),
+    ("notifications", "link", "VARCHAR(200) NULL"),
+    ("notifications", "is_read", "TINYINT(1) NOT NULL DEFAULT 0"),
 ]
 
 # Photos are stored as base64 text, which does not fit in a plain TEXT column.

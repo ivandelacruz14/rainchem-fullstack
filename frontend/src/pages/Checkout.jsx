@@ -1,3 +1,4 @@
+import PinLocation from "../components/PinLocation";
 import CheckoutItem from "../components/CheckoutItem";
 import ProductModal from "../components/ProductModal";
 import { useState, useEffect } from "react";
@@ -46,13 +47,15 @@ export default function Checkout() {
     setForm((f) => ({
       ...f, addressType: a.label, line1: line, city: a.city.name, province: (a.province && a.province.name) || a.region.name,
       region: a.region.name, zip: a.zipCode || "",
+      latitude: a.latitude ?? "", longitude: a.longitude ?? "",
+      instructions: a.instructions || "",
     }));
   }
 
   function chooseAddress(value) {
     if (value === "new") {
       setAddressChoice("new");
-      setForm((f) => ({ ...f, addressType: "Home", line1: "", city: "", province: "", region: "", zip: "" }));
+      setForm((f) => ({ ...f, addressType: "Home", line1: "", city: "", province: "", region: "", zip: "", latitude: "", longitude: "", instructions: "" }));
       return;
     }
     const found = savedAddresses.find((a) => String(a.id) === value);
@@ -124,7 +127,7 @@ export default function Checkout() {
       const res = await client.post("/api/orders", {
         items: lines.map((l) => ({ productId: l.product.id, qty: l.qty })),
         customer: { name: form.name, phone: form.phone, email: form.email },
-        address: { line1: form.addressType ? `${form.addressType}: ${form.line1}` : form.line1, city: form.city, province: form.province, region: form.region, zip: form.zip },
+        address: { line1: form.addressType ? `${form.addressType}: ${form.line1}` : form.line1, city: form.city, province: form.province, region: form.region, zip: form.zip, latitude: form.latitude ?? "", longitude: form.longitude ?? "", instructions: form.instructions || "" },
         paymentMethod: form.payment,
         confirmDuplicate,
         direct: isDirect,
@@ -213,6 +216,8 @@ export default function Checkout() {
               <div className="field"><label>Region</label><input required value={form.region} onChange={(e) => update("region", e.target.value)} /></div>
               <div className="field"><label>ZIP Code</label><input required value={form.zip} onChange={(e) => update("zip", e.target.value)} /></div>
             </div>
+            <div className="field"><label>Delivery instructions (optional)</label><input maxLength={500} placeholder="Landmark, gate color, leave with the guard" value={form.instructions || ""} onChange={(e) => update("instructions", e.target.value)} /></div>
+            <PinLocation lat={form.latitude} lng={form.longitude} onChange={(la, ln) => setForm((f) => ({ ...f, latitude: la, longitude: ln }))} />
 
             {anyBoxed && (
               <p className="field-hint" style={{ marginBottom: 10 }}>

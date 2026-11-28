@@ -2,6 +2,7 @@ from datetime import date, datetime
 from flask import Blueprint, Response, request, jsonify
 
 from app.extensions import db
+from app.services.notify import notify_order
 from app.models import Admin, Order, OrderStatusHistory, Product
 from app.models.delivery import DeliveryProof
 from app.services import audit
@@ -271,6 +272,8 @@ def assign_rider(order_id):
     order.rider_id = rider.id
     order.rider_assigned_at = datetime.utcnow()
     order.estimated_delivery_date = estimated
+    notify_order(order, f"A rider is assigned to {order.order_number}",
+                 f"{rider.name} ({rider.phone}) will deliver your order. Estimated delivery: {estimated.strftime('%B %d, %Y').replace(' 0', ' ')}.")
     if order.status in ("confirmed", "processing"):
         # Sending to a rider means the order is ready to leave; no separate "ready" click is needed.
         order.status = "ready_for_delivery"

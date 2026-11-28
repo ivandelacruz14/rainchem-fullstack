@@ -38,6 +38,8 @@ class UserAddress(db.Model):
     unit = db.Column(db.String(60), nullable=True)
     landmark = db.Column(db.String(200), nullable=True)
     instructions = db.Column(db.String(500), nullable=True)
+    latitude = db.Column(db.Float, nullable=True)   # the pin the customer dropped; the rider opens it in Maps
+    longitude = db.Column(db.Float, nullable=True)
     is_default = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -52,6 +54,7 @@ class UserAddress(db.Model):
             "zipCode": self.zip_code, "houseNumber": self.house_number, "street": self.street,
             "subdivision": self.subdivision, "village": self.village, "unit": self.unit,
             "landmark": self.landmark, "instructions": self.instructions,
+            "latitude": self.latitude, "longitude": self.longitude,
             "formatted": format_address(self),
         }
 

@@ -11,7 +11,7 @@ export default function RiderInfo({ order }) {
   const rider = waiting ? order.rider : null;
   const eta = waiting ? order.estimatedDelivery : null;
   const needsConfirm = order.canReceive;
-  if (!rider && !eta && !needsConfirm) return null;
+  if (!rider && !eta && !needsConfirm && !order.autoConfirmed) return null;
 
   return (
     <div className="rider-info" role="group" aria-label="Delivery details">
@@ -28,8 +28,12 @@ export default function RiderInfo({ order }) {
           <strong>{day(eta)}</strong>
         </div>
       )}
+      {order.autoConfirmed && <p className="rider-info-confirm">Confirmed for you automatically after delivery.</p>}
       {needsConfirm && (
-        <p className="rider-info-confirm">The rider has delivered your order. Please confirm that you received it.</p>
+        <p className="rider-info-confirm">
+          The rider has delivered your order. Please confirm that you received it.
+          {order.autoConfirmAt && <> If you do not, we confirm it for you on {day(order.autoConfirmAt)}.</>}
+        </p>
       )}
     </div>
   );

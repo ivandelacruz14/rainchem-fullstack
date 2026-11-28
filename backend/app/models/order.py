@@ -1,5 +1,5 @@
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from app.extensions import db
 from app.services.order_journey import build_journey
 from app.services.pricing import money
@@ -104,6 +104,16 @@ class Order(db.Model):
     rescheduled_for = db.Column(db.Date, nullable=True)
     # Set by the admin when the order is sent to a rider. Shown to the customer.
     estimated_delivery_date = db.Column(db.Date, nullable=True)
+    # Where to deliver: the customer's pin and their instructions (landmark, gate, guard).
+    delivery_lat = db.Column(db.Float, nullable=True)
+    delivery_lng = db.Column(db.Float, nullable=True)
+    customer_instructions = db.Column(db.String(500), nullable=True)
+    # Cash the rider collected at the door, and when the office received it from the rider.
+    cod_amount = db.Column(db.Numeric(10, 2), nullable=True)
+    cod_remitted_at = db.Column(db.DateTime, nullable=True)
+    cod_remitted_by = db.Column(db.Integer, nullable=True)
+    auto_confirmed = db.Column(db.Boolean, nullable=False, default=False)
+    received_reminder_at = db.Column(db.DateTime, nullable=True)
     # Only the customer sets this, after the rider has marked the order delivered.
     received_confirmed_at = db.Column(db.DateTime, nullable=True)
     delivery_note = db.Column(db.String(300), nullable=True)
@@ -128,6 +138,30 @@ class Order(db.Model):
     def can_confirm_received(self):
         """The customer confirms the item after the rider has recorded the delivery. Nobody else can."""
         return self.status == "delivered" and self.received_confirmed_at is None and self.return_status == "none"
+
+    @property
+    def auto_confirm_at(self):
+        """When the order is confirmed for the customer if they have not done it themselves."""
+        from flask import current_app
+        if self.status != "delivered" or self.received_confirmed_at is not None or not self.delivered_at:
+            return None
+        return self.delivered_at + timedelta(days=current_app.config.get("AUTO_CONFIRM_DAYS", 3))
+
+    @property
+    def is_overdue(self):
+        """Still not delivered after the estimated date."""
+        return bool(self.estimated_delivery_date and self.rider_id
+                    and self.status in ("ready_for_delivery", "shipped")
+                    and self.estimated_delivery_date < date.today())
+
+    @property
+    def map_url(self):
+        from urllib.parse import quote
+        if self.delivery_lat is not None and self.delivery_lng is not None:
+            query = f"{self.delivery_lat},{self.delivery_lng}"
+        else:
+            query = ", ".join(p for p in (self.address_line1, self.address_city, self.address_province, self.address_region, "Philippines") if p)
+        return f"https://www.google.com/maps/search/?api=1&query={quote(query)}"
 
     @property
     def estimated_delivery(self):
@@ -220,6 +254,11 @@ class Order(db.Model):
             "canPay": self.status != "cancelled" and self.is_online_payment and self.payment_status in ("unpaid", "verifying"),
             "canChangePayment": self.status == "pending_confirmation" and self.payment_status in ("unpaid", "verifying"),
             "canReceive": self.can_confirm_received,
+            "autoConfirmAt": self.auto_confirm_at.isoformat() if self.auto_confirm_at else None,
+            "autoConfirmed": bool(self.auto_confirmed),
+            "customerInstructions": self.customer_instructions,
+            "location": {"lat": self.delivery_lat, "lng": self.delivery_lng, "mapUrl": self.map_url},
+            "isOverdue": self.is_overdue,
             "receivedConfirmedAt": self.received_confirmed_at.isoformat() if self.received_confirmed_at else None,
             "estimatedDelivery": self.estimated_delivery.isoformat() if self.estimated_delivery else None,
             "rider": self.rider_for_customer(),

@@ -27,6 +27,8 @@ from app.routes.admin_inventory import admin_inventory_bp
 from app.routes.admin_sales_records import admin_sales_records_bp
 from app.routes.admin_chat_monitor import admin_chat_monitor_bp
 from app.routes.admin_live_chat import admin_live_chat_bp
+from app.routes.notifications import notifications_bp
+from app.routes.admin_remittance import admin_remittance_bp
 
 
 def register_routes(app):
@@ -59,3 +61,5 @@ def register_routes(app):
     app.register_blueprint(admin_sales_records_bp)
     app.register_blueprint(admin_chat_monitor_bp)
     app.register_blueprint(admin_live_chat_bp)
+    app.register_blueprint(notifications_bp)
+    app.register_blueprint(admin_remittance_bp)

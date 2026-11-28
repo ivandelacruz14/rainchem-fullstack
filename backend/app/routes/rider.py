@@ -8,6 +8,7 @@ from app.services.pod import matches_order
 from app.models import Order, OrderStatusHistory
 from app.models.delivery import DeliveryProof
 from app.services import audit, delivery as svc, live_chat as chat
+from app.services.notify import notify_order
 from app.services.payment_flow import mark_paid
 from app.utils.auth_decorators import current_admin, require_permission
 
@@ -33,7 +34,9 @@ def _detail(order):
     unpaid_cash = (not order.is_online_payment) and order.payment_status != "paid"
     data.update({
         "customer": {"name": order.customer_name, "phone": order.customer_phone},
-        "address": data.get("formatted") or order.address_line1,
+        "address": ", ".join(p for p in (order.address_line1, order.address_city, order.address_province, order.address_region, order.address_zip) if p),
+        "mapUrl": order.map_url, "hasPin": order.delivery_lat is not None,
+        "instructions": order.customer_instructions,
         "amountToCollect": float(order.total) if unpaid_cash else 0,
         "items": [{"productId": i.product_id, "name": i.product_name, "quantity": i.quantity} for i in order.items],
         "scanned": svc.accepted(order),
@@ -109,6 +112,8 @@ def report_failed(order_id):
     order.failed_reason = reason
     order.failed_at = datetime.utcnow()
     db.session.add(OrderStatusHistory(order_id=order.id, status="delivery_failed"))
+    notify_order(order, f"We could not deliver {order.order_number} today",
+                 f"Reason: {reason}. The office will confirm a new delivery date.")
     audit.record("delivery_failed", "order", order.id, {"status": "shipped"}, {"status": "delivery_failed"}, reason, current_admin())
     db.session.commit()
     return jsonify({"order": _detail(order)})
@@ -133,6 +138,8 @@ def start(order_id):
         return _err("This order is not ready to leave the warehouse")
     order.status = "shipped"
     db.session.add(OrderStatusHistory(order_id=order.id, status="shipped"))
+    notify_order(order, f"{order.order_number} is out for delivery",
+                 f"{current_admin().name} is on the way. Please keep your phone with you and prepare the exact amount if you pay cash.")
     db.session.commit()
     return jsonify({"order": _detail(order)})
 
@@ -145,12 +152,9 @@ def scan(order_id):
         return _err("Order not found", 404)
     code = (request.get_json() or {}).get("code")
     if matches_order(order, code):
-        # The order sticker is the package's QR code: scanning it confirms the order and every unit in it.
-        if order.status in ("ready_for_delivery", "rescheduled", "shipped"):
-            svc.confirm_package_scan(order, current_admin(), code)
+        # The order sticker identifies the order. It is not a unit, so nothing is counted here.
         return jsonify({"accepted": True, "orderConfirmed": True,
-                        "message": f"Order {order.order_number} confirmed. All items are confirmed.",
-                        "order": _detail(order)})
+                        "message": f"Order {order.order_number} confirmed", "order": _detail(order)})
     if order.status != "shipped":
         return _err("Scan the order sticker to confirm the order. Start the delivery before scanning the items.")
     ok, message, _ = svc.record_scan(order, current_admin(), code)
@@ -165,7 +169,8 @@ def upload_proof(order_id):
         return _err("Order not found", 404)
     if order.status != "shipped":
         return _err("Start the delivery before uploading proof")
-    existing = DeliveryProof.query.filter_by(order_id=order.id).first()
+    if DeliveryProof.query.filter_by(order_id=order.id).first():
+        return _err("The proof for this order is already uploaded and cannot be replaced", 409)
     upload = request.files.get("image")
     if upload is None or upload.filename == "":
         return _err("Choose a photo")
@@ -173,12 +178,6 @@ def upload_proof(order_id):
         data, mime = chat.read_upload(upload)
     except chat.LiveChatError as error:
         return _err(str(error), error.status)
-    if existing:
-        # While the order is still out for delivery the rider may take a better photo and send it again.
-        existing.data, existing.mime, existing.size = data, mime, len(data)
-        existing.sha256, existing.rider_id = hashlib.sha256(data).hexdigest(), current_admin().id
-        db.session.commit()
-        return jsonify({"order": _detail(order)}), 200
     db.session.add(DeliveryProof(order_id=order.id, rider_id=current_admin().id, data=data, mime=mime,
                                  size=len(data), sha256=hashlib.sha256(data).hexdigest()))
     db.session.commit()
@@ -219,10 +218,25 @@ def deliver(order_id):
     if order.is_online_payment and order.payment_status != "paid":
         return _err("This order has not been paid yet")
     if order.payment_status != "paid":
-        mark_paid(order)  # cash on delivery: collected at the door, recorded the same way as the admin path
+        order.cod_amount = order.total  # cash collected at the door; the office records when it receives it
+        mark_paid(order)  # cash on delivery: recorded the same way as the admin path
     order.status = "delivered"
     order.delivery_note = note or None
     db.session.add(OrderStatusHistory(order_id=order.id, status="delivered"))
+    notify_order(order, f"{order.order_number} was delivered",
+                 "Please confirm in My Orders that you received it. Then you can rate your products.")
     audit.record("delivered", "order", order.id, {"status": "shipped"}, {"status": "delivered"}, None, current_admin())
     db.session.commit()
     return jsonify({"order": _detail(order)})
+
+
+@rider_bp.get("/cash")
+@require_permission("deliveries")
+def cash_on_hand():
+    """Cash the rider collected and has not handed over to the office yet."""
+    rows = Order.query.filter(Order.rider_id == current_admin().id, Order.cod_amount.isnot(None),
+                              Order.cod_remitted_at.is_(None)).order_by(Order.id).all()
+    return jsonify({
+        "total": round(sum(float(o.cod_amount) for o in rows), 2),
+        "orders": [{"id": o.id, "orderNumber": o.order_number, "amount": round(float(o.cod_amount), 2)} for o in rows],
+    })

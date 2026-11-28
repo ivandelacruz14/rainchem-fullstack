@@ -5,6 +5,7 @@ import { useCart } from "../context/CartContext";
 import { useUI } from "../context/UIContext";
 import Brand from "./Brand";
 import UserMenu from "./UserMenu";
+import NotificationBell from "./NotificationBell";
 
 export default function Header() {
   const { user, loading } = useAuth();
@@ -46,6 +47,7 @@ export default function Header() {
         <div className="nav-actions">
           {user ? (
             <>
+              <NotificationBell />
               <button type="button" className="icon-btn cart-btn" aria-label="Cart" title="Cart" onClick={openCart}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="9" cy="20" r="1.5" />

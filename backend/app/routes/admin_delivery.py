@@ -3,6 +3,8 @@ from datetime import date, datetime
 from flask import Blueprint, jsonify, request
 
 from app.extensions import db
+from app.services.notify import notify_order
+from app.services import auto_confirm
 from app.models import Admin, Order, OrderStatusHistory
 from app.models.order import STATUS_LABELS
 from app.models.delivery import DeliveryProof
@@ -56,6 +58,9 @@ def confirm_failed(order_id):
     order.failed_confirmed_at = datetime.utcnow()
     order.failed_confirmed_by = current_admin().id
     db.session.add(OrderStatusHistory(order_id=order.id, status="rescheduled"))
+    notify_order(order, f"New delivery date for {order.order_number}",
+                 f"We could not deliver today{': ' + order.failed_reason if order.failed_reason else ''}. "
+                 f"New delivery date: {new_date.strftime('%B %d, %Y').replace(' 0', ' ')}.")
     audit.record("delivery_rescheduled", "order", order.id, {"status": "delivery_failed"},
                  {"status": "rescheduled", "rescheduledFor": new_date.isoformat()}, order.failed_reason, current_admin())
     db.session.commit()
@@ -103,6 +108,7 @@ DISPATCH_STATUSES = ("confirmed", "processing", "ready_for_delivery", "reschedul
 @require_permission("orders")
 def dispatch():
     """Every order that still needs the office: confirmed orders to send, and orders already with a rider."""
+    auto_confirm.sweep_all()
     rows = Order.query.filter(Order.status.in_(DISPATCH_STATUSES)).order_by(Order.id.desc()).limit(300).all()
     items = []
     for o in rows:
@@ -112,7 +118,8 @@ def dispatch():
             "customerPhone": o.customer_phone, "address": o.address_line1,
             "status": o.status, "statusLabel": STATUS_LABELS.get(o.status, o.status),
             "riderId": o.rider_id, "riderName": rider.name if rider else None,
-            "riderPhone": rider.phone if rider else None,
+            "riderPhone": rider.phone if rider else None, "isOverdue": o.is_overdue,
+            "mapUrl": o.map_url,
             "estimatedDate": o.estimated_delivery_date.isoformat() if o.estimated_delivery_date else None,
             "paymentMethod": o.payment_method, "codAmount": receipt_payload(o)["payment"]["codAmountToCollect"],
         })

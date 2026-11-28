@@ -68,6 +68,9 @@ class Config:
     BULK_BASIC_MAX_BOXES = int(os.getenv("BULK_BASIC_MAX_BOXES", "20"))
     BULK_VERIFIED_MAX_BOXES = int(os.getenv("BULK_VERIFIED_MAX_BOXES", "200"))
     BULK_REVIEW_BOXES = int(os.getenv("BULK_REVIEW_BOXES", "100"))
+    # The customer confirms receipt. If they do not, it is confirmed for them after this many days.
+    AUTO_CONFIRM_DAYS = int(os.getenv("AUTO_CONFIRM_DAYS", "3"))
+    AUTO_CONFIRM_REMINDER_DAYS = int(os.getenv("AUTO_CONFIRM_REMINDER_DAYS", "2"))
     DUPLICATE_ORDER_MINUTES = int(os.getenv("DUPLICATE_ORDER_MINUTES", "5"))
 
     # Hours between UTC and the shop's local time, used to group sales by day.

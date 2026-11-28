@@ -42,6 +42,20 @@ def my_addresses():
     return jsonify({"addresses": [a.to_dict() for a in rows]})
 
 
+def read_pin(data):
+    """The customer's map pin. Both numbers or neither; it must be inside the Philippines."""
+    lat, lng = data.get("latitude"), data.get("longitude")
+    if lat in (None, "") and lng in (None, ""):
+        return None, None
+    try:
+        lat, lng = round(float(lat), 6), round(float(lng), 6)
+    except (TypeError, ValueError):
+        raise AddressError("The map pin is not valid. Pin your location again.")
+    if not (4.0 <= lat <= 22.0 and 116.0 <= lng <= 127.5):
+        raise AddressError("The map pin is outside the Philippines. Pin your location again.")
+    return lat, lng
+
+
 def _read(data, existing=None):
     """Checks every field. Returns the values to store, or raises AddressError."""
     label = (data.get("label") or "Home").strip()
@@ -59,7 +73,9 @@ def _read(data, existing=None):
         if typed_zip and (len(typed_zip) != 4 or not typed_zip.isdigit()):
             raise AddressError("ZIP code must be 4 digits")
         zip_code = typed_zip or None
+    latitude, longitude = read_pin(data)
     values = {
+        "latitude": latitude, "longitude": longitude,
         "label": label, "region_code": region.code, "region_name": region.name,
         "province_code": province.code if province else None, "province_name": province.name if province else None,
         "city_code": city.code, "city_name": city.name, "barangay_code": barangay.code, "barangay_name": barangay.name,

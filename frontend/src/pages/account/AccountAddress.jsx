@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import client from "../../api/client";
 import { useToast } from "../../context/ToastContext";
+import PinLocation from "../../components/PinLocation";
 
 const LABELS = ["Home", "Work", "Temporary", "Other"];
 const EMPTY = {
   label: "Home", regionCode: "", provinceCode: "", cityCode: "", barangayCode: "", zipCode: "",
-  houseNumber: "", street: "", subdivision: "", village: "", unit: "", landmark: "", instructions: "", makeDefault: false,
+  houseNumber: "", street: "", subdivision: "", village: "", unit: "", landmark: "", instructions: "", latitude: "", longitude: "", makeDefault: false,
 };
 
 /** Saved addresses. Each choice only offers the places inside the one before it (region, province, city, barangay). */
@@ -87,7 +88,7 @@ export default function AccountAddress() {
       label: a.label, regionCode: a.region.code, provinceCode: a.province?.code || "", cityCode: a.city.code,
       barangayCode: a.barangay.code, zipCode: a.zipCode || "", houseNumber: a.houseNumber || "", street: a.street || "",
       subdivision: a.subdivision || "", village: a.village || "", unit: a.unit || "", landmark: a.landmark || "",
-      instructions: a.instructions || "", makeDefault: a.isDefault,
+      instructions: a.instructions || "", latitude: a.latitude ?? "", longitude: a.longitude ?? "", makeDefault: a.isDefault,
     });
   }
 
@@ -182,6 +183,7 @@ export default function AccountAddress() {
         <div className="field"><label htmlFor="ad-unit">Floor or unit</label><input id="ad-unit" value={form.unit} onChange={set("unit")} /></div>
         <div className="field"><label htmlFor="ad-landmark">Landmark</label><input id="ad-landmark" value={form.landmark} onChange={set("landmark")} /></div>
         <div className="field"><label htmlFor="ad-instr">Delivery instructions</label><textarea id="ad-instr" rows={2} value={form.instructions} onChange={set("instructions")} /></div>
+        <PinLocation lat={form.latitude} lng={form.longitude} onChange={(la, ln) => setForm((f) => ({ ...f, latitude: la, longitude: ln }))} />
         <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
           <input type="checkbox" checked={form.makeDefault} onChange={(e) => setForm((f) => ({ ...f, makeDefault: e.target.checked }))} />
           Use as my default delivery address

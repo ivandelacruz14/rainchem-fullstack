@@ -51,6 +51,7 @@ import SalesRecords from "./admin/pages/SalesRecords";
 import RiderDeliveries from "./admin/pages/RiderDeliveries";
 import OverviewHub from "./admin/pages/OverviewHub";
 import DeliveryManagement from "./admin/pages/DeliveryManagement";
+import CodRemittance from "./admin/pages/CodRemittance";
 import RiderRoute from "./admin/RiderRoute";
 import InventoryAlerts from "./admin/pages/InventoryAlerts";
 import ProductKnowledge from "./admin/pages/ProductKnowledge";
@@ -123,6 +124,7 @@ export default function App() {
                     <Route path="services" element={<PermissionRoute permission="services"><AdminServices /></PermissionRoute>} />
                     <Route path="account" element={<MyAccount />} />
                     <Route path="sales-records" element={<PermissionRoute permission="analytics"><SalesRecords /></PermissionRoute>} />
+                    <Route path="cod-remittance" element={<PermissionRoute permission="orders"><CodRemittance /></PermissionRoute>} />
                     <Route path="delivery-management" element={<PermissionRoute permission="orders"><DeliveryManagement /></PermissionRoute>} />
                     <Route path="rider" element={<RiderRoute><RiderDeliveries /></RiderRoute>} />
                     <Route path="inventory" element={<PermissionRoute permission="products"><InventoryAlerts /></PermissionRoute>} />

@@ -98,7 +98,11 @@ export default function DeliveryManagement() {
               <td className="dm-strong">{o.orderNumber}</td>
               <td>{o.customerName}</td>
               <td>{o.riderName || "-"}{o.riderPhone && <div className="dm-muted">{o.riderPhone}</div>}</td>
-              <td>{o.estimatedDate ? formatDate(o.estimatedDate).split(",").slice(0, 2).join(",") : "-"}</td>
+              <td>
+                {o.estimatedDate ? formatDate(o.estimatedDate).split(",").slice(0, 2).join(",") : "-"}
+                {o.isOverdue && <div><span className="pill pill-low">Overdue</span></div>}
+                {o.mapUrl && <div><a href={o.mapUrl} target="_blank" rel="noreferrer">Map</a></div>}
+              </td>
               <td>{o.statusLabel}</td>
               <td className="num">{o.codAmount > 0 ? peso(o.codAmount) : "Paid"}</td>
               <td><PrintStickerButton orderId={o.id} /></td>

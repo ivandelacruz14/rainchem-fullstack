@@ -6,7 +6,9 @@ from flask import Blueprint, current_app, request, jsonify
 from app.extensions import db
 from app.models import CartItem, Order, OrderItem, OrderStatusHistory, Product, User
 from app.models.order import COD
-from app.services import payment_flow
+from app.routes.addresses import read_pin
+from app.services import auto_confirm, payment_flow
+from app.services.locations import AddressError
 from app.services.auth_utils import is_valid_email, is_valid_phone
 from app.services.pricing import compute_shipping, effective_discount_rate, unit_price_after_discount, money
 from app.services.receipt_service import generate_order_number, generate_tracking_number, create_receipt_for_order
@@ -118,6 +120,11 @@ def create_order():
                 return jsonify({"error": f"You placed the same order a few minutes ago ({previous.order_number}). Is this a new order?", "duplicateOrder": previous.order_number, "needsConfirmation": True}), 409
             break
 
+    try:
+        pin = read_pin(address)
+    except AddressError as error:
+        return jsonify({"error": str(error)}), 400
+
     order = Order(
         order_number=generate_order_number(),
         user_id=current_user_id(),
@@ -131,6 +138,8 @@ def create_order():
         address_province=address.get("province", ""),
         address_region=address.get("region", ""),
         address_zip=address.get("zip", ""),
+        delivery_lat=pin[0], delivery_lng=pin[1],
+        customer_instructions=(str(address.get("instructions") or "").strip()[:500] or None),
         payment_method=payment_method,
         payment_status="unpaid",
         subtotal=money(subtotal),
@@ -200,6 +209,7 @@ def create_order():
 @orders_bp.get("")
 @require_user
 def list_my_orders():
+    auto_confirm.sweep_user(current_user_id())
     query = Order.query.filter_by(user_id=current_user_id()).order_by(Order.created_at.desc())
     if wants_page():
         page, per_page = page_args()

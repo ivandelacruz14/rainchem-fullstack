@@ -70,3 +70,7 @@ class Notification(db.Model):
     subject = db.Column(db.String(200), nullable=False)
     body = db.Column(db.Text, nullable=False)
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # In-app notifications (channel "app") shown in the customer's bell.
+    order_id = db.Column(db.Integer, nullable=True)
+    link = db.Column(db.String(200), nullable=True)
+    is_read = db.Column(db.Boolean, nullable=False, default=False)
