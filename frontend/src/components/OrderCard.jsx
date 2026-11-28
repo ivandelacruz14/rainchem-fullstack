@@ -8,7 +8,7 @@ const STEPS = ["pending_confirmation", "confirmed", "processing", "shipped", "de
 function Stars({ value }) {
   return (
     <span style={{ color: "#f5b301", letterSpacing: 1 }}>
-      {"\u2605".repeat(value)}<span style={{ color: "#c9c4bc" }}>{"\u2605".repeat(5 - value)}</span>
+      {"\u2605".repeat(value)}<span style={{ color: "var(--soft)" }}>{"\u2605".repeat(5 - value)}</span>
     </span>
   );
 }

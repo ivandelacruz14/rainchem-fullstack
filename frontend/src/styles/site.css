@@ -410,7 +410,7 @@ p { margin: 0 0 1em; }
 @keyframes chat-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.5; } 40% { transform: translateY(-4px); opacity: 1; } }
 .chat-feedback { display: flex; flex-direction: column; gap: 3px; padding-left: 4px; }
 .chat-feedback-note { font-size: 11.5px; color: var(--muted); }
-.chat-feedback-error { font-size: 11.5px; color: #b42318; }
+.chat-feedback-error { font-size: 11.5px; color: var(--red-700); }
 .chat-stars { display: flex; gap: 2px; }
 .star-btn { background: none; border: none; padding: 1px; cursor: pointer; line-height: 0; border-radius: 4px; transition: transform 0.1s; }
 .star-btn:hover:not(:disabled) { transform: scale(1.15); }
@@ -1171,13 +1171,13 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .checkout-page { background: radial-gradient(80% 60% at 100% 0%, rgba(214, 40, 56, 0.18), transparent 60%), #0c0c0e; }
 .checkout-summary { border: 1px solid rgba(214, 40, 56, 0.45); box-shadow: 0 0 40px -18px rgba(214, 40, 56, 0.7); background: linear-gradient(180deg, #17120f, #0f0c0b); }
 .checkout-summary .btn-primary { width: 100%; padding: 16px; font-size: 15px; font-weight: 800; border-radius: 12px; box-shadow: 0 12px 30px -10px rgba(214, 40, 56, 0.8); }
-.seg { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; border-radius: 12px; background: #151518; border: 1px solid rgba(255,255,255,0.08); }
-.seg button { flex: 1 1 auto; padding: 9px 14px; border: 0; border-radius: 9px; background: transparent; color: #a1a1aa; font-weight: 700; font-size: 13px; cursor: pointer; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; border-radius: 12px; background: var(--neutral-bg); border: 1px solid var(--line); }
+.seg button { flex: 1 1 auto; padding: 9px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 700; font-size: 13px; cursor: pointer; }
 .seg button.active { background: var(--red-700); color: #fff; box-shadow: 0 6px 18px -8px rgba(214, 40, 56, 0.9); }
-.addr-box { margin-top: 8px; padding: 12px 14px; border-radius: 10px; background: #151518; border: 1px solid rgba(255,255,255,0.08); font-size: 13.5px; color: #d4d4d8; }
+.addr-box { margin-top: 8px; padding: 12px 14px; border-radius: 10px; background: var(--neutral-bg); border: 1px solid var(--line); font-size: 13.5px; color: var(--ink); }
 .pay-option { border-radius: 12px; }
 .pay-option.selected { border-color: var(--red-700); box-shadow: 0 0 0 1px var(--red-700), 0 0 24px -10px rgba(214, 40, 56, 0.8); background: rgba(214, 40, 56, 0.08); }
-.pay-tag { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; background: #1f1f23; color: #d4d4d8; border: 1px solid rgba(255,255,255,0.1); }
+.pay-tag { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; background: var(--neutral-bg); color: var(--muted); border: 1px solid var(--line-strong); }
 
 /* My Addresses: saved list on the left, the form on the right */
 .acct-addr-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
@@ -1234,7 +1234,7 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 .sig-canvas { display: block; width: 100%; border-radius: 8px; background: #fff; touch-action: none; cursor: crosshair; }
 .sig-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px; }
 .check-row { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; margin: 10px 0; }
-.field-error { color: #b91c1c; font-size: 13px; margin: 6px 0 0; }
+.field-error { color: var(--red-700); font-size: 13px; margin: 6px 0 0; }
 .receipt-doc { background: #fff; color: #111; border: 1px solid #d4d4d8; border-radius: 10px; padding: 26px; font-size: 13px; }
 .receipt-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid var(--red-700); padding-bottom: 14px; gap: 16px; flex-wrap: wrap; }
 .receipt-brand { font-size: 18px; font-weight: 800; color: var(--red-700); letter-spacing: 0.02em; }
@@ -1474,7 +1474,7 @@ main, .container { max-width: 100%; box-sizing: border-box; }
   .dm-title { font-size: 22px; }
 }
 .oc-note { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
-.oc-note-alert { color: #b91c1c; font-weight: 600; }
+.oc-note-alert { color: var(--red-700); font-weight: 600; }
 
 /* ---------- Sending to a rider and printing the sticker ---------- */
 .send-steps { display: grid; gap: 14px; margin-top: 12px; }
@@ -1572,9 +1572,10 @@ main, .container { max-width: 100%; box-sizing: border-box; }
 }
 
 /* Rider name, phone and estimated delivery date shown to the customer */
-.rider-info { display: grid; gap: 6px; margin: 12px 0 0; padding: 10px 12px; border: 1px solid var(--line, #e2ddd5); border-radius: 10px; background: #faf8f5; }
+.rider-info { display: grid; gap: 6px; margin: 12px 0 0; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--neutral-bg); color: var(--ink); }
+.rider-info strong { color: var(--ink); }
 .rider-info-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 14px; }
-.rider-info-label { color: var(--soft, #6b6560); font-size: 12px; min-width: 112px; }
-.rider-info-phone { font-weight: 700; color: var(--red-700, #b91c1c); text-decoration: underline; }
-.rider-info-confirm { margin: 0; font-size: 13px; font-weight: 600; color: #15803d; }
+.rider-info-label { color: var(--muted); font-size: 12px; min-width: 112px; }
+.rider-info-phone { font-weight: 700; color: var(--red-700); text-decoration: underline; }
+.rider-info-confirm { margin: 0; font-size: 13px; font-weight: 600; color: var(--ok-text); }
 .dm-inline input[type="date"] { min-height: 32px; }
