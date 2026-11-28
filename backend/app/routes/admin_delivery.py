@@ -112,6 +112,8 @@ def dispatch():
             "customerPhone": o.customer_phone, "address": o.address_line1,
             "status": o.status, "statusLabel": STATUS_LABELS.get(o.status, o.status),
             "riderId": o.rider_id, "riderName": rider.name if rider else None,
+            "riderPhone": rider.phone if rider else None,
+            "estimatedDate": o.estimated_delivery_date.isoformat() if o.estimated_delivery_date else None,
             "paymentMethod": o.payment_method, "codAmount": receipt_payload(o)["payment"]["codAmountToCollect"],
         })
     return jsonify({"orders": items})

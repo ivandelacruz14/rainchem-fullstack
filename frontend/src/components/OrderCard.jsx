@@ -1,4 +1,5 @@
 import PaymentReceiptButton from "./PaymentReceiptButton";
+import RiderInfo from "./RiderInfo";
 import { Link } from "react-router-dom";
 import { peso, formatDate } from "../utils/format";
 
@@ -38,6 +39,8 @@ export default function OrderCard({ order, onCancel, onPay, onReceive, onReview,
           )}
         </div>
       </div>
+
+      {!isCancelled && <RiderInfo order={order} />}
 
       {!isCancelled && (
         <div className="track-steps">
@@ -95,7 +98,7 @@ export default function OrderCard({ order, onCancel, onPay, onReceive, onReview,
           <button className="btn btn-outline btn-sm" onClick={() => onPay(order.id)}>Change Payment</button>
         )}
         {order.canReceive && onReceive && (
-          <button className="btn btn-primary btn-sm" onClick={() => onReceive(order.id)}>Order Received</button>
+          <button className="btn btn-primary btn-sm" onClick={() => onReceive(order.id)}>I received my order</button>
         )}
         {order.canReview && onReview && (
           <button className="btn btn-primary btn-sm" onClick={() => onReview(order)}>Rate Products</button>

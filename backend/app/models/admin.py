@@ -10,6 +10,7 @@ class Admin(db.Model):
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(180), nullable=False, unique=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    phone = db.Column(db.String(30), nullable=True)  # shown to customers for riders, so they can call the rider
     role = db.Column(db.String(60), nullable=False, default="Head Admin")
     # Permission keys granted to non-head accounts (see services/permissions.py).
     permissions = db.Column(db.JSON, nullable=True)
@@ -35,6 +36,7 @@ class Admin(db.Model):
             "id": self.id,
             "name": self.name,
             "email": self.email,
+            "phone": self.phone,
             "role": self.role,
             "isHead": self.is_head,
             "isActive": bool(self.is_active),

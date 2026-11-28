@@ -102,6 +102,10 @@ class Order(db.Model):
     failed_confirmed_at = db.Column(db.DateTime, nullable=True)
     failed_confirmed_by = db.Column(db.Integer, nullable=True)
     rescheduled_for = db.Column(db.Date, nullable=True)
+    # Set by the admin when the order is sent to a rider. Shown to the customer.
+    estimated_delivery_date = db.Column(db.Date, nullable=True)
+    # Only the customer sets this, after the rider has marked the order delivered.
+    received_confirmed_at = db.Column(db.DateTime, nullable=True)
     delivery_note = db.Column(db.String(300), nullable=True)
 
     items = db.relationship("OrderItem", backref="order", cascade="all, delete-orphan")
@@ -121,6 +125,27 @@ class Order(db.Model):
         return max(times) if times else None
 
     @property
+    def can_confirm_received(self):
+        """The customer confirms the item after the rider has recorded the delivery. Nobody else can."""
+        return self.status == "delivered" and self.received_confirmed_at is None and self.return_status == "none"
+
+    @property
+    def estimated_delivery(self):
+        if self.status == "rescheduled" and self.rescheduled_for:
+            return self.rescheduled_for
+        return self.estimated_delivery_date
+
+    def rider_for_customer(self):
+        """The rider's name and phone, only while the order is on its way to the customer."""
+        if not self.rider_id or self.status not in ("ready_for_delivery", "shipped", "rescheduled", "delivery_failed"):
+            return None
+        from app.models.admin import Admin
+        rider = db.session.get(Admin, self.rider_id)
+        if rider is None:
+            return None
+        return {"name": rider.name, "phone": rider.phone}
+
+    @property
     def can_return(self):
         if self.status != "delivered" or self.return_status != "none":
             return False
@@ -131,7 +156,7 @@ class Order(db.Model):
     def reviewable_items(self):
         """Order lines the customer may still review: only after delivery, only
         while no return is open, and once per product."""
-        if self.status != "delivered" or self.return_status != "none":
+        if self.status != "delivered" or self.return_status != "none" or self.received_confirmed_at is None:
             return []
         if self.review_rating is not None:  # reviewed as a whole before per-product reviews existed
             return []
@@ -151,7 +176,7 @@ class Order(db.Model):
             return "to_pay"
         if self.status in ("pending_confirmation", "confirmed", "processing"):
             return "to_ship"
-        if self.status == "shipped":
+        if self.status == "shipped" or self.can_confirm_received:
             return "to_receive"
         if self.status == "delivered":
             return "to_review" if self.reviewable_items else "completed"
@@ -194,7 +219,10 @@ class Order(db.Model):
             "tab": self.tab,
             "canPay": self.status != "cancelled" and self.is_online_payment and self.payment_status in ("unpaid", "verifying"),
             "canChangePayment": self.status == "pending_confirmation" and self.payment_status in ("unpaid", "verifying"),
-            "canReceive": self.status == "shipped" and self.return_status == "none",
+            "canReceive": self.can_confirm_received,
+            "receivedConfirmedAt": self.received_confirmed_at.isoformat() if self.received_confirmed_at else None,
+            "estimatedDelivery": self.estimated_delivery.isoformat() if self.estimated_delivery else None,
+            "rider": self.rider_for_customer(),
             "canReview": bool(self.reviewable_items),
             "reviewableItems": [{"productId": i.product_id, "name": i.product_name} for i in self.reviewable_items],
             "reviews": [

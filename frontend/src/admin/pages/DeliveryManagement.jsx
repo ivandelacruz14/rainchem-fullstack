@@ -92,12 +92,13 @@ export default function DeliveryManagement() {
       )}
 
       {items && items.length > 0 && tab === "riders" && (
-        <Table headers={["Order", "Customer", "Rider", "Status", "Cash to collect", "Sticker"]}>
+        <Table headers={["Order", "Customer", "Rider", "Estimated date", "Status", "Cash to collect", "Sticker"]}>
           {items.map((o) => (
             <tr key={o.id}>
               <td className="dm-strong">{o.orderNumber}</td>
               <td>{o.customerName}</td>
-              <td>{o.riderName || "-"}</td>
+              <td>{o.riderName || "-"}{o.riderPhone && <div className="dm-muted">{o.riderPhone}</div>}</td>
+              <td>{o.estimatedDate ? formatDate(o.estimatedDate).split(",").slice(0, 2).join(",") : "-"}</td>
               <td>{o.statusLabel}</td>
               <td className="num">{o.codAmount > 0 ? peso(o.codAmount) : "Paid"}</td>
               <td><PrintStickerButton orderId={o.id} /></td>
@@ -176,12 +177,14 @@ function Table({ headers, children }) {
 function SendToRider({ order, riders, onDone }) {
   const showToast = useToast();
   const [riderId, setRiderId] = useState("");
+  const [eta, setEta] = useState("");
   const [busy, setBusy] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
 
   async function send() {
     setBusy(true);
     try {
-      await client.post(`/api/admin/orders/${order.id}/assign-rider`, { riderId: Number(riderId) });
+      await client.post(`/api/admin/orders/${order.id}/assign-rider`, { riderId: Number(riderId), estimatedDate: eta });
       showToast(`${order.orderNumber} sent to the rider.`, "success");
       onDone();
     } catch (err) {
@@ -195,9 +198,10 @@ function SendToRider({ order, riders, onDone }) {
     <div className="dm-inline">
       <select value={riderId} onChange={(e) => setRiderId(e.target.value)} aria-label={`Rider for ${order.orderNumber}`}>
         <option value="">Choose a rider</option>
-        {riders.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+        {riders.map((r) => <option key={r.id} value={r.id}>{r.name}{r.phone ? ` (${r.phone})` : " (no phone)"}</option>)}
       </select>
-      <button type="button" className="btn btn-primary btn-sm" disabled={!riderId || busy} onClick={send}>Send to rider</button>
+      <input type="date" min={today} value={eta} onChange={(e) => setEta(e.target.value)} aria-label={`Estimated delivery date for ${order.orderNumber}`} title="Estimated delivery date" />
+      <button type="button" className="btn btn-primary btn-sm" disabled={!riderId || !eta || busy} onClick={send}>Send to rider</button>
     </div>
   );
 }

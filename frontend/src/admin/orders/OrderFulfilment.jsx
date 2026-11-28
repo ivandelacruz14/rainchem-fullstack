@@ -10,6 +10,8 @@ export default function OrderFulfilment({ order, onChanged }) {
   const showToast = useToast();
   const [riders, setRiders] = useState([]);
   const [riderId, setRiderId] = useState("");
+  const [eta, setEta] = useState("");
+  const today = new Date().toISOString().slice(0, 10);
   const [busy, setBusy] = useState(false);
   const [proofUrl, setProofUrl] = useState(null);
   const [reason, setReason] = useState("");
@@ -64,13 +66,15 @@ export default function OrderFulfilment({ order, onChanged }) {
               <div className="send-row">
                 <select value={riderId} onChange={(e) => setRiderId(e.target.value)} aria-label="Rider">
                   <option value="">Choose a rider</option>
-                  {riders.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  {riders.map((r) => <option key={r.id} value={r.id}>{r.name}{r.phone ? ` (${r.phone})` : " (no phone)"}</option>)}
                 </select>
-                <button className="btn btn-primary" disabled={busy || !riderId}
-                  onClick={() => run("assign-rider", { riderId: Number(riderId) }, "Sent to the rider")}>
+                <input type="date" min={today} value={eta} onChange={(e) => setEta(e.target.value)} aria-label="Estimated delivery date" />
+                <button className="btn btn-primary" disabled={busy || !riderId || !eta}
+                  onClick={() => run("assign-rider", { riderId: Number(riderId), estimatedDate: eta }, "Sent to the rider")}>
                   Send to rider
                 </button>
               </div>
+              <p className="field-hint">The customer sees the rider's name, phone number and this estimated date.</p>
               {riders.length === 0 && <p className="field-hint">No active rider yet. Add one in Admin Accounts with the Rider role.</p>}
             </div>
           </div>

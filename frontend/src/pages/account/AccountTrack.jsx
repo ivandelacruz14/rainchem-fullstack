@@ -3,6 +3,7 @@ import useLiveOrders from "../../hooks/useLiveOrders";
 import { Link, useSearchParams } from "react-router-dom";
 import client from "../../api/client";
 import OrderJourney from "../../components/journey/OrderJourney";
+import RiderInfo from "../../components/RiderInfo";
 import { useUI } from "../../context/UIContext";
 import { peso } from "../../utils/format";
 
@@ -108,6 +109,7 @@ export default function AccountTrack() {
                 {order.statusLabel}
                 {order.status === "shipped" && <><br />Tracking no. <span className="mono">{order.trackingNumber}</span></>}
               </p>
+              <RiderInfo order={order} />
               <h3 style={{ marginTop: 14 }}>Payment</h3>
               <p className="journey-address">{order.paymentMethod} &middot; {order.paymentStatusLabel}</p>
             </div>

@@ -69,7 +69,7 @@ export default function AccountOrders() {
   }
 
   async function handleReceive(orderId) {
-    if (!window.confirm("Confirm that you received this order?")) return;
+    if (!window.confirm("Confirm that you received this order? Only do this if the items are with you.")) return;
     try {
       await client.post(`/api/orders/${orderId}/received`);
       showToast("Thanks! You can now rate your order.", "success");

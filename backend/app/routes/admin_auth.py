@@ -185,6 +185,18 @@ def list_admins():
     })
 
 
+def _clean_phone(value):
+    """Returns the phone number with spaces and dashes removed, "" if none, or None if it is not a phone number."""
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    cleaned = "".join(ch for ch in raw if ch not in " -()")
+    digits = cleaned[1:] if cleaned.startswith("+") else cleaned
+    if not digits.isdigit() or not 7 <= len(digits) <= 15:
+        return None
+    return cleaned
+
+
 @admin_auth_bp.post("/accounts")
 @require_head_admin
 def create_admin():
@@ -197,8 +209,13 @@ def create_admin():
     role = data.get("role") or "Support Staff"
     password = data.get("password") or ""
 
+    phone = _clean_phone(data.get("phone"))
     if not name:
         return _error("Please enter a name")
+    if phone is None:
+        return _error("Enter a valid phone number, for example 09171234567")
+    if role == perms.RIDER and not phone:
+        return _error("A rider needs a phone number so customers can reach them")
     if not is_valid_email(email):
         return _error("Please enter a valid email address")
     if role not in ASSIGNABLE_ROLES:
@@ -212,7 +229,7 @@ def create_admin():
         return _error("Password requirements not met: " + ", ".join(problems))
 
     admin = Admin(
-        name=name, email=email, role=role, is_active=True,
+        name=name, email=email, phone=phone or None, role=role, is_active=True,
         password_hash=generate_password_hash(password),
         permissions=_permissions_for(role, data.get("permissions")),
     )
@@ -243,6 +260,11 @@ def update_admin(admin_id):
         if not name:
             return _error("Please enter a name")
         admin.name = name
+    if "phone" in data:
+        phone = _clean_phone(data.get("phone"))
+        if phone is None:
+            return _error("Enter a valid phone number, for example 09171234567")
+        admin.phone = phone or None
     role_changed = False
     if "role" in data and data["role"] != admin.role:
         if data["role"] not in ASSIGNABLE_ROLES:
@@ -258,6 +280,9 @@ def update_admin(admin_id):
     elif role_changed:
         admin.permissions = _permissions_for(admin.role, None)
 
+    if admin.role == perms.RIDER and not (admin.phone or "").strip():
+        db.session.rollback()
+        return _error("A rider needs a phone number so customers can reach them")
     if not _active_heads():
         db.session.rollback()
         return _error("At least one active Head Admin must remain")

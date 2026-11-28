@@ -40,6 +40,7 @@ def make_admin(app):
     def _make(email="head@example.com", role="Head Admin", permissions=None, active=True, name="Admin"):
         admin = Admin(
             name=name, email=email, role=role, permissions=permissions, is_active=active,
+            phone="09170000000" if role == "Rider" else None,
             password_hash=generate_password_hash(PASSWORD),
         )
         db.session.add(admin)
@@ -98,7 +99,7 @@ def make_order(app):
     counter = {"n": 0}
 
     def _make(user, lines, status="delivered", created_at=None, payment_status="paid",
-              return_status="none", shipping=0):
+              return_status="none", shipping=0, received=True):
         counter["n"] += 1
         subtotal = sum(float(unit) * qty for _, unit, qty in lines)
         order = Order(
@@ -111,6 +112,8 @@ def make_order(app):
             subtotal=subtotal, shipping_fee=shipping, total=subtotal + shipping,
             created_at=created_at or datetime.utcnow(),
         )
+        if status == "delivered" and received:  # the customer has confirmed it, unless a test says otherwise
+            order.received_confirmed_at = datetime.utcnow()
         db.session.add(order)
         db.session.flush()
         for product, unit, qty in lines:

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from flask import Blueprint, Response, request, jsonify
 
 from app.extensions import db
@@ -244,6 +244,13 @@ def mark_refunded(order_id):
     return jsonify({"order": order.to_dict()})
 
 
+def _parse_date(value):
+    try:
+        return date.fromisoformat(str(value or "")[:10])
+    except ValueError:
+        return None
+
+
 @admin_orders_bp.post("/<int:order_id>/assign-rider")
 @require_permission("manage_orders")
 def assign_rider(order_id):
@@ -254,8 +261,16 @@ def assign_rider(order_id):
     rider = db.session.get(Admin, data.get("riderId")) if data.get("riderId") else None
     if rider is None or rider.role != RIDER or not rider.is_active:
         return jsonify({"error": "Choose an active rider"}), 400
+    estimated = _parse_date(data.get("estimatedDate"))
+    if estimated is None:
+        return jsonify({"error": "Choose the estimated delivery date"}), 400
+    if estimated < date.today():
+        return jsonify({"error": "The estimated delivery date cannot be in the past"}), 400
+    if not (rider.phone or "").strip():
+        return jsonify({"error": f"{rider.name} has no phone number yet. Add it in Admin Accounts so customers can reach the rider."}), 400
     order.rider_id = rider.id
     order.rider_assigned_at = datetime.utcnow()
+    order.estimated_delivery_date = estimated
     if order.status in ("confirmed", "processing"):
         # Sending to a rider means the order is ready to leave; no separate "ready" click is needed.
         order.status = "ready_for_delivery"
@@ -279,6 +294,7 @@ def delivery_correction(order_id):
     if not reason:
         return jsonify({"error": "Give a reason for the correction"}), 400
     order.status = "shipped"
+    order.received_confirmed_at = None
     db.session.add(OrderStatusHistory(order_id=order.id, status="shipped"))
     audit.record("delivery_correction", "order", order.id, {"status": "delivered"}, {"status": "shipped"}, reason, current_admin())
     db.session.commit()
@@ -290,7 +306,7 @@ def delivery_correction(order_id):
 def list_riders():
     """Active riders, for the assignment list. No other account details."""
     rows = Admin.query.filter_by(role=RIDER, is_active=True).order_by(Admin.name).all()
-    return jsonify({"riders": [{"id": r.id, "name": r.name} for r in rows]})
+    return jsonify({"riders": [{"id": r.id, "name": r.name, "phone": r.phone} for r in rows]})
 
 
 @admin_orders_bp.get("/<int:order_id>/delivery-proof")

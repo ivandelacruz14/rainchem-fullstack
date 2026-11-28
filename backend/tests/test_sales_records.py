@@ -56,7 +56,7 @@ def test_records_follow_the_order_through_payment_and_delivery(client, make_user
     client.post(f"/api/admin/orders/{order['id']}/status", headers=ah, json={"status": "ready_for_delivery"})
     make_admin("rider@example.com", "Rider")
     rider_id = Admin.query.filter_by(email="rider@example.com").first().id
-    client.post(f"/api/admin/orders/{order['id']}/assign-rider", headers=ah, json={"riderId": rider_id})
+    client.post(f"/api/admin/orders/{order['id']}/assign-rider", headers=ah, json={"riderId": rider_id, "estimatedDate": "2099-01-01"})
     rh = admin_login("rider@example.com")
     client.post(f"/api/rider/{order['id']}/start", headers=rh)
     p.barcode = "RC-TEST-1"

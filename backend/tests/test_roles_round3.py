@@ -85,7 +85,7 @@ def test_only_a_super_admin_can_give_the_super_admin_role(client, make_admin, ad
 def test_a_head_can_create_riders_and_developers_with_only_their_permission(client, make_admin, admin_login):
     make_admin()
     h = admin_login("head@example.com")
-    rider = client.post(ACCOUNTS, headers=h, json={"name": "Ben", "email": "ben@example.com", "role": "Rider",
+    rider = client.post(ACCOUNTS, headers=h, json={"name": "Ben", "email": "ben@example.com", "role": "Rider", "phone": "09171112222",
                                                    "password": "Passw0rd!x", "confirmPassword": PASSWORD,
                                                    "permissions": ["orders", "customers"]})
     assert rider.status_code == 201 and rider.get_json()["admin"]["permissions"] == ["deliveries"]

@@ -29,7 +29,7 @@ def riders(make_admin, admin_login):
 
 def assign(client, head, order, rider_email):
     rid = Admin.query.filter_by(email=rider_email).first().id
-    return client.post(f"/api/admin/orders/{order.id}/assign-rider", headers=head, json={"riderId": rid})
+    return client.post(f"/api/admin/orders/{order.id}/assign-rider", headers=head, json={"riderId": rid, "estimatedDate": "2099-01-01"})
 
 
 def scan(client, h, order, code):
@@ -45,7 +45,7 @@ def test_only_a_rider_can_be_assigned_and_only_when_ready(client, make_order, ma
     order, _, _ = ready_order(make_order, make_user, make_product)
     head, rider, _ = riders(make_admin, admin_login)
     staff_id = Admin.query.filter_by(email="staff@example.com").first().id
-    assert client.post(f"/api/admin/orders/{order.id}/assign-rider", headers=head, json={"riderId": staff_id}).status_code == 400
+    assert client.post(f"/api/admin/orders/{order.id}/assign-rider", headers=head, json={"riderId": staff_id, "estimatedDate": "2099-01-01"}).status_code == 400
     assert assign(client, head, order, "rider@example.com").status_code == 200
     assert Order.query.get(order.id).rider_id is not None
 
@@ -108,7 +108,7 @@ def test_proof_must_be_a_real_image_and_cannot_be_replaced(client, make_order, m
     client.post(f"/api/rider/{order.id}/start", headers=rider)
     assert upload(client, rider, order, data=PNG_AS_JPG, name="proof.jpg").status_code in (400, 415, 422)
     assert upload(client, rider, order).status_code == 201
-    assert upload(client, rider, order).status_code == 200      # a better photo can replace it while on the way
+    assert upload(client, rider, order).status_code == 409
 
 
 def test_a_full_delivery_completes_and_then_cannot_be_changed(client, make_order, make_user, make_product, make_admin, admin_login):

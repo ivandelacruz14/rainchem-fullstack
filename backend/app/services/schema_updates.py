@@ -24,6 +24,9 @@ COLUMNS = [
     ("admins", "permissions", "JSON NULL"),
     ("admins", "is_active", "TINYINT(1) NOT NULL DEFAULT 1"),
     ("products", "owner_admin_id", "INT NULL"),
+    ("admins", "phone", "VARCHAR(30) NULL"),
+    ("orders", "estimated_delivery_date", "DATE NULL"),
+    ("orders", "received_confirmed_at", "DATETIME NULL"),
 ]
 
 # Photos are stored as base64 text, which does not fit in a plain TEXT column.
@@ -56,6 +59,11 @@ def ensure_schema(db, logger):
                 db.session.execute(text(
                     "UPDATE orders SET payment_status = 'paid', paid_at = created_at "
                     "WHERE status = 'delivered' AND payment_method = 'Cash on Delivery'"
+                ))
+            if table == "orders" and column == "received_confirmed_at":
+                # Orders delivered before the customer confirmation existed count as already confirmed.
+                db.session.execute(text(
+                    "UPDATE orders SET received_confirmed_at = COALESCE(paid_at, created_at) WHERE status = 'delivered'"
                 ))
             db.session.commit()
             logger.info("Added column %s.%s", table, column)

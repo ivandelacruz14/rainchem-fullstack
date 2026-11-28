@@ -13,7 +13,7 @@ const PASSWORD_RULES = [
   { key: "sym", label: "One symbol", test: (p) => /[^A-Za-z0-9]/.test(p) },
 ];
 
-const EMPTY = { name: "", email: "", role: "Support Staff", password: "", permissions: [], confirmPassword: "" };
+const EMPTY = { name: "", email: "", phone: "", role: "Support Staff", password: "", permissions: [], confirmPassword: "" };
 
 const ROLE_NOTES = {
   "Head Admin": "Full control, including admin accounts and payment settings.",
@@ -70,7 +70,7 @@ export default function AdminAccounts() {
 
   function open(type, account = null) {
     setForm(account
-      ? { ...EMPTY, name: account.name, role: account.role, permissions: account.permissions, isActive: account.isActive }
+      ? { ...EMPTY, name: account.name, phone: account.phone || "", role: account.role, permissions: account.permissions, isActive: account.isActive }
       : { ...EMPTY, permissions: roleInfo["Support Staff"]?.preset || [] });
     setDialog({ type, account });
   }
@@ -91,13 +91,13 @@ export default function AdminAccounts() {
     try {
       if (type === "create") {
         await client.post("/api/admin/auth/accounts", {
-          name: form.name, email: form.email, role: form.role, password: form.password,
+          name: form.name, email: form.email, phone: form.phone, role: form.role, password: form.password,
           permissions: form.permissions, confirmPassword: form.confirmPassword,
         });
         showToast("Account created", "success");
       } else if (type === "edit") {
         await client.put(`/api/admin/auth/accounts/${account.id}`, {
-          name: form.name, role: form.role, permissions: form.permissions,
+          name: form.name, phone: form.phone, role: form.role, permissions: form.permissions,
           isActive: form.isActive, confirmPassword: form.confirmPassword,
         });
         showToast("Account updated", "success");
@@ -144,12 +144,13 @@ export default function AdminAccounts() {
       <div className="admin-panel">
         <div className="table-wrap">
           <table className="admin-table stack">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Access</th><th>Status</th><th>Created</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Access</th><th>Status</th><th>Created</th><th></th></tr></thead>
             <tbody>
               {admins.map((a) => (
                 <tr key={a.id}>
                   <td data-label="Name" className="cell-name">{a.name}{a.id === me?.id && <span className="muted"> (you)</span>}</td>
                   <td data-label="Email" className="cell-wrap">{a.email}</td>
+                  <td data-label="Phone">{a.phone || "-"}</td>
                   <td data-label="Role"><span className="badge">{a.role}</span></td>
                   <td data-label="Access">
                     {a.isHead ? "Full access" : a.permissions.length
@@ -189,6 +190,11 @@ export default function AdminAccounts() {
               {(type === "create" || type === "edit") && (
                 <>
                   <div className="field"><label>Full name</label><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+                  <div className="field">
+                    <label>Phone number{form.role === "Rider" ? " (required, customers see it)" : ""}</label>
+                    <input type="tel" inputMode="tel" required={form.role === "Rider"} placeholder="09171234567"
+                      value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  </div>
                   {type === "create" && (
                     <div className="field"><label>Email</label><input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
                   )}

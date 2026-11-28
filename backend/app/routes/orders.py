@@ -258,14 +258,14 @@ def mark_received(order_id):
     order = Order.query.get_or_404(order_id)
     if order.user_id != current_user_id():
         return jsonify({"error": "Not found"}), 404
-    if order.status != "shipped":
-        return jsonify({"error": "Only shipped orders can be marked as received"}), 400
+    if order.status != "delivered":
+        return jsonify({"error": "You can confirm this once the rider has delivered your order"}), 400
+    if order.received_confirmed_at is not None:
+        return jsonify({"error": "You already confirmed that you received this order"}), 400
 
-    order.status = "delivered"
-    if order.payment_status == "unpaid" and not order.is_online_payment:
-        order.payment_status = "paid"
-        order.paid_at = datetime.utcnow()
-    db.session.add(OrderStatusHistory(order_id=order.id, status="delivered"))
+    # The delivery itself (and the cash payment) was recorded by the rider. Only the customer's
+    # confirmation is stored here, and no new "delivered" history entry is added.
+    order.received_confirmed_at = datetime.utcnow()
     db.session.commit()
     return jsonify({"order": order.to_dict()})
 
